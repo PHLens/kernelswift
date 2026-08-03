@@ -44,7 +44,13 @@ def main() -> None:
     variants = (
         ("baseline", lambda: grouped_topk_triton_out(logits, weights, ids)),
         (
-            "group_rank",
+            "optimized_general",
+            lambda: grouped_topk_triton_optimized_out(
+                logits, weights, ids, specialize_t83=False
+            ),
+        ),
+        (
+            "optimized_auto",
             lambda: grouped_topk_triton_optimized_out(logits, weights, ids),
         ),
     )
