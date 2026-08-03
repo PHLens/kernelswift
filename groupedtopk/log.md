@@ -56,23 +56,26 @@ TMO kernel 不是 Triton 实现。二进制符号和 profiler kernel 名均为 `
 |---|---:|---:|---:|---:|
 | `torch.compile(mode="reduce-overhead")` 图 | 17 | 112.4800 us | - | 11.29x |
 | 首版 fused Triton | 1 | 22.1136 us | 5.09x faster | 2.22x |
-| 当前 T=83 optimized Triton | 1 | **20.1264 us** | 8.99% lower | **2.02x** |
+| Entry 010 T=83 specialized Triton | 1 | 20.1264 us | 8.99% lower | 2.02x |
+| 当前 compact-128 Triton | 1 | **19.0008 us** | 5.59% lower | **1.91x** |
 | TMO/BANGC reference | 1 | **9.9656 us** | - | 1.00x |
 
-当前 Triton 相对 compiled PyTorch 图的 device speedup 为 **5.59x**。从 compiled PyTorch 的 112.48 us 到 TMO 的 9.9656 us 这段可优化区间看，当前 Triton 已消除约 **90.09%** 的延迟差距。
+当前 Triton 相对 compiled PyTorch 图的 device speedup 为 **5.92x**。从 compiled PyTorch 的 112.48 us 到 TMO 的 9.9656 us 这段可优化区间看，当前 Triton 已消除约 **91.19%** 的延迟差距。
 
-但从当前 Triton 自身看，距离 TMO 仍有 **10.1608 us** 绝对差距：
+但从当前 Triton 自身看，距离 TMO 仍有 **9.0352 us** 绝对差距：
 
-- 当前 Triton latency / TMO latency：**2.0196x**
-- 当前 Triton 等效吞吐 / TMO 吞吐：**49.52%**
-- 若以 TMO 为目标，当前 latency 仍需再下降 **50.48%**
+- 当前 Triton latency / TMO latency：**1.9066x**
+- 当前 Triton 等效吞吐 / TMO 吞吐：**52.45%**
+- 若以 TMO 为目标，当前 latency 仍需再下降 **47.55%**
 
 最终交错 wall-time 长测：
 
 | 实现 | Wall time/call | 结果 |
 |---|---:|---:|
 | 首版 Triton preallocated launcher | 31.181 us | baseline |
-| 当前 T=83 三参数专用 launcher | **27.253 us** | **下降 12.60%** |
+| Entry 010 T=83 三参数 launcher | 27.253 us | 下降 12.60% |
+| Entry 011 同轮 Entry 010 launcher | 28.249 us | same-run baseline |
+| 当前 compact-128 launcher | **26.520 us** | **同轮下降 6.12%** |
 
 ## 4. Optimization Entries
 
@@ -445,7 +448,7 @@ group-rank kernel 仍接收动态 `num_tokens`、row stride、scaling factor 和
 
 ---
 
-### Entry 010 - T=83 三参数专用 kernel/launcher（当前最佳）
+### Entry 010 - T=83 三参数专用 kernel/launcher（阶段最佳）
 
 **状态**
 
@@ -503,99 +506,73 @@ Entry 009 已证明 compile-time特化能降低 device time，但通用 entry �
 
 ---
 
-### Entry 011 - 分层 expert top-8 算法设计（分析完成，未实现）
+### Entry 011 - 分层 expert top-8 与片上 compact-128（成功）
 
 **状态**
 
-当前最佳 kernel 在 group top-4 之后保留 256 lanes，其中只有 4 个 group、共 128 个 expert 有效；随后执行 8 次串行 256-lane indexed argmax。按二叉 reduction tree 粗略建模，expert selection 部分约为：
+Entry 010 在 group top-4 之后保留 256 lanes，其中只有 4 个 group、共 128 个 expert 有效；随后仍执行 8 次串行 256-lane indexed argmax。同轮 device baseline约为 **20.04 us**。
 
-- 比较量：`8 * (256 - 1) = 2040` 次。
-- reduction 串行深度：`8 * log2(256) = 64` 层。
-- winner mask/update：`8 * 256 = 2048` lane 次。
+**优化手段**
 
-本 entry 只分析精确分层 top-k 的算法空间，不修改 Triton kernel，因此沿用 Entry 010 的 **20.1264 us** device baseline，不产生新的 profiler 数据。
+新建 [triton_grouped_topk_hierarchical.py](triton_grouped_topk_hierarchical.py)，实际实现并测试三类精确算法：
 
-**算法不变量与正确性**
+1. 两级 winner tree：每轮先在 8 个 group内并行做 32-lane argmax，再在 8 个 group head中选 global winner。
+2. sort-32 + sort-64：每组 bitonic sort-32保留 local top-8，再把 64 candidates做全局 bitonic sort；使用 64-bit key保持 value/index pair和 tie顺序。
+3. 片上 compact-128：从第一次 load后的 NRAM tensor抽出选中的 4 个连续 32-expert window，再执行 8 次 128-lane indexed argmax。
 
-group top-4 选中 4 个 32-expert group。对每个选中 group 只保留 local top-8 足以恢复最终 global top-8：若某 expert 在本 group 内排在第 9 名或之后，则同一已选 group 内至少已有 8 个更优 expert，它不可能进入 4 个 group 合并后的 global top-8。
+最终 compact路径使用 `tl.masked_select` 按原始 group ID顺序压缩 group ID，将 8-slot结果 reshape为 `[2,4]` 后固定取第一行，再用 MLU连续-window gather一次搬运 4 个 32-element window。整个过程不重新读取 GDRAM，且 compact顺序保持 global expert ID顺序。
 
-所有候选必须携带 `(value, global_expert_id)`，比较顺序与当前实现保持一致：value 降序，value 相等时按既有 expert ID tie-break。softmax 和最终归一化不变，只替换 expert selection。
+**踩坑**
 
-**候选 A：local top-8 + 32-candidate flat merge**
-
-1. 将选中的 4 个 group 理想地 compact 为 `[4, 32]`。
-2. 4 个 group 并行执行 8 轮 32-lane argmax，得到 `[4, 8]`。
-3. 将 32 个候选展平，再执行 8 轮 32-lane argmax。
-
-不复用已有 group max 时，理想比较量为 `4 * 8 * 31 + 8 * 31 = 1240`，串行深度为 `8 * 5 + 8 * 5 = 80`。若 group max 同时返回 local ID 并复用为各组 local top-1，则比较量降为 `4 * 7 * 31 + 8 * 31 = 1116`，比当前 2040 下降 **45.29%**；串行深度仍有 `7 * 5 + 8 * 5 = 75`，高于当前的 64。
-
-结论：该方案减少总工作量，但形成“local selection 完成后才能 global selection”的长依赖链，不是首选。
-
-**候选 B：local sorted top-8 + 4-way head merge（首选分层结构）**
-
-1. 先得到 group max 及对应 local ID，并选出 4 个 group。
-2. compact 为 `[4, 32]`，4 个 group 并行生成各自有序的 local top-8 list。
-3. 维护 4 个 list cursor；每轮只比较 4 个 list head，输出 winner 并推进对应 cursor，共执行 8 轮。
-
-若 local list 仍用重复 argmax产生，并复用已有 local top-1，则 expert selection 的新增比较量约为：
-
-- local top-2 到 top-8：`4 * 7 * 31 = 868`。
-- 4-way merge：`8 * (4 - 1) = 24`。
-- 合计：`892`，相对当前 2040 理论下降 **56.27%**。
-
-对应串行深度约为 `7 * log2(32) + 8 * log2(4) = 51` 层，相对当前 64 层下降 **20.31%**。它同时减少 reduction 宽度、总比较量和 mask/update 工作量，是最保守且算法收益明确的分层方案。
-
-**候选 C：local partial sorting network + 4-way head merge（高收益候选）**
-
-用 compare-swap network 同时维护 value 和 ID，为 4 个选中 group 并行生成有序 local top-8。作为保守上界，完整 bitonic sort-32 需要 15 个 compare-swap stage、每组 240 个 comparator；4 组共 960 个 comparator。再加 4-way merge 的 24 次比较：
-
-- 总比较量上界约为 `960 + 24 = 984`，仍比当前下降 **51.76%**。
-- 串行深度约为 `15 + 8 * 2 = 31` 层，比当前 64 层下降 **51.56%**。
-- 只生成 top-8 的 partial network 可以进一步减少 comparator 数，但必须单独验证网络正确性。
-
-从纯算法深度看，该方案最有机会接近 TMO；代价是 compare-swap IR 规模、value/index pair 搬运和编译复杂度更高。
-
-**备选：compact-128 partial top-k network**
-
-也可以把 4 个选中 group直接 compact 为 128 candidates，再构造 top-8 partial network。完整 bitonic sort-128 的比较量约为 1792、深度为 28，工作量只比当前重复 argmax 下降约 12%，但依赖深度显著下降。partial network 会更优；不过它放弃了天然的 4 x 32 group层次，value/index状态也更大，优先级低于候选 B/C。
-
-**踩坑与必要前提**
-
-- 分层优化的关键不是“把 reduction 从 256 改成 32”，而是只对选中的 4 个 group做 local top-8。若先对全部 8 个 group计算 local top-8，再在 64 candidates上 merge，总比较量可能超过当前实现。
-- 必须在片上完成 `4 x 32` compact。若重新从 GDRAM gather selected groups，算法减少的比较很可能被数据搬运抵消。
-- 4-way merge 需要动态 cursor读取下一项；算法成本很低，但实际 lowering 可能产生昂贵 gather。该问题属于实现约束，不改变本 entry 的算法结论。
-- compare-swap 必须同时交换 value 和 global expert ID，不能使用只返回 value 的排序而在事后猜测 ID。
-- NaN 和 tie 行为必须先固定为明确的 total order；不能通过给 logit 添加 epsilon 破坏数值语义。
-- TMO 的 `dim=(4,12,1)` 只能作为执行形态线索，不能证明其使用了上述分层算法或四核协作。
+- 两级 winner tree没有被 backend融合：生成 8 个 32-lane argmax加 8 个 8-lane argmax。MLISA从约 937 行膨胀到 **3126 行**，GPR从约 674增到 **2243**，device退化到 **45.0560 us**。
+- sort-32 + sort-64正确性通过，但 bitonic和 64-bit key展开到 **5344 GPR / 46.1 KB NRAM / 15445 行 MLISA**，device退化到 **170.6424 us**。
+- 通用 `tl.gather` compact-128为 **21.9048 us**；连续 window gather降到 **21.2000 us**，仍未胜出。
+- 8x8 prefix rank、8-lane cumsum和 sort-4分别得到 **21.2000/20.9864/24.9296 us**；小 tensor源码不一定 lower为廉价标量逻辑。
+- `masked_select` 后再次 gather前4项为 **20.4568 us**。将结果 reshape为 `[2,4]` 后固定取第一行，消除第二次 gather，才得到最终收益。
+- `bottleneck=io/mv/simd`、`num_stages=2` 和 `force_bottleneck` 差异小于 0.1 us，最终保留默认配置。
 
 **结果**
 
-本轮没有 kernel 实现和实测性能结果。纯算法分析得到以下优先级：
+最终同 trace device结果：
 
-| 方案 | 理论比较量 | 串行深度 | 相对当前 | 判断 |
-|---|---:|---:|---:|---|
-| 当前 8 x argmax-256 | 2040 | 64 | baseline | 已实测 20.1264 us |
-| A：local argmax + flat-32 merge | 1116（复用 top-1） | 75 | 工作量 -45.29%，深度 +17.19% | 不优先 |
-| B：local argmax + 4-way merge | 892 | 51 | 工作量 -56.27%，深度 -20.31% | 首个实现候选 |
-| C：bitonic sort-32 + 4-way merge | <=984 | 31 | 工作量 <=-51.76%，深度 -51.56% | 高收益、高风险 |
+| Kernel | Count | Average | Min | Max |
+|---|---:|---:|---:|---:|
+| Entry 010 `_grouped_topk_group_rank_t83_kernel` | 50 | 20.0432 us | 19.64 us | 20.60 us |
+| Entry 011 `_grouped_topk_compact128_t83_kernel` | 50 | **19.0008 us** | 18.72 us | 19.60 us |
 
-表中比较量和深度是算法模型，不等价于 MLU 指令数或 device time；不能据此直接宣称加速比例。
+- device latency下降 **5.20%**，speedup **1.0549x**。
+- 第二份独立 trace：20.1480 us -> **19.0192 us**，下降 **5.60%**。
+- compact kernel约使用 **680 GPR / 8.8 KB NRAM**，MLISA约 973 行。
+- 交错 wall长测：28.249 us -> **26.520 us**，中位数下降 **6.12%**；host存在负载漂移，因此只作辅助结论。
+- 最终 trace：[compact-128 final trace](log/triton_grouped_topk_compact128_masked_select_final_T83_preallocated_50iter.pt.trace.json)
+- 独立复核：[compact-128 repeat trace](log/triton_grouped_topk_compact128_masked_select_final_repeat_T83_preallocated_50iter.pt.trace.json)
+- benchmark：[benchmark_triton_grouped_topk_hierarchical.py](benchmark_triton_grouped_topk_hierarchical.py)
+- profiler：[profile_triton_grouped_topk_hierarchical.py](profile_triton_grouped_topk_hierarchical.py)
+
+**正确性**
+
+- 3 个随机 seed的 IDs完全一致，最大权重误差不超过 `5.96e-8`。
+- 递增、递减、重复值、全相等输入与 Entry 010完全一致。
+- 额外构造 group score顺序不同于 group ID顺序且 expert value tie的输入，ID顺序完全一致。
 
 **与 upbound 的差距**
 
-由于未实现，当前差距保持不变：`20.1264 / 9.9656 = 2.0196x`，绝对差 **10.1608 us**。本轮只证明存在同时减少比较量和依赖深度的精确算法结构，尚未证明 Triton backend 能高效表达。
+- 相对 TMO：`19.0008 / 9.9656 = 1.9066x`。
+- 等效吞吐为 TMO的 **52.45%**。
+- 绝对差距：**9.0352 us**。
+- 以当前 Triton自身为基数，达到 TMO仍需再下降 **47.55%**。
 
 **结论与下一步**
 
-若进入实现阶段，应先验证候选 B：它不要求完整 sorting network，算法风险最低，并且 4-way merge 将 global selection 从 8 次 32-lane reduction 降为 8 次 4-way head比较。成功标准是保持全量正确性的同时进入 `<=18 us`。
+本轮证明 MLU Triton可以用 backend连续-window gather在 NRAM内高效 compact动态选中的连续 group。Entry 005的结论应收窄为“通用 gather或重新从 GDRAM load失败”，不是所有 compact都不可行。当前最佳更新为 compact-128的 **19.0008 us**。
 
-候选 B 有收益后，再用 32-lane partial sorting network 替换 local repeated argmax，目标进入 `<=15 us`。如果 `4 x 32` compact 或 cursor merge 无法片上高效 lowering，则应停止堆叠完整 kernel，转而分别 microbenchmark compact、local list生成和 4-way merge。
+下一步应在 128 candidates上减少 8 次串行 argmax，优先做 64/32-lane partial selection network microbenchmark，而不是再次引入二维 repeated argmax或 full bitonic sort。
 
 ## 5. 当前瓶颈判断
 
 ### 5.1 Expert top-8 的串行 reduction
 
-当前 kernel 仍执行 8 次串行 256-lane indexed argmax。选中 group 后虽然只有 128 个有效 expert，但 MLU Triton 中已测试的 compact 方法会引入 gather、额外 GDRAM load 或昂贵 layout copy。
+当前 kernel 已将选中 group片上 compact为 128 candidates，但仍执行 8 次串行 128-lane indexed argmax。相对 Entry 010 已减少一半 reduction宽度，下一阶段需要减少 argmax轮数或进一步层次化 selection。
 
 这是下一阶段最明确的算法瓶颈。
 
@@ -616,7 +593,7 @@ group top-4 选中 4 个 32-expert group。对每个选中 group 只保留 local
 
 ### 5.4 Host launcher 仍占约 7 us
 
-最终专用入口 wall 约 27.25 us、device约 20.13 us，两者差约 7.1 us。该差值包含 Python wrapper、校验、launcher 和同步摊销。三参数 entry 已明显改善，但若目标是 eager 端到端 latency，仍可提供内部 unsafe/prevalidated入口继续压缩 host路径。
+最终 compact入口 wall约 26.52 us、device约 19.00 us，两者差约 7.5 us。该差值包含 Python wrapper、校验、launcher和同步摊销。若目标是 eager端到端 latency，仍可提供内部 unsafe/prevalidated入口继续压缩 host路径。
 
 ## 6. 后续优化方向
 
@@ -632,28 +609,15 @@ group top-4 选中 4 个 32-expert group。对每个选中 group 只保留 local
 4. 增加 sparse normalization
 5. 增加 masked output scatter
 
-目标是得到“每次 256-lane indexed argmax”的边际成本，避免继续凭源码直觉优化。
+目标是得到“每次 128-lane indexed argmax”的边际成本，避免继续凭源码直觉优化。
 
-### P0 - Expert top-8 层次化方案
+### P0 - 128-candidate partial selection network
 
-候选方案：
+在已经 compact的 128 candidates上，从 32/64-lane partial compare-swap network开始，逐步替换 8 次串行 argmax。完整 bitonic sort-32/64已经证明不可行，下一轮必须只生成 top-8需要的 comparator，并分别 microbenchmark value和 value/index pair。
 
-- 在 `[8,32]` 上并行做每组 local top-k，再把选中 group的候选合并为 32/64 lanes做 global top-8。
-- 重点不是减少比较总数，而是把 256-lane串行 reduction换成后端更擅长的 32/64-lane NRAM argmax。
-- 必须保留 value/index pair，并确认 lowering 仍使用专用 argmax，而不是通用 reduce。
+### P0 - 继续压缩 compact控制路径
 
-该方案是否有效需要 microbenchmark；从算法轮数看未必更少，但可能更符合 MLU vector primitive。
-
-### P0 - NRAM 内 compact/layout primitive
-
-重新研究 MLU Triton backend 是否有可控的 permute、gather、shared/NRAM layout或 extern libdevice primitive，使 256 load 后能在 NRAM 内把 4 个动态 group压成 128 candidates。
-
-成功条件：
-
-- 不再次读取 GDRAM。
-- 不生成 `linalg_ext.gather`。
-- 不生成大量 memref copy/interleave。
-- 128-lane top-8 总时间低于当前 256-lane路径至少 2 us。
+当前 `masked_select + fixed reshape + window gather` 已实现片上 compact。后续只比较更低成本的 selected-group ID编码或直接复用 group-rank结果；成功条件是保持 tie语义并在同 trace中改善至少 0.5 us。
 
 ### P1 - Selection network / value-index pair sort
 
@@ -681,7 +645,7 @@ group top-4 选中 4 个 32-expert group。对每个选中 group 只保留 local
 - 为其他高频 token 数生成独立三参数 kernel，而不是给通用 kernel增加 constexpr控制参数。
 - 若上层可使用 compile/capture，比较专用 entry 在图内的实际 host成本。
 
-该方向主要改善 wall time，不会缩小 20.13 us 与 9.97 us 的 device gap。
+该方向主要改善 wall time，不会缩小 19.00 us 与 9.97 us 的 device gap。
 
 ### P2 - 编译选项与资源调优
 
@@ -694,11 +658,11 @@ group top-4 选中 4 个 32-expert group。对每个选中 group 只保留 local
 
 | Milestone | Device time | 相对当前 | 相对 TMO | 评价 |
 |---|---:|---:|---:|---|
-| Current | 20.13 us | 1.00x | 2.02x | 当前基线 |
-| M1 | <=18 us | >=10.6% lower | <=1.81x | 证明 expert top-k新结构有效 |
-| M2 | <=15 us | >=25.5% lower | <=1.51x | Triton 有较强工程竞争力 |
-| M3 | <=12 us | >=40.4% lower | <=1.20x | 接近 TMO/BANGC |
-| Upbound | 9.97 us | 50.5% lower | 1.00x | 当前实测工程上界 |
+| Current | 19.00 us | 1.00x | 1.91x | 当前基线 |
+| M1 | <=18 us | >=5.3% lower | <=1.81x | 证明 expert top-k新结构有效 |
+| M2 | <=15 us | >=21.1% lower | <=1.51x | Triton 有较强工程竞争力 |
+| M3 | <=12 us | >=36.8% lower | <=1.20x | 接近 TMO/BANGC |
+| Upbound | 9.97 us | 47.5% lower | 1.00x | 当前实测工程上界 |
 
 任何新方案若不能在同一 trace 中稳定改善至少约 0.5 us，不应进入主实现；小于该幅度的结果需要增加迭代数、交错顺序并重复采集确认。
 
@@ -708,21 +672,22 @@ group top-4 选中 4 个 32-expert group。对每个选中 group 只保留 local
 
 - 原始 PyTorch 实现：[base.py](base.py)
 - 首版 Triton：[triton_grouped_topk.py](triton_grouped_topk.py)
-- 当前优化 Triton：[triton_grouped_topk_optimized.py](triton_grouped_topk_optimized.py)
-- 当前 benchmark：[benchmark_triton_grouped_topk_optimized.py](benchmark_triton_grouped_topk_optimized.py)
-- 当前 profiler：[profile_triton_grouped_topk_optimized.py](profile_triton_grouped_topk_optimized.py)
-- 最终 Triton trace：[final trace](log/triton_grouped_topk_group_rank_fixed_T83_preallocated_50iter.pt.trace.json)
+- Entry 010 Triton：[triton_grouped_topk_optimized.py](triton_grouped_topk_optimized.py)
+- 当前 compact-128 Triton：[triton_grouped_topk_hierarchical.py](triton_grouped_topk_hierarchical.py)
+- 当前 benchmark：[benchmark_triton_grouped_topk_hierarchical.py](benchmark_triton_grouped_topk_hierarchical.py)
+- 当前 profiler：[profile_triton_grouped_topk_hierarchical.py](profile_triton_grouped_topk_hierarchical.py)
+- 最终 Triton trace：[compact-128 final trace](log/triton_grouped_topk_compact128_masked_select_final_T83_preallocated_50iter.pt.trace.json)
 - TMO upbound trace：[TMO trace](log/tmo_moe_softmax_topk_T83_preallocated_50iter.pt.trace.json)
 
 ### 命令
 
 ```bash
 /projs/framework/lipenghui/venv/pytorch_main/bin/python \
-  benchmark_triton_grouped_topk_optimized.py \
-  --tokens 83 --warmup 20 --iterations 200 --repeats 5
+  benchmark_triton_grouped_topk_hierarchical.py \
+  --warmup 20 --iterations 300 --repeats 7
 
 /projs/framework/lipenghui/venv/pytorch_main/bin/python \
-  profile_triton_grouped_topk_optimized.py
+  profile_triton_grouped_topk_hierarchical.py
 ```
 
 按 kernel name汇总 trace：
@@ -733,7 +698,7 @@ jq -r '
   | select(.cat == "kernel")
   | [.name, .dur, (.args.extra.dimx // "")]
   | @tsv
-' log/triton_grouped_topk_group_rank_fixed_T83_preallocated_50iter.pt.trace.json
+' log/triton_grouped_topk_compact128_masked_select_final_T83_preallocated_50iter.pt.trace.json
 ```
 
 ## 9. 后续 Entry 模板
@@ -773,5 +738,5 @@ latency ratio、absolute gap、throughput fraction。
 记录生成时：2026-08-03。
 
 - `base.py` 未修改，SHA256：`3166785ba472cca822335b9857a098ca12d4b773b48beff5773b5f64309d5db7`
-- 当前 optimized Triton SHA256：`5c898c52575662f25ff0798b400f658a6e06442fabb5037a0e0f0f0f4433e7d1`
-- 最终 trace SHA256：`7a0a41c2784425542ae773b989c329646a37ba5021ca48e35364e07f331e0c0f`
+- 当前 compact-128 Triton SHA256：`fbeec4189086e2c2197247c2b7fc70c518cc0d3fa78174c0760d696e4719f4b9`
+- 最终 trace SHA256：`ce0f61dcbf8e5cae7b33c50d35bd6dc490afe575464781964879ca6d835af92c`
