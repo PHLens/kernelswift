@@ -501,6 +501,96 @@ Entry 009 已证明 compile-time特化能降低 device time，但通用 entry �
 
 当前优化是稳定但增量式的成功。它解决了 group top-4 和 launcher 的一部分成本，但未触及最大的 expert top-8 reduction差距，因此不能期待仅靠继续微调 meta参数逼近 10 us。
 
+---
+
+### Entry 011 - 分层 expert top-8 算法设计（分析完成，未实现）
+
+**状态**
+
+当前最佳 kernel 在 group top-4 之后保留 256 lanes，其中只有 4 个 group、共 128 个 expert 有效；随后执行 8 次串行 256-lane indexed argmax。按二叉 reduction tree 粗略建模，expert selection 部分约为：
+
+- 比较量：`8 * (256 - 1) = 2040` 次。
+- reduction 串行深度：`8 * log2(256) = 64` 层。
+- winner mask/update：`8 * 256 = 2048` lane 次。
+
+本 entry 只分析精确分层 top-k 的算法空间，不修改 Triton kernel，因此沿用 Entry 010 的 **20.1264 us** device baseline，不产生新的 profiler 数据。
+
+**算法不变量与正确性**
+
+group top-4 选中 4 个 32-expert group。对每个选中 group 只保留 local top-8 足以恢复最终 global top-8：若某 expert 在本 group 内排在第 9 名或之后，则同一已选 group 内至少已有 8 个更优 expert，它不可能进入 4 个 group 合并后的 global top-8。
+
+所有候选必须携带 `(value, global_expert_id)`，比较顺序与当前实现保持一致：value 降序，value 相等时按既有 expert ID tie-break。softmax 和最终归一化不变，只替换 expert selection。
+
+**候选 A：local top-8 + 32-candidate flat merge**
+
+1. 将选中的 4 个 group 理想地 compact 为 `[4, 32]`。
+2. 4 个 group 并行执行 8 轮 32-lane argmax，得到 `[4, 8]`。
+3. 将 32 个候选展平，再执行 8 轮 32-lane argmax。
+
+不复用已有 group max 时，理想比较量为 `4 * 8 * 31 + 8 * 31 = 1240`，串行深度为 `8 * 5 + 8 * 5 = 80`。若 group max 同时返回 local ID 并复用为各组 local top-1，则比较量降为 `4 * 7 * 31 + 8 * 31 = 1116`，比当前 2040 下降 **45.29%**；串行深度仍有 `7 * 5 + 8 * 5 = 75`，高于当前的 64。
+
+结论：该方案减少总工作量，但形成“local selection 完成后才能 global selection”的长依赖链，不是首选。
+
+**候选 B：local sorted top-8 + 4-way head merge（首选分层结构）**
+
+1. 先得到 group max 及对应 local ID，并选出 4 个 group。
+2. compact 为 `[4, 32]`，4 个 group 并行生成各自有序的 local top-8 list。
+3. 维护 4 个 list cursor；每轮只比较 4 个 list head，输出 winner 并推进对应 cursor，共执行 8 轮。
+
+若 local list 仍用重复 argmax产生，并复用已有 local top-1，则 expert selection 的新增比较量约为：
+
+- local top-2 到 top-8：`4 * 7 * 31 = 868`。
+- 4-way merge：`8 * (4 - 1) = 24`。
+- 合计：`892`，相对当前 2040 理论下降 **56.27%**。
+
+对应串行深度约为 `7 * log2(32) + 8 * log2(4) = 51` 层，相对当前 64 层下降 **20.31%**。它同时减少 reduction 宽度、总比较量和 mask/update 工作量，是最保守且算法收益明确的分层方案。
+
+**候选 C：local partial sorting network + 4-way head merge（高收益候选）**
+
+用 compare-swap network 同时维护 value 和 ID，为 4 个选中 group 并行生成有序 local top-8。作为保守上界，完整 bitonic sort-32 需要 15 个 compare-swap stage、每组 240 个 comparator；4 组共 960 个 comparator。再加 4-way merge 的 24 次比较：
+
+- 总比较量上界约为 `960 + 24 = 984`，仍比当前下降 **51.76%**。
+- 串行深度约为 `15 + 8 * 2 = 31` 层，比当前 64 层下降 **51.56%**。
+- 只生成 top-8 的 partial network 可以进一步减少 comparator 数，但必须单独验证网络正确性。
+
+从纯算法深度看，该方案最有机会接近 TMO；代价是 compare-swap IR 规模、value/index pair 搬运和编译复杂度更高。
+
+**备选：compact-128 partial top-k network**
+
+也可以把 4 个选中 group直接 compact 为 128 candidates，再构造 top-8 partial network。完整 bitonic sort-128 的比较量约为 1792、深度为 28，工作量只比当前重复 argmax 下降约 12%，但依赖深度显著下降。partial network 会更优；不过它放弃了天然的 4 x 32 group层次，value/index状态也更大，优先级低于候选 B/C。
+
+**踩坑与必要前提**
+
+- 分层优化的关键不是“把 reduction 从 256 改成 32”，而是只对选中的 4 个 group做 local top-8。若先对全部 8 个 group计算 local top-8，再在 64 candidates上 merge，总比较量可能超过当前实现。
+- 必须在片上完成 `4 x 32` compact。若重新从 GDRAM gather selected groups，算法减少的比较很可能被数据搬运抵消。
+- 4-way merge 需要动态 cursor读取下一项；算法成本很低，但实际 lowering 可能产生昂贵 gather。该问题属于实现约束，不改变本 entry 的算法结论。
+- compare-swap 必须同时交换 value 和 global expert ID，不能使用只返回 value 的排序而在事后猜测 ID。
+- NaN 和 tie 行为必须先固定为明确的 total order；不能通过给 logit 添加 epsilon 破坏数值语义。
+- TMO 的 `dim=(4,12,1)` 只能作为执行形态线索，不能证明其使用了上述分层算法或四核协作。
+
+**结果**
+
+本轮没有 kernel 实现和实测性能结果。纯算法分析得到以下优先级：
+
+| 方案 | 理论比较量 | 串行深度 | 相对当前 | 判断 |
+|---|---:|---:|---:|---|
+| 当前 8 x argmax-256 | 2040 | 64 | baseline | 已实测 20.1264 us |
+| A：local argmax + flat-32 merge | 1116（复用 top-1） | 75 | 工作量 -45.29%，深度 +17.19% | 不优先 |
+| B：local argmax + 4-way merge | 892 | 51 | 工作量 -56.27%，深度 -20.31% | 首个实现候选 |
+| C：bitonic sort-32 + 4-way merge | <=984 | 31 | 工作量 <=-51.76%，深度 -51.56% | 高收益、高风险 |
+
+表中比较量和深度是算法模型，不等价于 MLU 指令数或 device time；不能据此直接宣称加速比例。
+
+**与 upbound 的差距**
+
+由于未实现，当前差距保持不变：`20.1264 / 9.9656 = 2.0196x`，绝对差 **10.1608 us**。本轮只证明存在同时减少比较量和依赖深度的精确算法结构，尚未证明 Triton backend 能高效表达。
+
+**结论与下一步**
+
+若进入实现阶段，应先验证候选 B：它不要求完整 sorting network，算法风险最低，并且 4-way merge 将 global selection 从 8 次 32-lane reduction 降为 8 次 4-way head比较。成功标准是保持全量正确性的同时进入 `<=18 us`。
+
+候选 B 有收益后，再用 32-lane partial sorting network 替换 local repeated argmax，目标进入 `<=15 us`。如果 `4 x 32` compact 或 cursor merge 无法片上高效 lowering，则应停止堆叠完整 kernel，转而分别 microbenchmark compact、local list生成和 4-way merge。
+
 ## 5. 当前瓶颈判断
 
 ### 5.1 Expert top-8 的串行 reduction
@@ -685,4 +775,3 @@ latency ratio、absolute gap、throughput fraction。
 - `base.py` 未修改，SHA256：`3166785ba472cca822335b9857a098ca12d4b773b48beff5773b5f64309d5db7`
 - 当前 optimized Triton SHA256：`5c898c52575662f25ff0798b400f658a6e06442fabb5037a0e0f0f0f4433e7d1`
 - 最终 trace SHA256：`7a0a41c2784425542ae773b989c329646a37ba5021ca48e35364e07f331e0c0f`
-
