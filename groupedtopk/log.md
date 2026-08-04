@@ -926,6 +926,8 @@ Entry 018使用 `tl.masked_select` 后再固定 reshape，当前完整 kernel在
 
 prefix相对 baseline退化 **17.09%**；shared promotion仅差 **0.0196 us**，没有稳定收益。prefix MLISA约 **832 GPR / 9344 B NRAM**，baseline约 **680 GPR / 9024 B NRAM**。
 
+本 entry的 compact128 14.6524 us是 CNNL 2.2.16/CNNL Extra 2.4.1 环境下同一 trace 的重新测量；Entry 018历史 trace 的 19.0008 us来自升级前环境，不能把两者直接当作本轮 Triton speedup。表内 speedup只在本 entry的同一 trace内计算。
+
 **与 upbound 的差距**
 
 TMO参考 device time为 **9.9656 us**。baseline为 `1.4704x` TMO，prefix为 `1.7216x`，shared为 `1.4727x`；两条路线都没有缩小差距。
@@ -958,6 +960,8 @@ MLU Triton没有直接暴露动态 scalar lane读取；为了保持 candidate ID
 | direct dense top-k | 15.9216 | 0.9202x |
 
 IDs完全一致，最大权重误差为 `5.96e-8`。direct版本相对 baseline退化 **8.68%**；MLISA约 **1870 GPR / 2944 B NRAM / 1924 行**，明显高于 compact128的约 **680 GPR / 9024 B NRAM**。
+
+这里的 14.6492 us同样是 CNNL 2.2.16/CNNL Extra 2.4.1 环境下的同 trace compact128值，不与 Entry 018的历史 19.0008 us跨环境比较。
 
 **与 upbound 的差距**
 
