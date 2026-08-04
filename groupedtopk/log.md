@@ -934,6 +934,39 @@ TMO参考 device time为 **9.9656 us**。baseline为 `1.4704x` TMO，prefix为 `
 
 失败。当前 `masked_select + fixed reshape` 已经比手写 one-hot prefix 更适合 MLU Triton lowering，shared promotion也不是主要瓶颈。下一轮保持 compact路径不变，只尝试减少 top-k结果重排和 masked scatter指令。
 
+---
+
+### Entry 024 - dense top-k result accumulation（失败）
+
+**现状**
+
+Entry 018在 128 candidates上执行8轮 indexed argmax，每轮写入 128-lane `selected_rank`，最后用 rank做一次 masked scatter。这个结果重排可能是剩余的 Triton控制开销之一。
+
+**优化手段**
+
+新增 `triton_grouped_topk_direct_topk.py`。保留 Entry 018 的 group compact和连续-window gather，每轮直接把 `best_value` 和通过 mask归约得到的 `best_id` 放入固定的8-lane `top_values/top_ids`，循环结束后直接 dense store，不再维护 128-lane `selected_rank`。
+
+**踩坑**
+
+MLU Triton没有直接暴露动态 scalar lane读取；为了保持 candidate ID和 value同步，只能对 `candidate_offsets == best_position`执行 128-lane mask归约。这个额外 reduction抵消了省掉的 selected-rank状态。
+
+**结果**
+
+| Kernel | Device time | 相对 baseline speedup |
+|---|---:|---:|
+| Entry 018 compact128 | 14.6492 | 1.0000x |
+| direct dense top-k | 15.9216 | 0.9202x |
+
+IDs完全一致，最大权重误差为 `5.96e-8`。direct版本相对 baseline退化 **8.68%**；MLISA约 **1870 GPR / 2944 B NRAM / 1924 行**，明显高于 compact128的约 **680 GPR / 9024 B NRAM**。
+
+**与 upbound 的差距**
+
+TMO参考 device time为 **9.9656 us**。baseline为 `1.4703x` TMO，direct dense为 `1.5977x`，没有缩小差距。
+
+**结论与下一步**
+
+失败。`best_id` 的动态提取比原有 128-lane selected-rank + 一次 masked scatter 更昂贵。后续不再在 Triton层手写 scalar dynamic gather；若要继续降低8轮 reduction，需要专门的 partial-select primitive或更底层的 device pipeline语义。
+
 ## 5. 当前瓶颈判断
 
 ### 5.1 Expert top-8 的串行 reduction
