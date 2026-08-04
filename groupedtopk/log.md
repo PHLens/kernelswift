@@ -900,6 +900,40 @@ B=2约为 TMO的 `2.266x`，B=4约为 `2.959x`；均未缩小 Entry 018相对 TM
 
 失败。完整 kernel不适合用简单 batch U1映射继续摊薄；下一轮应只改 compact/索引路径，保持单 token的 top-k reduction结构。
 
+---
+
+### Entry 023 - fixed prefix compaction 与 shared promotion（失败）
+
+**现状**
+
+Entry 018使用 `tl.masked_select` 后再固定 reshape，当前完整 kernel在本轮同一 trace中的 device time为 **14.6524 us**。本 entry分别验证固定宽度 prefix compaction和 MLU compiler的 `force_use_shared_memory`。
+
+**优化手段**
+
+新增 `triton_grouped_topk_compact_variants.py`。prefix版本用 `[8,4]` one-hot比较和归约计算 ascending group-ID的4个 compact slot，保持 tie-break语义；shared版本复用 Entry 018 kernel，只传 `force_use_shared_memory=True`，不改变算法。
+
+**踩坑**
+
+`force_use_shared_memory`只有在 `num_warps=1` 且 backend允许 promotion时才会生效；MLISA JSON确认 shared版本的 `promote_shared=true`。prefix版本虽然没有动态 `masked_select`，但固定 one-hot会增加一组 tile和寄存器压力。
+
+**结果**
+
+| Kernel | Device time | 相对 baseline speedup |
+|---|---:|---:|
+| Entry 018 compact128 | 14.6524 | 1.0000x |
+| fixed prefix compaction | 17.1568 | 0.8541x |
+| compact128 + shared promotion | 14.6720 | 0.9987x |
+
+prefix相对 baseline退化 **17.09%**；shared promotion仅差 **0.0196 us**，没有稳定收益。prefix MLISA约 **832 GPR / 9344 B NRAM**，baseline约 **680 GPR / 9024 B NRAM**。
+
+**与 upbound 的差距**
+
+TMO参考 device time为 **9.9656 us**。baseline为 `1.4704x` TMO，prefix为 `1.7216x`，shared为 `1.4727x`；两条路线都没有缩小差距。
+
+**结论与下一步**
+
+失败。当前 `masked_select + fixed reshape` 已经比手写 one-hot prefix 更适合 MLU Triton lowering，shared promotion也不是主要瓶颈。下一轮保持 compact路径不变，只尝试减少 top-k结果重排和 masked scatter指令。
+
 ## 5. 当前瓶颈判断
 
 ### 5.1 Expert top-8 的串行 reduction
