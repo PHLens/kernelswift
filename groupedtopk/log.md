@@ -797,6 +797,109 @@ Entry 018已得到当前最佳 19.0008 us。本 entry检查是否能通过 backe
 
 失败。当前瓶颈不是可由 meta参数解决的调度问题；继续优化应转向 128-candidate partial selection算法。
 
+---
+
+### Entry 020 - U1 row-max batch tile（部分成功，未升级为完整 kernel）
+
+**现状**
+
+Entry 018的完整 kernel仍以单 token、单 core program执行。先把只负责 256 个 group score 的 row-max阶段抽出，验证一个 U1 program是否可以批量处理多个 token，并量化批处理本身的收益。
+
+**优化手段**
+
+新增 `triton_grouped_topk_u1.py`。单 token版本使用 `grid=48`、`num_warps=1`；批处理版本使用 `[8,256]` tile、`grid=12`，每个 program处理 8 个 token。分别测试 `num_warps=1`、`num_warps=4` 和 shared-memory meta。
+
+**踩坑**
+
+MLU `fast_libentry` 会按函数对象缓存第一次编译的 meta配置；复用同一个 runner测试 `num_warps=4`会错误地继续执行 `num_warps=1` 的 cnbin。测试脚本改为每种 meta使用独立 runner，并用 MLISA确认实际编译参数。
+
+**结果**
+
+| Kernel | Device time |
+|---|---:|
+| 单 token row-max, w1 | 21.4628 us |
+| U1 batch-8 row-max, w1 | 17.5160 us |
+| U1 batch-8 row-max, w4 | 17.8104 us |
+| U1 batch-8 row-max, w4 + shared meta | 17.7724 us |
+
+批处理 row-max 相对单 token speedup 为 **1.2254x**（18.38%）。`w4` 虽然生成 SRAM/N策略不同的 MLISA，但没有超过 `w1`；shared meta也没有改变实际 `promote_shared`。
+
+**与 upbound 的差距**
+
+这是 row-max 子阶段，不与完整 TMO device time直接比较。它证明 batch tile能摊薄 launch和部分索引开销，但完整 top-8仍需保留串行 reduction。
+
+**结论与下一步**
+
+部分成功，作为独立 microbenchmark保留，不替换 Entry 018的生产路径。下一步验证同样的 batch U1映射是否能摊薄完整 top-8；若 argmax展开成本随 batch增长，则该路线失败。
+
+---
+
+### Entry 021 - 完整 U1 batch-8 grouped top-k（失败）
+
+**现状**
+
+基于 Entry 020的 batch-8映射实现完整 grouped top-k，输入为 `[8,256]`，每个 program处理 8 个 token；输出保留 dense `[8,8]` top-k结果，和 Entry 018相同。
+
+**优化手段**
+
+新增 `triton_grouped_topk_batched_u1.py`。将 group score、4组 compact、128 candidate load、8轮 top-1 reduction和 dense output全部向量化到 batch维，使用 `grid=12`。分别测试 `num_warps=1` 和 `num_warps=4`。
+
+**踩坑**
+
+batch化会把 8 次串行 argmax展开成 64 个独立的 `argmax.nan`，没有减少关键路径。`w1` 版本 MLISA约 `168960 B NRAM / 2672 GPR`；`w4`版本约 `27904 B NRAM / 131200 B SRAM`，资源下降并没有抵消 reduction和 dense output的额外指令。
+
+**结果**
+
+| Kernel | Device time |
+|---|---:|
+| Entry 018 compact128 | 18.7472 us |
+| U1 batch-8, w1 | 44.5560 us |
+| U1 batch-8, w4 | 28.5448 us |
+
+相对 baseline（Entry 018）speedup：`0.4206x`（w1）和 `0.6564x`（w4）。三组输入输出均通过 reference correctness，问题是 device time而非算法正确性。
+
+**与 upbound 的差距**
+
+Entry 018相对 TMO约 `1.9066x`；batch-8 w4退化到约 `2.864x` TMO，距离上界进一步扩大。
+
+**结论与下一步**
+
+失败。U1 batch化不能直接包住完整 top-k；后续转向减少动态 group compact或测试明确的 SRAM promotion，而不是继续扩大 batch。
+
+---
+
+### Entry 022 - 完整 U1 batch-2 / batch-4 grouped top-k（失败）
+
+**现状**
+
+为排除 batch-8 的展开规模问题，新增 `triton_grouped_topk_batched_sweep.py`，测试更小的 batch tile：B=2 使用 `grid=48`，B=4 使用 `grid=24`，均保持 `num_warps=1`。
+
+**优化手段**
+
+对 batch 维采用编译期 `BLOCK_ROWS`，其余 grouped top-k流程与 Entry 021一致，比较不同 batch规模的 reduction、NRAM和 launch摊销。
+
+**踩坑**
+
+即使 B=2，每个 program仍需执行 16 轮独立 argmax；B=4则为32轮。批处理只减少 program数量，没有减少每个 token的 top-k关键路径。
+
+**结果**
+
+| Kernel | Device time |
+|---|---:|
+| Entry 018 compact128 | 18.7472 us |
+| U1 batch-2 | 23.2876 us |
+| U1 batch-4 | 30.4204 us |
+
+相对 baseline speedup：`0.8050x`（B=2）和 `0.6163x`（B=4）。IDs和权重均与 Entry 018一致。
+
+**与 upbound 的差距**
+
+B=2约为 TMO的 `2.266x`，B=4约为 `2.959x`；均未缩小 Entry 018相对 TMO的 `1.9066x`差距。
+
+**结论与下一步**
+
+失败。完整 kernel不适合用简单 batch U1映射继续摊薄；下一轮应只改 compact/索引路径，保持单 token的 top-k reduction结构。
+
 ## 5. 当前瓶颈判断
 
 ### 5.1 Expert top-8 的串行 reduction
