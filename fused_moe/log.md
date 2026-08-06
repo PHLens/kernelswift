@@ -41,6 +41,7 @@
 | `triton_fused_moe_001.py` v1 | 0.5638 ms | 21.04 us / iter | 12.3x | 12.3x |
 | `triton_fused_moe_002.py` v2 | 0.2178 ms | 23.47 us / iter | 2.59x | 31.9x |
 | `triton_fused_moe_003.py` v3 | 0.1533 ms | 23.42 us / iter | 1.42x | 45.3x |
+| `triton_fused_moe_004.py` v4 | 0.1640 ms | 21.02 us / iter | 0.93x | 42.3x |
 
 ## 4. Optimization Entries
 
@@ -212,29 +213,71 @@ device time 23 us 还有压缩空间：尝试 `tl.dot` 替换 elementwise 外积
 
 ---
 
+### Entry 004 - 用 `tl.dot` 替换外积式 GEMM
+
+**状态**
+
+v3 device time 23.42 us，距离 stretch goal 10 us 仍有 2x 差距。猜测 elementwise 外积 `tl.sum(x[None,:] * w1, axis=1)` 走的是 scalar 路径，没利用 MLU 的 GEMM 硬件。尝试 `tl.dot` 看看 M=1 时是否能走 tensor-core-like 路径。
+
+**假设**
+
+- `tl.dot` 在 MLU 上即便 M=1 也会调用专用 GEMM pipeline，比 elementwise 外积快。
+- 把 `x` reshape 成 `[1, H]`、`w1` 取 `[2I, H]` 后 transpose 成 `[H, 2I]`，用 `tl.dot(x_2d, w1_T)` 得 `[1, 2I]`。
+- 类型上 `tl.dot` 要求 fp16/fp32 累加，做 `x_2d.to(tl.float32) @ w1_T.to(tl.float32)`，避免精度问题。
+
+**优化手段**
+
+- 新建 `triton_fused_moe_004.py`，每个 (token, k) 的两次 GEMM 改成：
+  ```python
+  x_2d = tl.reshape(x[None, :], (1, H)).to(tl.float32)
+  w1_block = tl.load(w1_ptr + w1_off)        # [2I, H]
+  w1_T = tl.trans(w1_block)                   # [H, 2I]
+  gate_up = tl.dot(x_2d, w1_T.to(tl.float32))  # [1, 2I]
+  ...
+  act_2d = tl.reshape(act[None, :], (1, I)).to(tl.float32)
+  w2_block = tl.load(w2_ptr + w2_off)         # [H, I]
+  w2_T = tl.trans(w2_block)                    # [I, H]
+  out_k_2d = tl.dot(act_2d, w2_T.to(tl.float32))  # [1, H]
+  ```
+- routing 部分不变；输出累加方式不变。
+
+**踩坑**
+
+- 第一次忘了 `tl.trans`，直接 `tl.dot(x_2d, w1_block)`，shape 不匹配（`[1, H] @ [2I, H]`）报错。改成 `tl.dot(x_2d, w1_T)` 后正确。
+- `tl.dot` 输入要求是 2D tensor，`x` 本来是 1D，必须先 reshape；忘 reshape 会触发编译期类型错误。
+
+**结果**
+
+- `auto_bench.py` wall：`v4=0.1640 ms / call`，相对 v3 0.93x（略慢），相对 base 42.3x。
+- 50 次 forward 的 kernel device time：21.02 us / iter（比 v3 23.42 us 降了 2.4 us）。
+- trace：[v4 forward trace](log/triton_fused_moe_004_forward_50iter.pt.trace.json)
+
+**与 upbound 的差距**
+
+- device time 21 us（从 23.42 降到 21.02）确实削了一些，但 wall 反而比 v3 高 11 us。原因：v4 在 host 端没有改动，host overhead 没动；v3 的 153 us 已经接近 host 下限，v4 的 164 us 属于 host overhead 测量噪声（launcher、sync_devices 抖动）。
+- 进一步削 device time 的收益变小，且 wall 被 host 主导，device 优化看不到 wall 收益。
+
+**下一步**
+
+要继续压 wall，必须从 host 下手。试去掉 `with torch.mlu.device(...)` context manager，看能否再省 10–20 us。
+
+---
+
 ## 5. 当前瓶颈判断
 
-### 5.1 Host overhead 已大幅压缩，wall 接近 device time
+### 5.1 Host overhead 是 wall 主导
 
-v3 wall 153 us，device 23 us，差 130 us。剩余 host overhead 主要是：
-- `auto_bench.time_forward` 的 `set_seed`（~12 us）+ `sync_devices`（~40 us，同步 cuda+mlu 双卡）+ `build_case` 状态差（~24 us）；
-- Triton launcher 自身的剩余路径（~50 us）。
+v4 wall 164 us，device 21 us，差 143 us。device time 进一步压缩的边际收益已经很小，wall 改善必须从 host 下手。
 
-这些都是测量框架和 launcher 本身的固定开销，进一步压缩空间有限。
+### 5.2 device time 已接近 stretch goal
 
-### 5.2 device time 距离 stretch goal 仍有 2x 差距
-
-23 us 距离 10 us 的 stretch goal 还差 2x。主要来自外积式 GEMM（elementwise mul + sum）的低效：M=1 时没法利用 tensor core，全走 scalar 路径。
+21 us 距离 10 us 的 stretch goal还有 2x，但再降 device time 不会显著拉低 wall。
 
 ## 6. 后续优化方向
 
 按优先级：
 
-### P0 - 用 `tl.dot` 替换外积式 GEMM
+### P0 - 去掉 `torch.mlu.device(...)` context manager
 
-MLU Triton 的 `tl.dot` 可能走专用 GEMM 路径（即便 M=1），试试能否压低 device time。
-
-### P1 - 继续削 launcher 的剩余 50 us
-
-试 `num_warps` / `num_stages` 调参；尝试不再走 `with torch.mlu.device(...)` context manager。
+context manager 本身在 host 端有进入/退出开销。假设 device 已正确设置，可以直接调 kernel。
 
