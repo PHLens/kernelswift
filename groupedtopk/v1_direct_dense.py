@@ -1,4 +1,8 @@
+"""Accumulate top-k values and IDs directly in dense eight-lane outputs."""
+
 from __future__ import annotations
+
+import functools
 
 import torch
 import torch_mlu  # noqa: F401
@@ -6,9 +10,6 @@ import triton
 import triton.language as tl
 from triton.language.extra.mlu import gather as mlu_gather
 from triton.runtime import fast_libentry
-
-from triton_grouped_topk_hierarchical import _mlu_core_count
-
 
 @triton.jit
 def _grouped_topk_direct_dense_t83_kernel(logits_ptr, weights_ptr, ids_ptr):
@@ -77,6 +78,11 @@ def _grouped_topk_direct_dense_t83_kernel(logits_ptr, weights_ptr, ids_ptr):
 _direct_dense_fast = fast_libentry()(_grouped_topk_direct_dense_t83_kernel)
 
 
+@functools.lru_cache(maxsize=None)
+def _mlu_core_count(device_index: int) -> int:
+    return torch.mlu.get_device_properties(device_index).multi_processor_count
+
+
 def grouped_topk_triton_direct_dense_out(gating_output, weights, ids, *, grid_size=None):
     if gating_output.device.type != "mlu" or gating_output.dtype != torch.float32:
         raise ValueError("gating_output must be a contiguous MLU float32 tensor")
@@ -94,3 +100,62 @@ def grouped_topk_triton_direct_dense_out(gating_output, weights, ids, *, grid_si
             gating_output, weights, ids, num_warps=1, num_stages=1
         )
     return weights, ids
+
+
+import torch.nn as nn
+
+
+def get_inputs():
+    hidden_states = torch.randn((83, 7168), device="mlu", dtype=torch.float16)
+    gating_output = torch.randn((83, 256), device="mlu", dtype=torch.float32)
+    return [hidden_states, gating_output]
+
+
+def get_init_inputs():
+    return [8, True, 8, 4]
+
+
+class GroupedTopKModelNew(nn.Module):
+    run_out = None
+    run_kwargs = {}
+
+    def __init__(
+        self,
+        topk: int,
+        renormalize: bool,
+        num_expert_group: int,
+        topk_group: int,
+        scoring_func: str = "softmax",
+        routed_scaling_factor: float = 1.0,
+    ):
+        super().__init__()
+        if (
+            topk != 8
+            or not renormalize
+            or num_expert_group != 8
+            or topk_group != 4
+            or scoring_func != "softmax"
+            or routed_scaling_factor != 1.0
+        ):
+            raise ValueError("this entry is fixed to the base.py configuration")
+
+    def forward(self, hidden_states, gating_output):
+        if hidden_states.shape[0] != gating_output.shape[0]:
+            raise ValueError("Number of tokens mismatch")
+        if gating_output.shape != (83, 256):
+            raise ValueError("gating_output must have shape [83, 256]")
+        weights = torch.empty(
+            (83, 8), device=gating_output.device, dtype=torch.float32
+        )
+        ids = torch.empty(
+            (83, 8), device=gating_output.device, dtype=torch.int32
+        )
+        return self.run_out(gating_output, weights, ids, **self.run_kwargs)
+
+
+class ModelNew(GroupedTopKModelNew):
+    if "_direct_dense_fast" not in globals():
+        globals()["_direct_dense_fast"] = fast_libentry()(
+            _grouped_topk_direct_dense_t83_kernel
+        )
+    run_out = staticmethod(grouped_topk_triton_direct_dense_out)
