@@ -39,6 +39,7 @@
 |---|---:|---:|---:|---:|
 | `base.py` eager | 6.94 ms | ~135 ms / 50 iter | - | 1.00x |
 | `triton_fused_moe_001.py` v1 | 0.5638 ms | 21.04 us / iter | 12.3x | 12.3x |
+| `triton_fused_moe_002.py` v2 | 0.2178 ms | 23.47 us / iter | 2.59x | 31.9x |
 
 ## 4. Optimization Entries
 
@@ -116,24 +117,70 @@ base.py 的 mask/scatter + Python for-loop 占据了 device 时间绝大部分�
 
 ---
 
+### Entry 002 - 把 routing 融进同 kernel
+
+**状态**
+
+v1 把 device time 压到 21 us，但 wall 仍是 564 us。trace 看 host 侧仍有 softmax、topk、renorm、cast 4 个 PyTorch op，加上 `topk_ids`/`topk_weights` 的 tensor 组建，以及 Triton launcher 自身的 host overhead。继续按 P0 思路：把 routing 整体塞进同一个 Triton kernel。
+
+**假设**
+
+- softmax 在 E=8 上做，工作量极小， Triton 内部一个 `tl.max` + `tl.exp` + `tl.sum` + 除法就够。
+- top-2 可以用两次 `tl.max` + mask 屏蔽重复选择的方式实现，不需要 sort。
+- renorm 只是 `topk_vals / sum(topk_vals)`，一个 `tl.sum` + 除法。
+- routing 全融合后，host 侧只剩一个 launcher 调用，wall 应当显著下降。
+
+**优化手段**
+
+- 新建 `triton_fused_moe_002.py`，kernel 内部增加：
+  1. `logits = tl.load(router_logits_ptr + token_id * E + e_idx)`。
+  2. softmax：`max_logit = tl.max(logits)`；`exp_logits = tl.exp(logits - max_logit)`；`scores = exp_logits / tl.sum(exp_logits)`。
+  3. top-2：`for k in static_range(K)`：`best_val = tl.max(remaining)`；`is_best = remaining == best_val`；`best_id = tl.sum(tl.where(is_best, e_idx, 0))`；记录 `topk_vals[k]` / `topk_ids[k]`；`remaining = tl.where(is_best, -1.0, remaining)`。
+  4. renorm：`topk_weights = topk_vals / tl.sum(topk_vals)`。
+- Python 端不再做 routing，直接把 `router_logits` 原始指针传给 kernel。
+
+**踩坑**
+
+- 第一版 argmax 用 `tl.where(is_best, e_idx, E)` 想用 E 作为“非 best 的哨值”，结果求和变成 `best_idx + (E-1)*E`，全部越界导致输出 inf。改成 `tl.where(is_best, e_idx, 0)` 后正确。
+- `topk_vals` 初始化用了 `tl.zeros((K,)) - 1.0`，后来发现没必要（top-2 一定能找到两个非负 score），改成 `tl.zeros((K,))`。
+
+**结果**
+
+- `auto_bench.py` wall：`v2=0.2178 ms / call`，相对 v1 2.59x，相对 base 31.9x。
+- 50 次 forward 的 kernel device time：23.47 us / iter（比 v1 21.04 us 略增，因为 kernel 内部多了 routing 计算）。
+- trace：[v2 forward trace](log/triton_fused_moe_002_forward_50iter.pt.trace.json)
+
+**与 upbound 的差距**
+
+- wall 从 564 us 降到 218 us，但 device time 仍是 23 us，说明 wall 中约 195 us 都是 host overhead（launcher + auto_bench 测量本身）。
+- device time 23 us 距离 stretch goal 10 us 仍有约 2x 差距，主要来自 routing 内的 `tl.exp` 和外积式 GEMM。
+
+**下一步**
+
+host overhead 是当前 wall 主导（195 us / 218 us ≈ 90%）。削 launcher：用 `fast_libentry` + 缓存输出 buffer。
+
+---
+
 ## 5. 当前瓶颈判断
 
-### 5.1 Host 侧 routing ops 占 wall 主导
+### 5.1 Host launcher 与 auto_bench 自身开销占 wall 主导
 
-v1 device time 只有 21 us，但 wall 564 us。差值主要是：
-- PyTorch 的 softmax、topk、renorm、cast 4 个 op 的 launch + sync 开销；
-- Python 端组建 `topk_ids`/`topk_weights` tensor 的 host time；
-- Triton launcher 自身 host overhead（每调用一次都要 grid/arg 解析）。
+v2 device time 23 us，wall 218 us，差值 195 us 主要是：
+- Triton launcher 自身的 host 解析 + arg pack 开销；
+- `auto_bench.time_forward` 里 `set_seed` + `sync_devices` 同步 cuda+mlu 双卡的开销；
+- 每次 forward 都 `torch.empty_like` 分配输出 tensor。
+
+device 端几乎到极限了，要再降 wall 必须从 host 侧下手。
 
 ## 6. 后续优化方向
 
 按优先级：
 
-### P0 - 把 routing 融进同 kernel
+### P0 - 削 launcher host overhead
 
-softmax + top-2 + renorm 在 Triton 内部做，省掉所有 routing 相关的 PyTorch op 与 host launch。
+`fast_libentry` 把 launcher 路径编译成最小化 host 代码；缓存输出 buffer 避免每次 `torch.empty_like`。
 
-### P1 - 削 launcher host overhead
+### P1 - 测准真实 kernel time
 
-`fast_libentry` + 缓存输出 buffer，把 launcher 路径压到最小。
+拆分 auto_bench wall 中 set_seed / sync_devices / build_case 的固定开销，估算真实 kernel + launcher 时间。
 
