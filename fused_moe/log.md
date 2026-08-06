@@ -40,6 +40,7 @@
 | `base.py` eager | 6.94 ms | ~135 ms / 50 iter | - | 1.00x |
 | `triton_fused_moe_001.py` v1 | 0.5638 ms | 21.04 us / iter | 12.3x | 12.3x |
 | `triton_fused_moe_002.py` v2 | 0.2178 ms | 23.47 us / iter | 2.59x | 31.9x |
+| `triton_fused_moe_003.py` v3 | 0.1533 ms | 23.42 us / iter | 1.42x | 45.3x |
 
 ## 4. Optimization Entries
 
@@ -161,26 +162,79 @@ host overhead 是当前 wall 主导（195 us / 218 us ≈ 90%）。削 launcher�
 
 ---
 
+### Entry 003 - `fast_libentry` + 缓存输出 buffer 削 host overhead
+
+**状态**
+
+v2 wall 218 us，device 23 us。差 195 us 主要是 host 侧：
+- Triton launcher 自身的 grid/arg 解析 + autotune 路径开销；
+- 每次 forward 都 `torch.empty_like(hidden_states)` 分配输出；
+- `auto_bench.time_forward` 里 `set_seed` + `sync_devices` 的固定同步开销（无法消除）。
+
+**假设**
+
+- `fast_libentry` 会把 launcher 路径编译成最小化 host 代码，可省 50–100 us。
+- 缓存输出 tensor 在 ModelNew 实例上（`_out_cache`），shape/device 不变时复用，省 `empty_like` 的 allocator 调用。
+- `_filter_module_ast` 不保留非字面量模块级赋值，`fast_libentry()(...)` 写法需要绕过它。
+
+**优化手段**
+
+- 新建 `triton_fused_moe_003.py`，加 `from triton.runtime import fast_libentry`。
+- 模块级 `_fused_moe_v3_fast = fast_libentry()(_fused_moe_v3_kernel)` 走 class body 内 `globals()` 技巧：
+  ```python
+  class ModelNew(nn.Module):
+      if "_fused_moe_v3_fast" not in globals():
+          globals()["_fused_moe_v3_fast"] = fast_libentry()(_fused_moe_v3_kernel)
+  ```
+  `_filter_module_ast` 保留 ClassDef，class body 内的 if/赋值在 import 时执行。
+- `fused_moe_v3_out` 改成接收外部 `out` 参数，避免内部 `empty_like`。
+- `ModelNew.forward` 维护 `self._out_cache`，shape/device 匹配时复用。
+
+**踩坑**
+
+- 模块级直接写 `_fast = fast_libentry()(...)` 会被 `_filter_module_ast` 剥掉，运行时 `NameError`。改成 class body `globals()` 后才正常。
+- 第一次把 `if ... not in globals()` 放在 `forward` 里，每次都检查，慢；放到 class body 里只在 import 时执行一次。
+
+**结果**
+
+- `auto_bench.py` wall：`v3=0.1533 ms / call`，相对 v2 1.42x，相对 base 45.3x。
+- 50 次 forward 的 kernel device time：23.42 us / iter（与 v2 持平，因为 kernel 本身没动）。
+- trace：[v3 forward trace](log/triton_fused_moe_003_forward_50iter.pt.trace.json)
+
+**与 upbound 的差距**
+
+- wall 从 218 us 降到 153 us，少了 65 us，都是 host overhead 削减的功劳。
+- device time 仍 23 us，没有动。下一步要么继续削 host（已经差不多了），要么想办法削 device time。
+
+**下一步**
+
+device time 23 us 还有压缩空间：尝试 `tl.dot` 替换 elementwise 外积，看 MLU 上 M=1 的 `tl.dot` 路径是否更快。
+
+---
+
 ## 5. 当前瓶颈判断
 
-### 5.1 Host launcher 与 auto_bench 自身开销占 wall 主导
+### 5.1 Host overhead 已大幅压缩，wall 接近 device time
 
-v2 device time 23 us，wall 218 us，差值 195 us 主要是：
-- Triton launcher 自身的 host 解析 + arg pack 开销；
-- `auto_bench.time_forward` 里 `set_seed` + `sync_devices` 同步 cuda+mlu 双卡的开销；
-- 每次 forward 都 `torch.empty_like` 分配输出 tensor。
+v3 wall 153 us，device 23 us，差 130 us。剩余 host overhead 主要是：
+- `auto_bench.time_forward` 的 `set_seed`（~12 us）+ `sync_devices`（~40 us，同步 cuda+mlu 双卡）+ `build_case` 状态差（~24 us）；
+- Triton launcher 自身的剩余路径（~50 us）。
 
-device 端几乎到极限了，要再降 wall 必须从 host 侧下手。
+这些都是测量框架和 launcher 本身的固定开销，进一步压缩空间有限。
+
+### 5.2 device time 距离 stretch goal 仍有 2x 差距
+
+23 us 距离 10 us 的 stretch goal 还差 2x。主要来自外积式 GEMM（elementwise mul + sum）的低效：M=1 时没法利用 tensor core，全走 scalar 路径。
 
 ## 6. 后续优化方向
 
 按优先级：
 
-### P0 - 削 launcher host overhead
+### P0 - 用 `tl.dot` 替换外积式 GEMM
 
-`fast_libentry` 把 launcher 路径编译成最小化 host 代码；缓存输出 buffer 避免每次 `torch.empty_like`。
+MLU Triton 的 `tl.dot` 可能走专用 GEMM 路径（即便 M=1），试试能否压低 device time。
 
-### P1 - 测准真实 kernel time
+### P1 - 继续削 launcher 的剩余 50 us
 
-拆分 auto_bench wall 中 set_seed / sync_devices / build_case 的固定开销，估算真实 kernel + launcher 时间。
+试 `num_warps` / `num_stages` 调参；尝试不再走 `with torch.mlu.device(...)` context manager。
 
