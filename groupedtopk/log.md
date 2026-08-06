@@ -120,7 +120,7 @@ compiled PyTorch 图仍有 17 个 device kernels 和多次 host launch。
 
 **优化手段**
 
-新建 [triton_grouped_topk.py](triton_grouped_topk.py)，不修改 `base.py`：
+新建 [v1_triton_fused.py](v1_triton_fused.py)，不修改 `base.py`：
 
 - 一个 persistent Triton kernel，最多 launch 48 个 program。
 - 每个 program 按 `program_id, program_id + grid, ...` 处理 token。
@@ -374,7 +374,7 @@ compact-join 相对 TMO 为 2.43x，比首版 Triton 更差。
 
 **优化手段**
 
-新建 [triton_grouped_topk_optimized.py](triton_grouped_topk_optimized.py)：
+新建 [v1_group_rank_t83.py](v1_group_rank_t83.py)：
 
 - 构造 `[8, 8]` group score比较矩阵。
 - 对每个 group 统计有多少 group 的 score更大。
@@ -482,8 +482,8 @@ Entry 009 已证明 compile-time特化能降低 device time，但通用 entry �
 - 最终交错 wall：31.181 us -> **27.253 us**。
 - wall latency下降 **12.60%**，wall speedup **1.144x**。
 - 当前 trace：[final optimized trace](log/triton_grouped_topk_group_rank_fixed_T83_preallocated_50iter.pt.trace.json)
-- 当前 benchmark：[benchmark_triton_grouped_topk_optimized.py](benchmark_triton_grouped_topk_optimized.py)
-- profiler复现：[profile_triton_grouped_topk_optimized.py](profile_triton_grouped_topk_optimized.py)
+- 当前 benchmark：[auto_bench.py](auto_bench.py)，优化入口为 [v1_group_rank_t83.py](v1_group_rank_t83.py)
+- profiler复现：[auto_bench.py](auto_bench.py)，使用 `--profile --profile-reference-file v1_triton_fused.py`
 
 **正确性**
 
@@ -750,8 +750,8 @@ Entry 017只比 baseline慢 0.4184 us，剩余明显冗余是 selected ID上的�
 - 交错 wall长测：28.249 us -> **26.520 us**，中位数下降 **6.12%**。
 - 最终 trace：[compact-128 final trace](log/triton_grouped_topk_compact128_masked_select_final_T83_preallocated_50iter.pt.trace.json)
 - 独立复核：[compact-128 repeat trace](log/triton_grouped_topk_compact128_masked_select_final_repeat_T83_preallocated_50iter.pt.trace.json)
-- benchmark：[benchmark_triton_grouped_topk_hierarchical.py](benchmark_triton_grouped_topk_hierarchical.py)
-- profiler：[profile_triton_grouped_topk_hierarchical.py](profile_triton_grouped_topk_hierarchical.py)
+- benchmark：[auto_bench.py](auto_bench.py)，优化入口为 [v1_compact128.py](v1_compact128.py)
+- profiler：[auto_bench.py](auto_bench.py)，使用 `--profile --profile-reference-file v1_group_rank_t83.py`
 
 **正确性**
 
@@ -807,7 +807,7 @@ Entry 018的完整 kernel仍以单 token、单 core program执行。先把只负
 
 **优化手段**
 
-新增 `triton_grouped_topk_u1.py`。单 token版本使用 `grid=48`、`num_warps=1`；批处理版本使用 `[8,256]` tile、`grid=12`，每个 program处理 8 个 token。分别测试 `num_warps=1`、`num_warps=4` 和 shared-memory meta。
+当时新增 `triton_grouped_topk_u1.py`（统一为完整算子 `v1` 后已删除）。单 token版本使用 `grid=48`、`num_warps=1`；批处理版本使用 `[8,256]` tile、`grid=12`，每个 program处理 8 个 token。分别测试 `num_warps=1`、`num_warps=4` 和 shared-memory meta。
 
 **踩坑**
 
@@ -842,7 +842,7 @@ MLU `fast_libentry` 会按函数对象缓存第一次编译的 meta配置；复�
 
 **优化手段**
 
-新增 `triton_grouped_topk_batched_u1.py`。将 group score、4组 compact、128 candidate load、8轮 top-1 reduction和 dense output全部向量化到 batch维，使用 `grid=12`。分别测试 `num_warps=1` 和 `num_warps=4`。
+新增 `v1_batched_u1_w1.py` 和 `v1_batched_u1_w4.py`。将 group score、4组 compact、128 candidate load、8轮 top-1 reduction和 dense output全部向量化到 batch维，使用 `grid=12`。分别测试 `num_warps=1` 和 `num_warps=4`。
 
 **踩坑**
 
@@ -872,7 +872,7 @@ Entry 018相对 TMO约 `1.9066x`；batch-8 w4退化到约 `2.864x` TMO，距离�
 
 **现状**
 
-为排除 batch-8 的展开规模问题，新增 `triton_grouped_topk_batched_sweep.py`，测试更小的 batch tile：B=2 使用 `grid=48`，B=4 使用 `grid=24`，均保持 `num_warps=1`。
+为排除 batch-8 的展开规模问题，新增 `v1_batched2.py` 和 `v1_batched4.py`，测试更小的 batch tile：B=2 使用 `grid=48`，B=4 使用 `grid=24`，均保持 `num_warps=1`。
 
 **优化手段**
 
@@ -910,7 +910,7 @@ Entry 018使用 `tl.masked_select` 后再固定 reshape，当前完整 kernel在
 
 **优化手段**
 
-新增 `triton_grouped_topk_compact_variants.py`。prefix版本用 `[8,4]` one-hot比较和归约计算 ascending group-ID的4个 compact slot，保持 tie-break语义；shared版本复用 Entry 018 kernel，只传 `force_use_shared_memory=True`，不改变算法。
+新增 `v1_prefix_compaction.py` 和 `v1_shared_promotion.py`。prefix版本用 `[8,4]` one-hot比较和归约计算 ascending group-ID的4个 compact slot，保持 tie-break语义；shared版本复用 Entry 018 kernel，只传 `force_use_shared_memory=True`，不改变算法。
 
 **踩坑**
 
@@ -946,7 +946,7 @@ Entry 018在 128 candidates上执行8轮 indexed argmax，每轮写入 128-lane 
 
 **优化手段**
 
-新增 `triton_grouped_topk_direct_topk.py`。保留 Entry 018 的 group compact和连续-window gather，每轮直接把 `best_value` 和通过 mask归约得到的 `best_id` 放入固定的8-lane `top_values/top_ids`，循环结束后直接 dense store，不再维护 128-lane `selected_rank`。
+新增 `v1_direct_dense.py`。保留 Entry 018 的 group compact和连续-window gather，每轮直接把 `best_value` 和通过 mask归约得到的 `best_id` 放入固定的8-lane `top_values/top_ids`，循环结束后直接 dense store，不再维护 128-lane `selected_rank`。
 
 **踩坑**
 
@@ -1074,11 +1074,11 @@ TMO参考 device time为 **9.9656 us**。baseline为 `1.4703x` TMO，direct dens
 ### 文件
 
 - 原始 PyTorch 实现：[base.py](base.py)
-- 首版 Triton：[triton_grouped_topk.py](triton_grouped_topk.py)
-- Entry 010 Triton：[triton_grouped_topk_optimized.py](triton_grouped_topk_optimized.py)
-- 当前 compact-128 Triton：[triton_grouped_topk_hierarchical.py](triton_grouped_topk_hierarchical.py)
-- 当前 benchmark：[benchmark_triton_grouped_topk_hierarchical.py](benchmark_triton_grouped_topk_hierarchical.py)
-- 当前 profiler：[profile_triton_grouped_topk_hierarchical.py](profile_triton_grouped_topk_hierarchical.py)
+- 首版 Triton：[v1_triton_fused.py](v1_triton_fused.py)
+- Entry 010 Triton：[v1_group_rank_t83.py](v1_group_rank_t83.py)
+- 当前 compact-128 Triton：[v1_compact128.py](v1_compact128.py)
+- 当前 benchmark：[auto_bench.py](auto_bench.py)，优化入口为 [v1_compact128.py](v1_compact128.py)
+- 当前 profiler：[auto_bench.py](auto_bench.py) 的 `--profile` 模式
 - 最终 Triton trace：[compact-128 final trace](log/triton_grouped_topk_compact128_masked_select_final_T83_preallocated_50iter.pt.trace.json)
 - TMO upbound trace：[TMO trace](log/tmo_moe_softmax_topk_T83_preallocated_50iter.pt.trace.json)
 
@@ -1086,11 +1086,11 @@ TMO参考 device time为 **9.9656 us**。baseline为 `1.4703x` TMO，direct dens
 
 ```bash
 /projs/framework/lipenghui/venv/pytorch_main/bin/python \
-  benchmark_triton_grouped_topk_hierarchical.py \
-  --warmup 20 --iterations 300 --repeats 7
-
-/projs/framework/lipenghui/venv/pytorch_main/bin/python \
-  profile_triton_grouped_topk_hierarchical.py
+  auto_bench.py \
+  --v0_file base.py --v1_file v1_compact128.py \
+  --warmup 20 --repeat 300 \
+  --profile --profile-reference-file v1_group_rank_t83.py \
+  --profile-warmup 20 --profile-iterations 50
 ```
 
 按 kernel name汇总 trace：
