@@ -1,4 +1,4 @@
 __pycache__/
 *.py[cod]
 TORCH_PROFILER_RAW_DATA/
-log/
+**/log/
