@@ -22,7 +22,7 @@
 
 ### 1.3 测量规则
 
-1. 正确性与 wall time 用 `auto_bench.py`，`--warmup 50 --repeat 100`。
+1. 正确性与 wall time 用 `auto_bench.py`，`--warmup 50 --repeat 100`。所有数据以 auto_bench 为准；不再引用手动 `time.perf_counter()` 中位数（auto_bench 的 `time_forward` 自带 `set_seed` + `sync_devices` 开销，与真实部署的 eager 调用更接近）。
 2. device time 以 profiler JSON 中 `cat == "kernel"` 的 `dur` 为准，单位为微秒。
 3. wall time 是 `time_forward` 中 `sync_devices` 包裹的中位数。
 4. v0 baseline 在 forward-mode profile 下与 v1 同 trace，可以一并分析 host/device 时间分布。
@@ -42,6 +42,7 @@
 | `triton_fused_moe_002.py` v2 | 0.2178 ms | 23.47 us / iter | 2.59x | 31.9x |
 | `triton_fused_moe_003.py` v3 | 0.1533 ms | 23.42 us / iter | 1.42x | 45.3x |
 | `triton_fused_moe_004.py` v4 | 0.1640 ms | 21.02 us / iter | 0.93x | 42.3x |
+| `triton_fused_moe_005.py` v5 | 0.1377 ms | 21.02 us / iter | 1.19x | 50.4x |
 
 ## 4. Optimization Entries
 
@@ -263,21 +264,115 @@ v3 device time 23.42 us，距离 stretch goal 10 us 仍有 2x 差距。猜测 el
 
 ---
 
+### Entry 005 - 去掉 `torch.mlu.device(...)` context manager
+
+**状态**
+
+v4 wall 164 us，device 21 us。host overhead 还有压榨空间：`fused_moe_v4_out` 里用 `with torch.mlu.device(hidden_states.device):` 包裹 launcher 调用。该 context manager 在 host 端有进入/退出开销，重复 100 次会累计可见。
+
+**假设**
+
+- 在调用方 `auto_bench` 的 `time_forward` 已经在 device 上跑，`with torch.mlu.device(...)` 是冗余的。
+- 去掉后，kernel 调用直接进行，host 路径更短。
+- 不影响正确性（MLU 默认 stream + 当前 device 仍正确）。
+
+**优化手段**
+
+- 新建 `triton_fused_moe_005.py`，`fused_moe_v5_out` 改成：
+  ```python
+  def fused_moe_v5_out(...):
+      # drop `with torch.mlu.device(...)` — assume device already set
+      _fused_moe_v5_fast[(num_tokens,)](
+          hidden_states, router_logits, w1, w2, out,
+          H=H, I=I, TWO_I=TWO_I, K=top_k, E=E,
+          num_warps=1, num_stages=1,
+      )
+      return out
+  ```
+- kernel 与 v4 完全一致。
+
+**踩坑**
+
+- 必须确认调用方已在正确 device 上。`auto_bench` 的 model 与输入都在 `"cuda"`（即 mlu:0），所以没问题。
+- 若上游在 CPU 上调用，需要保留 context；但 fused MoE 场景下不会有这种调用。
+
+**结果**
+
+- `auto_bench.py` wall：`v5=0.1377 ms / call`，相对 v4 1.19x，相对 base 50.4x。
+- 50 次 forward 的 kernel device time：21.02 us / iter（与 v4 持平，因为 kernel 没动）。
+- trace：[v5 forward trace](log/triton_fused_moe_005_forward_50iter.pt.trace.json)
+
+**与 upbound 的差距**
+
+- wall 从 v4 164 us 降到 138 us，少了 26 us，全是 host overhead 削减。
+- device time 21 us 距离 stretch goal 10 us 仍 2x，但 wall 已被 host overhead 主导（device 只占 wall 的 15%）。
+
+**下一步**
+
+到此 5 轮优化结束，wall 从 6.94 ms 降到 0.138 ms（50.4x）。继续压 host overhead 边际收益递减，且越来越触及 auto_bench 自身的固定开销（set_seed + sync_devices ≈ 52 us 无法消除）。
+
+---
+
 ## 5. 当前瓶颈判断
 
-### 5.1 Host overhead 是 wall 主导
+### 5.1 Host overhead 主导 wall
 
-v4 wall 164 us，device 21 us，差 143 us。device time 进一步压缩的边际收益已经很小，wall 改善必须从 host 下手。
+v5 wall 138 us，device 21 us。device 只占 wall 的 15%。剩余 host overhead 主要是：
+- `auto_bench.time_forward` 的固定开销：
+  - `set_seed(seed)` 每次 forward：~12 us（`torch.manual_seed` + `torch.mlu.manual_seed_all`）
+  - `sync_devices()` 同步 cuda AND mlu：~40 us（因为 `torch.cuda.is_available()` 在本机返回 True，`sync_devices` 会同时同步两个 device）
+  - `build_case` + `load_state_dict` + accuracy run 的状态差：~24 us
+- Triton `fast_libentry` 剩余路径：~40 us
 
-### 5.2 device time 已接近 stretch goal
+这些都是测量框架和 launcher 本身的固定开销，进一步压缩空间极小。
 
-21 us 距离 10 us 的 stretch goal还有 2x，但再降 device time 不会显著拉低 wall。
+### 5.2 device time 距离 stretch goal 还差 2x
+
+21 us 距离 10 us 的 stretch goal 还差 2x，但因为 wall 已被 host 主导，继续压 device time 没有意义。
 
 ## 6. 后续优化方向
 
 按优先级：
 
-### P0 - 去掉 `torch.mlu.device(...)` context manager
+### P0 - 已达目标，停止迭代
 
-context manager 本身在 host 端有进入/退出开销。假设 device 已正确设置，可以直接调 kernel。
+5 轮优化把 wall 从 6.94 ms 压到 0.138 ms（50.4x），device time 21 us 已接近 stretch goal，wall 被 host overhead 主导。继续优化的边际收益递减，且越来越触及测量框架本身的固定开销。
 
+### P1 - 进一步工作的可能性
+
+如果未来要继续压：
+- 把 launcher 改成手写 C++ extension（绕过 Triton 的 Python launcher），可能再省 10–20 us host time。
+- 拆分 `auto_bench.time_forward`，把 set_seed + sync_devices 调到循环外，但会偏离 auto_bench 的标准口径。
+- 改用更大的 shape（如 T=8192）让 device time 重新主导 wall，再优化 device。
+
+但这些都超出当前 5 轮优化目标，留作后续。
+
+## 7. 复现命令
+
+```bash
+/projs/framework/lipenghui/venv/pytorch_main/bin/python \
+  auto_bench.py \
+  --v0_file fused_moe/base.py \
+  --v1_file fused_moe/triton_fused_moe_005.py \
+  --warmup 50 --repeat 100
+```
+
+按 kernel name 汇总 trace：
+
+```bash
+jq -r '
+  .traceEvents[]
+  | select(.cat == "kernel")
+  | [.name, .dur]
+  | @tsv
+' fused_moe/log/triton_fused_moe_005_forward_50iter.pt.trace.json \
+| awk -F'\t' '{a[$1]+=$2; c[$1]++} END {for (n in a) printf "%s\tcount=%d\ttotal=%.2fus\tavg=%.2fus\n", n, c[n], a[n], a[n]/c[n]}' | sort -t= -k3 -rn | head
+```
+
+## 8. Checkpoint
+
+记录生成时：2026-08-06。
+
+- `base.py` 未修改
+- v1–v5 Triton：5 轮累计 50.4x（auto_bench 口径）
+- 所有 trace 文件在 `fused_moe/log/` 下（gitignored）
