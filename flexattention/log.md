@@ -42,6 +42,7 @@
 |---|---:|---:|---:|---:|
 | `base.py` eager | 1.0060 ms | ~96.69 us / iter | - | 1.00x |
 | `triton_flexattention_001.py` v1 | 0.2640 ms | ~96.19 us / iter | 3.81x | 3.81x |
+| `triton_flexattention_002.py` v2 | 0.2104 ms | ~50.91 us / iter | 1.26x | 4.56x |
 
 ## 4. Optimization Entries
 
@@ -123,27 +124,69 @@ Round 0 base eager wall 1.006 ms，device 96.69 us / iter（22 个小 kernel）�
 
 ---
 
+### Entry 002 - `tl.dot` 改写 QK^T / AV
+
+**状态**
+
+v1 之后 wall 264 us，device 96.19 us / iter（`_sdpa_v1_kernel` 单 kernel），device_ratio 36.4% → mixed。device 端用 `tl.sum(q[None, :] * k, axis=1)` 实现 QK^T、`tl.sum(p[:, None] * v, axis=0)` 实现 AV，走的是 elementwise + reduce 路径，没走 BMM 硬件单元。
+
+**假设**
+
+- 把 QK^T 改成 `tl.dot(q_2d, tl.trans(k))`（`[1, D] @ [D, T_BLOCK] = [1, T_BLOCK]`），AV 改成 `tl.dot(p_2d, v)`（`[1, T_BLOCK] @ [T_BLOCK, D] = [1, D]`），应该让 device time 显著下降（BMM 硬件单元比 elementwise + reduce 高效）。
+- host 路径不变（还是单 launch），wall 下降幅度 ≈ device 下降幅度。
+
+**优化手段**
+
+- 文件：`flexattention/triton_flexattention_002.py`
+- `_sdpa_v2_kernel`：把 v1 的 elementwise+reduce 替换成 `tl.dot`。Q 重排为 `[1, D]` fp32；K 转置为 `[D, T_BLOCK]` fp32；`qk_2d = tl.dot(q_2d, k_T)`，reshape 回 `[T_BLOCK]`；softmax 同 v1；P 重排为 `[1, T_BLOCK]`，`out_2d = tl.dot(p_2d, v_f32)`，reshape 回 `[D]`。
+- 其余结构（grid=(T,H)、`T_BLOCK=next_pow2(T)`、causal mask、单 pass softmax、输出 reshape）与 v1 一致。
+
+**踩坑**
+
+- `tl.dot` 在 MLU 上要求 2D 输入且 inner dim 匹配。`tl.trans(k)` 把 `[T_BLOCK, D]` 转成 `[D, T_BLOCK]`，inner dim `D` 与 `q_2d` 的 `D` 匹配。
+- 输入 dtype：v1 已经在 fp32 下做 elementwise，v2 同样把 k/v cast 到 fp32 喂 `tl.dot`，避免 fp16 BMM 路径可能的精度差异；正确性 max abs diff 0.00195（fp16 epsilon 量级，相对误差 ~0.8%）。
+- `tl.reshape(qk_2d, (T_BLOCK,))` / `tl.reshape(out_2d, (D,))`：把 `tl.dot` 输出 `[1, N]` 退成 `[N]` 才能接 softmax 和 `tl.store`。
+
+**结果**
+
+- `auto_bench.py` wall：`v0=0.9604 ms, v1=0.2104 ms, speedup=4.565x`（相对 base 4.56x，相对 v1 1.26x），正确性 `PASS`。
+- 50 次 forward 的 kernel device time：50.91 us / iter（单 kernel `_sdpa_v2_kernel`，从 v1 的 96.19 us 降 47%）。
+- device_ratio = 50.91 / 210 ≈ 24.2% → 仍在 mixed 区间但向 host-bound 倾斜。
+- host 开销 ~159 us / call，与 v1 的 ~168 us 基本持平（说明本轮只动了 device，host 路径未变）。
+- trace：[triton_flexattention_002_forward_50iter.pt.trace.json](log/triton_flexattention_002_forward_50iter.pt.trace.json)
+
+**与 upbound 的差距**
+
+- device 50.91 us 仍高于 ~10 us fused CNNL attention 量级，但 `tl.dot` 已经把 elementwise + reduce 替换掉，进一步 device 压缩空间有限（softmax + load/store 仍是必要算术）。
+- wall 210 us 离 ~50 us 目标还差 4x，主要残差在 host launcher 单次开销 ~159 us。
+
+**下一步**
+
+下一轮切换到 host 路径：上 `fast_libentry`（class-body `globals()` trick 绕过 `_filter_module_ast`）+ 在 ModelNew 上缓存输出 `torch.empty` buffer，把单次 launcher 开销从 ~159 us 往下压。device 端先放着，等 host 压到接近 floor 再看 device_ratio。
+
+---
+
 ## 5. 当前瓶颈判断
 
-### 5.1 mixed：device 96 us / iter + host launcher 168 us / call
+### 5.1 mixed：device 51 us / iter + host launcher 159 us / call
 
-v1 之后 wall 264 us，其中 device 96 us（36%），host 168 us（64%）。device 端 `_sdpa_v1_kernel` 自己一个 kernel 占了全部 device 时间，里面是手写 `tl.sum(q[None,:] * k, axis=1)` 的 elementwise+reduce 路径，没走 BMM 硬件单元 — device 端有可压缩空间。host 端 168 us 主要是单次 launcher + `set_seed` + `sync_devices`，`fast_libentry` 等压缩手段尚未启用。
+v2 之后 wall 210 us，device 51 us（24%），host 159 us（76%）。device_ratio 已从 v1 的 36% 降到 24%，仍在 mixed 区间但 host launcher 已是绝对值最大的非 device 残差。device 端 `_sdpa_v2_kernel` 已走 `tl.dot`，进一步压缩空间有限（softmax + load/store 必要算术）。下一步重点应放在 host launcher 上。
 
 ## 6. 后续优化方向
 
 按优先级：
 
-### P0 - v2：`tl.dot` 改写 QK^T / AV，把 device 从 ~96 us 压到 ~30 us
+### P0 - v3：`fast_libentry` + 缓存输出 buffer
 
-把 `_sdpa_v1_kernel` 中的 `tl.sum(q[None, :] * k, axis=1)` 改成 `tl.dot(q[None, :], tl.trans(k))`（`[1, D] @ [D, T_BLOCK]` → `[1, T_BLOCK]`），AV 段同理 `tl.dot(p[None, :], v)` → `[1, D]`。`tl.dot` 走 BMM 硬件单元，应当比 elementwise+reduce 显著更快。本轮不动 host 路径。
+按 fused_moe v3 经验：`fast_libentry()` 把单次 launcher 从默认 ~60 us 压到 ~10 us 量级；在 ModelNew 上缓存 `torch.empty` 输出避免每次 forward 走 allocator。预期 wall 从 210 us 压到 ~100 us 量级。`fast_libentry` 需在 ModelNew 类体内用 `globals()` trick 绕过 `_filter_module_ast`。
 
-### P1 - v3：`fast_libentry` + 缓存输出 buffer
+### P1 - v4：移除 `torch.mlu.device()` context
 
-device 端压下来之后，如果 host launcher 仍占主导，上 `fast_libentry()`（class-body `globals()` trick 绕过 `_filter_module_ast`）+ 在 ModelNew 上缓存 `torch.empty` 输出，进一步压 host。
+`fast_libentry` 之后，剩余 host 开销里 `torch.mlu.device()` context manager 的 enter/exit 仍是可见项（fused_moe v5 经验：可再降 ~15 us）。直接调用 kernel 不包 context。
 
-### P2 - v4+：移除 `torch.mlu.device()` context / 上 flash-attention 在线 softmax / `num_warps` 调参
+### P2 - v5+：`num_warps` / `num_stages` 调参 / flash-attention 在线 softmax
 
-可选优化，根据 v2/v3 的 trace 数据再选。
+device 端的进一步优化；如果 v3+v4 之后 device_ratio > 50%，可以再上在线 softmax 减少 V 重复 load，或调 `num_warps=2/4` 看 BMM 路径吞吐。
 
 ## 7. 复现命令
 
@@ -176,5 +219,5 @@ jq -r '
 记录生成时：2026-08-07。
 
 - `base.py` 未修改
-- v1 Triton：1 轮累计 3.811x（auto_bench 口径）
+- v1–v2 Triton：2 轮累计 4.56x（auto_bench 口径）
 - 所有 trace 文件在 `flexattention/log/` 下（gitignored）
