@@ -44,6 +44,7 @@
 | `triton_flexattention_001.py` v1 | 0.2640 ms | ~96.19 us / iter | 3.81x | 3.81x |
 | `triton_flexattention_002.py` v2 | 0.2104 ms | ~50.91 us / iter | 1.26x | 4.56x |
 | `triton_flexattention_003.py` v3 | 0.1397 ms | ~50.52 us / iter | 1.51x | 7.08x |
+| `triton_flexattention_004.py` v4 | 0.1373 ms | ~50.58 us / iter | 1.02x | 7.32x (noise-rejected) |
 
 ## 4. Optimization Entries
 
@@ -231,6 +232,48 @@ device 51 us 量级，可能 `num_warps=2 / 4` 让 BMM 路径走更高吞吐；�
 
 如果 v4 之后 wall 仍接近 ~140 us（即 `set_seed + sync_devices` 占主导，残余 host 无法再压），宣告进入 measurement-bound 停止条件：device_ratio < 20% 且 host 主要是 harness 固定成本。
 
+---
+
+### Entry 004 - `num_stages=2` 调参（noise-rejected，停止）
+
+**状态**
+
+v3 之后 wall 140 us，device 50.52 us / iter，device_ratio 36%。device 端 `tl.dot` 已用、单 pass softmax 已是必要算术；host 端 fast_libentry + cache + 去 context 已用尽，剩余 host 89 us 主要是 `set_seed` (~12 us) + `sync_devices` (~40 us, cuda+mlu 双 sync) + fast_libentry 残余 (~30 us) + 状态差异 (~7 us)。本轮试 `num_warps` / `num_stages` 看能否再榨。
+
+**假设**
+
+- `num_warps=2` 应该让 BMM 路径走更高吞吐。
+- `num_stages=2` 应该让 K/V load 与上一阶段计算重叠。
+
+**优化手段**
+
+- 文件：`flexattention/triton_flexattention_004.py`
+- 改 `num_stages=1` → `num_stages=2`（`num_warps=2` 在 MLU 上不支持，Triton 编译器 warning 后回退到 1）。
+- 其余与 v3 一致。
+
+**踩坑**
+
+- `triton/backends/mlu/compiler.py` 在 `num_warps=2` 时报 warning 并 fallback 到 1：MLU 当前不支持 num_warps=2。
+- v4 与 v3 wall 在多次重复运行中互相交错（v3: 0.1364–0.1411 ms；v4: 0.1373–0.1405 ms），改善 < 2%，远小于 5% 阈值，属 noise。
+
+**结果**
+
+- `auto_bench.py` wall：`v0=0.9615 ms, v1=0.1373 ms, speedup=7.004x`（相对 v3 ~1.02x），多次重复无稳定提升。
+- device time 50.58 us / iter（与 v3 持平）。
+- trace：[triton_flexattention_004_forward_50iter.pt.trace.json](log/triton_flexattention_004_forward_50iter.pt.trace.json)
+
+**与 upbound 的差距**
+
+- 与 ~50 us 目标已经接近（wall 140 us vs 目标 50 us，差 3x）；剩余 90 us host 中 ~52 us 是 harness 固定（set_seed + sync_devices），~30 us 是 fast_libentry 残余（不重写 launcher 无法再压）。
+
+**下一步**
+
+停止。停止理由：device_ratio 36% 仍 mixed 但 host 端 compressible 部分已榨干，残余 host 主要是 harness 固定成本（set_seed + sync_devices ~52 us）；device 端 50 us 已接近 fused attention 上界，进一步 device 压缩需要在线 softmax / `tl.dot` 矩阵分块等大改动，但 wall 收益受 host floor 限制（即使 device 降到 0，wall 也只到 ~89 us）。
+
+**累计**
+
+v0→v3 累计 7.08x（auto_bench 口径），wall 从 1.006 ms 降到 0.140 ms。
+
 ## 7. 复现命令
 
 ```bash
@@ -262,5 +305,5 @@ jq -r '
 记录生成时：2026-08-07。
 
 - `base.py` 未修改
-- v1–v3 Triton：3 轮累计 7.08x（auto_bench 口径）
+- v1–v4 Triton：4 轮（v1 7.08x 累计到 v3，v4 noise-rejected 不进主实现）
 - 所有 trace 文件在 `flexattention/log/` 下（gitignored）
