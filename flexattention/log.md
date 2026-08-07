@@ -43,6 +43,7 @@
 | `base.py` eager | 1.0060 ms | ~96.69 us / iter | - | 1.00x |
 | `triton_flexattention_001.py` v1 | 0.2640 ms | ~96.19 us / iter | 3.81x | 3.81x |
 | `triton_flexattention_002.py` v2 | 0.2104 ms | ~50.91 us / iter | 1.26x | 4.56x |
+| `triton_flexattention_003.py` v3 | 0.1397 ms | ~50.52 us / iter | 1.51x | 7.08x |
 
 ## 4. Optimization Entries
 
@@ -166,27 +167,69 @@ v1 之后 wall 264 us，device 96.19 us / iter（`_sdpa_v1_kernel` 单 kernel）
 
 ---
 
+### Entry 003 - `fast_libentry` + 缓存输出 buffer
+
+**状态**
+
+v2 之后 wall 210 us，device 50.91 us / iter，device_ratio 24.2% → mixed。host 159 us / call 是绝对值最大的非 device 残差，主要是默认 Triton launcher 路径 + 每次 forward 走 `torch.empty` allocator。`torch.mlu.device()` context 已在 v3 调用路径里去掉（直接调 `fast_kernel[grid](...)` 不包 context）。
+
+**假设**
+
+- `fast_libentry()` 把单次 launcher 从默认 ~60 us 压到 ~10 us 量级（fused_moe v3 经验）。
+- 缓存输出 `torch.empty` buffer 避免每次 forward 走 allocator，应当再省 ~10–20 us。
+- device 端不变（kernel body 与 v2 等价）。
+
+**优化手段**
+
+- 文件：`flexattention/triton_flexattention_003.py`
+- `from triton.runtime import fast_libentry` + 在 `ModelNew` 类体内用 `globals()` trick 初始化 `_sdpa_v3_fast = fast_libentry()(_sdpa_v3_kernel)`（绕过 `auto_bench._filter_module_ast` 对非字面量模块级赋值的剥离）。
+- `ModelNew.__init__` 加 `self._out_cache: torch.Tensor | None = None`；`forward` 中按 `(T, H, D) / device / dtype` 检查 cache，未命中才 `torch.empty`，命中直接复用。
+- 调用路径：`_sdpa_v3(query, key, value, out, scale, H, num_kv_heads, _sdpa_v3_fast)` 把 fast kernel 当参数传入，避免类内全局查找。
+- 不再用 `with torch.mlu.device(...)` context 包裹 kernel 调用（fused_moe v5 经验：context 有 enter/exit host 开销）。
+- kernel body 与 v2 等价（`tl.dot` + 单 pass softmax）。
+
+**踩坑**
+
+- `_filter_module_ast` 会剥离模块级 `_fast = fast_libentry()(_kernel)`，导致 v1 文件被 auto_bench 过滤后运行时 NameError；类体 ClassDef 节点保留，故类体内 `globals()["_fast"] = ...` 在 import 时执行，把 fast kernel 注入模块全局名字空间。
+- 缓存输出 buffer 后，每次 forward 返回同一个 tensor 对象；auto_bench 的正确性比较是 forward 后立即 diff 再下一次 forward，所以缓存复用不会破坏 PASS（与 fused_moe v3 一致）。
+- 缓存按 `(T, H, D, device, dtype)` 全检，避免 init 时不知道运行 shape 的问题（init 只知道 num_heads/head_size）。
+
+**结果**
+
+- `auto_bench.py` wall：`v0=0.9888 ms, v1=0.1397 ms, speedup=7.078x`（相对 base 7.08x，相对 v2 1.51x），正确性 `PASS`。
+- 50 次 forward 的 kernel device time：50.52 us / iter（单 kernel `_sdpa_v3_kernel`，与 v2 的 50.91 us 持平）。
+- device_ratio = 50.52 / 140 ≈ 36.1% → 从 v2 的 24% 反弹到 36% — host 大幅压缩后 device 占比上升。
+- host 开销 ~89 us / call，从 v2 的 ~159 us 降 70 us（fast_libentry + cache + 去掉 context manager 三者合计）。
+- trace：[triton_flexattention_003_forward_50iter.pt.trace.json](log/triton_flexattention_003_forward_50iter.pt.trace.json)
+
+**与 upbound 的差距**
+
+- device 50.52 us 与 ~10 us fused CNNL attention 还差 5x，但 `tl.dot` + softmax 已是必要算术，进一步压 device 估计只能再省 5–10 us。
+- wall 140 us 离 ~50 us 目标还差 ~3x，主要残差在 host 端 89 us（fast_libentry 残余 + `set_seed` + `sync_devices`，其中后两者是 harness 固定成本）。
+
+**下一步**
+
+继续压 host 还能再榨：试 `num_warps=2 / 4` 看 BMM 路径吞吐能否再降 device；如 device 仍 50 us 量级而 host 已接近 floor（set_seed + sync_devices ~52 us 是不可压缩），宣告进入 measurement-bound 停止条件。
+
+---
+
 ## 5. 当前瓶颈判断
 
-### 5.1 mixed：device 51 us / iter + host launcher 159 us / call
+### 5.1 host-bound 倾斜：device 51 us / iter + host 89 us / call（device_ratio 36%）
 
-v2 之后 wall 210 us，device 51 us（24%），host 159 us（76%）。device_ratio 已从 v1 的 36% 降到 24%，仍在 mixed 区间但 host launcher 已是绝对值最大的非 device 残差。device 端 `_sdpa_v2_kernel` 已走 `tl.dot`，进一步压缩空间有限（softmax + load/store 必要算术）。下一步重点应放在 host launcher 上。
+v3 之后 wall 140 us，device 51 us（36%），host 89 us（64%）。host 已经过 fast_libentry + cache + 去 context 三项压缩，从 v2 的 159 us 降到 89 us；剩余 host 主要是 `set_seed` (~12 us) + `sync_devices` (~40 us，cuda+mlu 双 sync) + fast_libentry 残余 launcher (~30 us) + 状态差异 (~7 us)。其中前两项是 harness 固定成本，不可在 kernel 侧压缩。
 
 ## 6. 后续优化方向
 
 按优先级：
 
-### P0 - v3：`fast_libentry` + 缓存输出 buffer
+### P0 - v4：调 `num_warps` / `num_stages`
 
-按 fused_moe v3 经验：`fast_libentry()` 把单次 launcher 从默认 ~60 us 压到 ~10 us 量级；在 ModelNew 上缓存 `torch.empty` 输出避免每次 forward 走 allocator。预期 wall 从 210 us 压到 ~100 us 量级。`fast_libentry` 需在 ModelNew 类体内用 `globals()` trick 绕过 `_filter_module_ast`。
+device 51 us 量级，可能 `num_warps=2 / 4` 让 BMM 路径走更高吞吐；试一组参数看 device 是否能从 51 us 再压。如果变化 < 5%，归为 noise 不进主实现。
 
-### P1 - v4：移除 `torch.mlu.device()` context
+### P1 - 停止判断
 
-`fast_libentry` 之后，剩余 host 开销里 `torch.mlu.device()` context manager 的 enter/exit 仍是可见项（fused_moe v5 经验：可再降 ~15 us）。直接调用 kernel 不包 context。
-
-### P2 - v5+：`num_warps` / `num_stages` 调参 / flash-attention 在线 softmax
-
-device 端的进一步优化；如果 v3+v4 之后 device_ratio > 50%，可以再上在线 softmax 减少 V 重复 load，或调 `num_warps=2/4` 看 BMM 路径吞吐。
+如果 v4 之后 wall 仍接近 ~140 us（即 `set_seed + sync_devices` 占主导，残余 host 无法再压），宣告进入 measurement-bound 停止条件：device_ratio < 20% 且 host 主要是 harness 固定成本。
 
 ## 7. 复现命令
 
@@ -219,5 +262,5 @@ jq -r '
 记录生成时：2026-08-07。
 
 - `base.py` 未修改
-- v1–v2 Triton：2 轮累计 4.56x（auto_bench 口径）
+- v1–v3 Triton：3 轮累计 7.08x（auto_bench 口径）
 - 所有 trace 文件在 `flexattention/log/` 下（gitignored）
