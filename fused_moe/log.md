@@ -43,6 +43,7 @@
 | `triton_fused_moe_003.py` v3 | 0.1533 ms | 23.42 us / iter | 1.42x | 45.3x |
 | `triton_fused_moe_004.py` v4 | 0.1640 ms | 21.02 us / iter | 0.93x | 42.3x |
 | `triton_fused_moe_005.py` v5 | 0.1377 ms | 21.02 us / iter | 1.19x | 50.4x |
+| `triton_fused_moe_006.py` v6（tmo 拼装，对比） | 1.0117 ms | 79.5 us / iter | 0.14x | 7.04x |
 
 ## 4. Optimization Entries
 
@@ -310,6 +311,63 @@ v4 wall 164 us，device 21 us。host overhead 还有压榨空间：`fused_moe_v4
 **下一步**
 
 到此 5 轮优化结束，wall 从 6.94 ms 降到 0.138 ms（50.4x）。继续压 host overhead 边际收益递减，且越来越触及 auto_bench 自身的固定开销（set_seed + sync_devices ≈ 52 us 无法消除）。
+
+---
+
+### Entry 005.b - 对比：`torch_mlu_ops` 拆分 op 拼装（非优化，仅作对比）
+
+**状态**
+
+v5 单 Triton kernel 50.4x 之后，调查是否有现成 kernel library op 能直接拼出整道题，作为对比基线。`torch_mlu_ops` 没有整体 `fused_moe` op，但拆成 4 段：`moe_softmax_topk` + `moe_gen_idx` + `group_gemm × 2` + `moe_combine_result`。
+
+**优化手段**
+
+非优化。新建 `triton_fused_moe_006.py` 用 tmo 拆分 op 拼装：
+```python
+reduce_weight, expert_id = tmo.moe_softmax_topk(router_logits, topk=K, normalize=True, num_expert_group=-1, route_scale=1.0)
+expand_idx, combine_idx, token_count, _ = tmo.moe_gen_idx(expert_id, E)
+gate_up = tmo.group_gemm(hidden_states, w1_h, token_count, expand_idx, None, None, None, max_in_group_list=T*K, trans_a=False, trans_b=True)
+act = F.silu(gate) * up
+out_exp = tmo.group_gemm(act, w2_h, token_count, expand_idx, ...)
+out.copy_((out_exp[combine_idx] * reduce_weight.view(-1, 1)).view(T, K, H).sum(1))
+```
+
+**踩坑**
+
+- 精度 `atol=1e-2` 下 FAIL（max_abs_diff 2e-2）。根因是 fp16 GEMM 累加顺序不同 + `out_exp[combine_idx]` 的 gather 引入额外精度损失，不是计算错误。`atol=5e-2` 下 PASS。
+- `moe_combine_result` 的 `cusum_token_count` 在单卡 full-range 下公式 `gather_ids - cusum_token_count[start_expert_id + expert_size]` 会得负值，疑似为 expert-parallel 子集设计。本 round 改用 PyTorch eager 做 combine。
+
+**结果**
+
+- `auto_bench.py` wall（atol=5e-2）：`v6=1.0117 ms / call`，相对 base 7.04x，**比 v5 慢 7.3x**。
+- 50 次 forward 的 kernel device time：79.5 us / iter（v5 是 21 us，慢 3.8x）。
+- device 拆解（per-iter，由 trace）：
+  - `MLUGroupedGemmEx` × 2 = 19.0 us（单 op 9.49 us，跟 v5 全部 GEMM 持平）
+  - `MLUGatherIdxToGatherOffset` × 1 = 8.15 us（group_gemm 内部 gather 准备）
+  - `MLUBlockKernelCastExecOnce` × 3 = 9.6 us（w1/w2 cast fp32→fp16 + reduce_weight cast）
+  - `advancedIndexIntegerSliceUnion1` = 4.58 us（`out_exp[combine_idx]` gather back）
+  - `MLUOpTensor mul` = 3.95 us（`out_exp * reduce_weight`）
+  - `reduceKernelAdd` = 3.83 us（`view(T,K,H).sum(1)`）
+  - `MLUUnion1Kernel4StagePipelineLcvtSiluFast` = 3.73 us（silu+mul）
+  - `moe_softmax_topk` = 4.74 us
+  - `moe_gen_idx` = 3.45 us
+  - `out.copy_` + 2 × stridedSlice + 杂项 ≈ 18 us
+- host overhead：wall 1010 us − device 80 us ≈ 930 us。tmo 每 op launcher host setup 重（每个 tmo op 平均 50-100 us host 路径），8 个串行 op 累积致命。
+
+**与 upbound 的差距**
+
+- v5 device 21 us 已包含 routing + 双 GEMM + silu + renorm 全部，v6 单 group_gemm 就 9.5 us。tmo 拆分 op 在 device 上跟 v5 相当（group_gemm 本身甚至更快），但拆分引入的 host launcher + 多余的 cast/gather/copy 拉满 wall。
+- v5 wall 138 us，v6 wall 1010 us：差距 872 us 全在 host 端，即 tmo op launcher 在 T=83 小 shape 下比 Triton `fast_libentry` 慢一个数量级。
+
+**结论**
+
+- tmo group_gemm 单 op device 9.5 us 是真功夫，比手写 Triton `tl.dot` 单 GEMM 还快。但拆 4 op 在小 shape 下 host 路径吃光收益。
+- 若 shape 上到 T=4096+ 且每 expert token 数足够，tmo pipeline host 占比下降，有望打过 v5。本 round 的 T=83/K=2/E=8 太小，单 Triton kernel 是最优解。
+- **不替代 v5**。v5 仍为 canonical 实现。
+
+**下一步**
+
+无。本次为对比探查，非优化轮。v5 维持为 final。
 
 ---
 
