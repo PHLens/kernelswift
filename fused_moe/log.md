@@ -44,6 +44,7 @@
 | `triton_fused_moe_004.py` v4 | 0.1640 ms | 21.02 us / iter | 0.93x | 42.3x |
 | `triton_fused_moe_005.py` v5 | 0.1377 ms | 21.02 us / iter | 1.19x | 50.4x |
 | `triton_fused_moe_006.py` v6（tmo 拼装，对比） | 1.0117 ms | 79.5 us / iter | 0.14x | 7.04x |
+| `bangc/fused_moe_kernel.mlu`（手写 BangC，对比） | 4.090 ms | 4090 us / iter | - | 1.70x |
 
 ## 4. Optimization Entries
 
@@ -368,6 +369,68 @@ out.copy_((out_exp[combine_idx] * reduce_weight.view(-1, 1)).view(T, K, H).sum(1
 **下一步**
 
 无。本次为对比探查，非优化轮。v5 维持为 final。
+
+---
+
+### Entry 005.c - 对比：手写 BangC kernel（scalar GEMM fallback）
+
+**状态**
+
+v5 Triton 50.4x、v6 tmo 7.04x 之后，调查直接用 BangC（MLU 原生 C++ kernel 编程模型）能不能再压。参考 `/projs/framework/lipenghui/neuware_home/examples` 下的 bangc kernel 例子，尝试写一个 per-token fused MoE kernel，看是否能利用 MLU590 的矩阵单元（`__bang_matmul`）跑过 Triton v5 的 21 us device time。
+
+**优化手段**
+
+非优化轮，仅作对比探查。新建 `bangc/` 子目录：
+
+- `fused_moe_kernel.mlu`：`__mlu_global__` per-token kernel，grid=(T,)，Union1 多核（dim.x=4, dim.y=8 = 32 core）。每个 program：
+  1. `__memcpy` 把 `hidden[token]`、`router_logits[token]` 从 GDRAM 拷到 NRAM
+  2. softmax（E=8 标量循环 + `expf`）
+  3. top-2 selection sort（标量 argmax × 2）
+  4. renorm
+  5. for k in 0..K-1：`__memcpy` 整块 `w1_T[eid]`（H×2I=128×128 half）和 `w2_T[eid]`（I×H=64×128 half）到 NRAM；标量 GEMM 两轮；SiLU 门控；加权累加
+  6. `__memcpy` 输出回 GDRAM
+- `host_driver.cpp`：CPU 端生成输入（与 `base.py` 同 shape T=83/H=128/E=8/K=2/I=64），CPU 预转置 w1/w2 到 `w1_T`/`w2_T`，`cnrtMalloc` + `cnrtMemcpyHostToDev`，`cnrtPlaceNotifier` 测 device time，CPU fp32 reference 实现，atol=5e-2 校验。
+- `CMakeLists.txt`：`find_package(BANG)` + `bang_add_executable`，cncc 编译 .mlu，g++ 编译 .cpp，链接 cnrt。
+
+**踩坑**
+
+- **`__bang_matmul(float*, const half*, const half*, M, K, N)` 半精度入口的 WRAM 布局未公开**。`bang_host_functions_decls.h` 里有该 overload 声明，但 `neuware_home/examples` 里所有 matmul 样例只用 int8 + 4D strided `__memcpy` 的 WRAM 布局，half 输入的 expected stride 没有任何文档或样例。直接用 `__bang_matmul(nram_out, nram_x, nram_w1, 1, H, TWO_I)` 输出全错（max_abs_diff 3378）。fallback 到标量 GEMM 才得到接近正确的输出。
+- **WRAM 不支持标量读**。最初把 `w1`/`w2` 放在 `__wram__`，标量循环读 `nram_w1[i]` 返回 NaN/garbage。WRAM 是矩阵单元专用 RAM，只能通过 `__bang_matmul` 间接访问。把 `w1`/`w2` 改成 `__nram__` 后才正常。
+- **`<<<dim, func_type, queue>>>` 是 BangC 专有语法，只有 cncc 能解析**。g++ 报 `expected primary-expression before '>' token`。解法：把 launch 包进 .mlu 里的 `extern "C" launch_fused_moe(...)` wrapper，host_driver.cpp 只 link 这个符号。
+- **cnrt API 命名**：`cnrtHost2Device`/`cnrtDevice2Host` 不存在，正确名是 `cnrtMemcpyHostToDev`/`cnrtMemcpyDevToHost`；`cnrtNotifierRecord` 不存在，正确名是 `cnrtPlaceNotifier`。
+- **`cnrtNotifierDuration` 返回微秒**（不是毫秒），header 里参数名写的是 `ms` 但实际单位是 us。最初按 ms 处理乘 1e3，导致 device time 报 141565 us（1000x 偏大）。
+- **g++ 编译 BangC host 端的 ABI 陷阱**：
+  - `<random>` 在 `-std=c++11` 严格模式下 `vswprintf` ABI 报错，必须用 `-std=gnu++11`（GNU 扩展）。
+  - `neuware_home/lib/clang/11.1.0/include/` 下的 `stdint.h`/`stddef.h` 用了 `__has_feature`（clang-only），会 shadow 系统 stdint.h，g++ 编译时炸。不能把这个目录加到全局 include path，必须用绝对路径 `#include "/abs/path/to/bang_fp16.h"` 引入。
+  - `__internal_float2half` 用 `*(reinterpret_cast<const unsigned int *>(&(f)))` 类型双关，在 `-fstrict-aliasing`（-O2 默认开）下是 UB。CMake 里必须显式加 `-fno-strict-aliasing`。
+- **fp16 中间值精度损失**：`nram_gate_up_h`、`nram_act`、`nram_out_k_h`、`nram_out_acc` 全是 `half`，标量 GEMM 累加用 fp32 但每次写回 half，精度损失累积到 max_abs_diff=1.71（输出量级 ~500，相对误差 ~0.3%）。atol=5e-2 FAIL。要修需要把这些中间 buffer 全部升 fp32。
+
+**结果**
+
+- device time/iter：**4090.00 us**（avg of 100 iters，cnrtNotifier 口径）。
+- wall time/iter：**4090.28 us**（host std::chrono 口径，与 device 几乎相同说明纯 device-bound）。
+- max_abs_diff：1.7117，atol=5e-2 → **FAIL**。输出值（1.9775e+02 vs ref 1.9760e+02 等）相对误差 ~0.1%，但绝对误差超阈值。
+- 相对 base：6.94 ms / 4.09 ms ≈ 1.70x（看似比 base 快，但 base 是 eager 50 个 kernel launch 的 wall，device 时间并非 4 ms）。
+- 相对 v5 Triton：device 4090 us / 21 us ≈ **慢 195 倍**；wall 4090 us / 138 us ≈ 慢 29.7 倍。
+- 相对 v6 tmo：device 4090 us / 79.5 us ≈ 慢 51.5 倍。
+
+**与 upbound 的差距**
+
+- 4090 us device 距离 v5 的 21 us 差 195x，距离 stretch goal 10 us 差 409x。完全不在同一个量级。
+- 根因：标量 GEMM fallback 没用矩阵单元。每个 token 要做 2 × 2 = 4 次 GEMM，每次 H×2I 或 I×H 标量乘加，共约 2 × (128×128 + 64×128) = 49152 次 half 乘加 / token，83 token × 32 core 并行 → 单核 ~127K 次 mul-add，按 MLU590 NRAM 标量吞吐估算 4 ms 量级合理。
+- 矩阵单元路径（`__bang_matmul`）走不通是因为 half 输入的 WRAM stride 布局未公开。`neuware_home/examples` 里的 matmul 样例全是 int8 + 4D strided `__memcpy`，half 路径需要逆向或问厂商。
+- 精度差是次要问题（升 fp32 中间值可解），性能差才是主要问题。
+
+**结论**
+
+- 不替代 v5，不替代 v6。本次为对比探查，记录为 BangC 直写尝试。
+- 手写 BangC 在没解决 `__bang_matmul` half 输入 WRAM 布局之前，性能远不如 Triton v5（195x 慢）和 tmo v6（51x 慢）。Triton 在 MLU590 上的 `tl.dot` 路径已经能调用矩阵单元，写 BangC 标量 GEMM 是反向优化。
+- 若未来能拿到 `__bang_matmul` half 输入的 WRAM stride 文档，手写 BangC 矩阵单元路径有望接近 v5（参考 tmo `MLUGroupedGemmEx` 单 op 9.5 us 的存在性证明）。本次未解决，留作 P2。
+- **v5 Triton 维持为 canonical**，BangC 标量版仅作对比基线。
+
+**下一步**
+
+无。本次为对比探查，非优化轮。若要继续，需要解决 `__bang_matmul` half 输入的 WRAM 布局问题，或改用 int8 量化路径（样例较多）。
 
 ---
 
