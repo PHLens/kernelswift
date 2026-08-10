@@ -10,6 +10,7 @@ Branch: `fused-moe-opt`。目标 shape：`T=83, H=128, E=8, top_k=2, intermediat
 | 3 | `triton_fused_moe_003.py` — `fast_libentry()` + 类体 `globals()` trick 绕过 `_filter_module_ast`；ModelNew 上缓存 `torch.empty` 输出 buffer | 0.1533 ms | 23.42 us / iter | 45.3x |
 | 4 | `triton_fused_moe_004.py` — GEMM 用 `tl.dot(x_2d, tl.trans(w))` 替代 elementwise 外积，走 BMM 硬件单元（device 略降但 wall 因 host 噪声略升） | 0.1640 ms | 21.02 us / iter | 42.3x |
 | 5 | `triton_fused_moe_005.py` — 去掉 `with torch.mlu.device(...)` context manager（kernel 与 v4 一致，纯 host 路径优化） | 0.1377 ms | 21.02 us / iter | **50.4x** |
+| 对比 | `triton_fused_moe_006.py`（tmo 4 段拼装 `moe_softmax_topk` + `moe_gen_idx` + `group_gemm ×2` + eager combine，仅作对比，不替代 v5） | 1.012 ms | 79.5 us / iter | 7.04x |
 
 ## 停止理由
 
@@ -27,4 +28,20 @@ Branch: `fused-moe-opt`。目标 shape：`T=83, H=128, E=8, top_k=2, intermediat
 
 ## 累计
 
-v0 → v5 累计 **50.4x**（auto_bench wall 6.94 ms → 0.138 ms）。
+v0 → v5 累计 **50.4x**（auto_bench wall 6.94 ms → 0.138 ms）；tmo 4 段拼装 7.04x（wall 1.012 ms），比 v5 慢 7.3x。
+
+## 对比参考（tmo 4 段拼装）
+
+`triton_fused_moe_006.py` 用 `torch_mlu_ops` 拆 4 段拼装：`moe_softmax_topk` + `moe_gen_idx` + `group_gemm × 2` + eager combine（`out_exp[combine_idx]` gather + mul + sum + copy）。tmo 没有整体 `fused_moe` op，必须分段。
+
+- wall 1.012 ms（3 次稳定 run 1.017 / 1.036 / 1.020），相对 base 7.04x，**比 v5 慢 7.3x**；device 79.5 us / iter（v5 是 21 us，慢 3.8x）；精度 `atol=1e-2` FAIL（fp16 GEMM 累加顺序 + gather 精度损失），`atol=5e-2` PASS。
+- device 拆解（per-iter，来自 trace）：
+  - `MLUGroupedGemmEx` × 2 = 19.0 us（单 op 9.5 us，跟 v5 全 GEMM 工作量持平）—— tmo GEMM 本身不慢
+  - `MLUGatherIdxToGatherOffset` × 2 = 16.1 us（group_gemm 内部 gather offset 准备，v5 无此步骤）
+  - `MLUBlockKernelCastExecOnce` × 3 = 9.6 us（`w1.to(fp16)` + `w2.to(fp16)` + `reduce_weight.to(fp16)` 每 forward 重 cast，v6 实现粗糙，理论上可预算到 `__init__`）
+  - `moe_softmax_topk` 4.7 us + `moe_gen_idx` 3.5 us = 8.2 us（routing，v5 融进主 kernel）
+  - `silu` 3.7 us + `mul` 4.0 us + `reduce sum` 3.8 us + `gather back` 4.6 us + `copy` 2.9 us + stridedSlice × 2 5.0 us = ~24 us（v5 一次 kernel 内做的算术，v6 拆成 6+ 个 eager glue kernel）
+  - 合计 ~79 us / iter
+- host 拆解：wall 1012 us − device 80 us ≈ 932 us host overhead。4 个 tmo op launcher（每个 ~50–100 us，schema 校验 + autotune 路径）+ 6 个 eager op launcher（每个 ~20–30 us）+ harness 固定 ~52 us。v5 只有 1 个 `fast_libentry` launcher ~30 us + harness ~52 us + 状态差 ~35 us = 117 us host。**tmo op launcher 在 T=83 小 shape 下比 `fast_libentry` 重一个数量级**，是 v6 wall 暴涨的主因。
+- 结论：tmo 没有整体 `fused_moe` op，4 段拼装在小 shape 下被 host launcher 拉爆。如果 shape 上到 T=4096+ 让 device 重新主导 wall，tmo `group_gemm` 单 op 9.5 us 的 GEMM 性能可能反超 v5 手写 `tl.dot`。本算子 T=83 太小，v5 单 Triton kernel 结构上必胜。**v5 维持为 canonical**，v6 仅作对比探查。
+- v6 trace：`log/triton_fused_moe_006_forward_50iter.pt.trace.json`。
