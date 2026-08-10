@@ -11,6 +11,7 @@ Branch: `fused-moe-opt`。目标 shape：`T=83, H=128, E=8, top_k=2, intermediat
 | 4 | `triton_fused_moe_004.py` — GEMM 用 `tl.dot(x_2d, tl.trans(w))` 替代 elementwise 外积，走 BMM 硬件单元（device 略降但 wall 因 host 噪声略升） | 0.1640 ms | 21.02 us / iter | 42.3x |
 | 5 | `triton_fused_moe_005.py` — 去掉 `with torch.mlu.device(...)` context manager（kernel 与 v4 一致，纯 host 路径优化） | 0.1377 ms | 21.02 us / iter | **50.4x** |
 | 对比 | `triton_fused_moe_006.py`（tmo 4 段拼装 `moe_softmax_topk` + `moe_gen_idx` + `group_gemm ×2` + eager combine，仅作对比，不替代 v5） | 1.012 ms | 79.5 us / iter | 7.04x |
+| 对比 | `bangc/fused_moe_kernel.mlu`（手写 BangC，per-token Union1 多核 + 标量 GEMM fallback，仅作对比） | 4.090 ms | 4090 us / iter | 1.70x |
 
 ## 停止理由
 
@@ -28,7 +29,7 @@ Branch: `fused-moe-opt`。目标 shape：`T=83, H=128, E=8, top_k=2, intermediat
 
 ## 累计
 
-v0 → v5 累计 **50.4x**（auto_bench wall 6.94 ms → 0.138 ms）；tmo 4 段拼装 7.04x（wall 1.012 ms），比 v5 慢 7.3x。
+v0 → v5 累计 **50.4x**（auto_bench wall 6.94 ms → 0.138 ms）；tmo 4 段拼装 7.04x（wall 1.012 ms），比 v5 慢 7.3x；手写 BangC 标量 GEMM fallback 1.70x（wall 4.090 ms，device 4090 us），比 v5 慢 29.7x。
 
 ## 对比参考（tmo 4 段拼装）
 
@@ -45,3 +46,22 @@ v0 → v5 累计 **50.4x**（auto_bench wall 6.94 ms → 0.138 ms）；tmo 4 段
 - host 拆解：wall 1012 us − device 80 us ≈ 932 us host overhead。4 个 tmo op launcher（每个 ~50–100 us，schema 校验 + autotune 路径）+ 6 个 eager op launcher（每个 ~20–30 us）+ harness 固定 ~52 us。v5 只有 1 个 `fast_libentry` launcher ~30 us + harness ~52 us + 状态差 ~35 us = 117 us host。**tmo op launcher 在 T=83 小 shape 下比 `fast_libentry` 重一个数量级**，是 v6 wall 暴涨的主因。
 - 结论：tmo 没有整体 `fused_moe` op，4 段拼装在小 shape 下被 host launcher 拉爆。如果 shape 上到 T=4096+ 让 device 重新主导 wall，tmo `group_gemm` 单 op 9.5 us 的 GEMM 性能可能反超 v5 手写 `tl.dot`。本算子 T=83 太小，v5 单 Triton kernel 结构上必胜。**v5 维持为 canonical**，v6 仅作对比探查。
 - v6 trace：`log/triton_fused_moe_006_forward_50iter.pt.trace.json`。
+
+## 对比参考（手写 BangC kernel）
+
+`bangc/fused_moe_kernel.mlu` 用 BangC（MLU 原生 C++ kernel 编程模型）写 per-token fused MoE：grid=(T,)，Union1 多核（32 core），每个 program 在 NRAM 内完成 softmax+top-2+renom+双 GEMM+SiLU+加权累加。host_driver.cpp 用 cnrt API 分配/拷贝/sync，CPU 预转置 w1/w2，cnrtNotifier 测 device time，CPU fp32 reference 校验。
+
+- wall 4.090 ms（host std::chrono）；device 4090 us / iter（cnrtNotifierDuration，微秒口径）；max_abs_diff 1.7117 → atol=5e-2 **FAIL**（输出值相对误差 ~0.1% 但绝对误差超阈值，根因是 `nram_gate_up_h`/`nram_act`/`nram_out_k_h`/`nram_out_acc` 都是 half，中间值精度损失累积）。
+- 相对 base 1.70x（看似比 base 快，但 base 的 6.94 ms 是 eager 50 个 kernel launch 的 wall，device 时间并非 4 ms，无可比性）。**比 v5 慢 29.7x（wall）/ 195x（device）；比 v6 tmo 慢 51.5x（device）**。
+- 根因：标量 GEMM fallback 没用矩阵单元。原本计划用 `__bang_matmul(float*, const half*, const half*, M, K, N)` 半精度入口直接调 MLU590 的矩阵单元，但：
+  - `bang_host_functions_decls.h` 里有该 overload 声明，但 `neuware_home/examples` 里所有 matmul 样例只用 int8 + 4D strided `__memcpy` 的 WRAM 布局，half 输入的 expected stride **没有任何文档或样例**。
+  - 直接用 `__bang_matmul(nram_out, nram_x, nram_w1, 1, H, TWO_I)` 输出全错（max_abs_diff 3378）。fallback 到标量 GEMM 才得到接近正确的输出（相对误差 ~0.1%）。
+  - WRAM 是矩阵单元专用 RAM，不支持标量读（标量读返回 NaN），所以即便把 w1/w2 放 `__wram__` 也无法手写 GEMM 循环，必须放 `__nram__` 走标量。
+- 踩坑（详见 log.md Entry 005.c）：
+  - `<<<dim, func_type, queue>>>` 是 BangC 专有语法，只有 cncc 能解析，g++ 报错；解法是把 launch 包进 .mlu 里的 `extern "C" launch_fused_moe(...)` wrapper，host_driver.cpp 只 link 这个符号。
+  - cnrt API 命名：`cnrtMemcpyHostToDev`/`cnrtMemcpyDevToHost`（不是 `cnrtHost2Device`），`cnrtPlaceNotifier`（不是 `cnrtNotifierRecord`）。
+  - `cnrtNotifierDuration` 返回微秒（不是毫秒），header 里参数名写的是 `ms` 但实际单位是 us；最初按 ms 处理乘 1e3，导致 device time 报 141565 us（1000x 偏大）。
+  - g++ 编译 BangC host 端的 ABI 陷阱：`<random>` 在 `-std=c++11` 严格模式下 `vswprintf` ABI 报错，必须用 `-std=gnu++11`；`neuware_home/lib/clang/11.1.0/include/` 下的 `stdint.h` 用了 `__has_feature`（clang-only），会 shadow 系统 stdint.h，必须用绝对路径 `#include` 引入 bang_fp16.h；`__internal_float2half` 用 `reinterpret_cast` 类型双关在 `-fstrict-aliasing`（-O2 默认开）下是 UB，必须加 `-fno-strict-aliasing`。
+- 结论：手写 BangC 在没解决 `__bang_matmul` half 输入 WRAM 布局之前，性能远不如 Triton v5（195x 慢）和 tmo v6（51x 慢）。**Triton 在 MLU590 上的 `tl.dot` 路径已经能调用矩阵单元**，写 BangC 标量 GEMM 是反向优化。若未来能拿到 `__bang_matmul` half 输入的 WRAM stride 文档，手写 BangC 矩阵单元路径有望接近 v5（参考 tmo `MLUGroupedGemmEx` 单 op 9.5 us 的存在性证明）。本次未解决，留作 P2。**v5 Triton 维持为 canonical**，BangC 标量版仅作对比基线。
+- 文件：`bangc/fused_moe_kernel.mlu`、`bangc/host_driver.cpp`、`bangc/CMakeLists.txt`，build/run 命令在 `bangc/build/` 下 `cmake .. && make && ./fused_moe_bangc`。
+
