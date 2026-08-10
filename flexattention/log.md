@@ -45,6 +45,7 @@
 | `triton_flexattention_002.py` v2 | 0.2104 ms | ~50.91 us / iter | 1.26x | 4.56x |
 | `triton_flexattention_003.py` v3 | 0.1397 ms | ~50.52 us / iter | 1.51x | 7.08x |
 | `triton_flexattention_004.py` v4 | 0.1373 ms | ~50.58 us / iter | 1.02x | 7.32x (noise-rejected) |
+| `triton_flexattention_005.py` v5（tmo `flash_attention` 单 op，对比） | 0.171 ms | 8.77 us / iter | 0.82x | 5.89x |
 
 ## 4. Optimization Entries
 
@@ -214,6 +215,71 @@ v2 之后 wall 210 us，device 50.91 us / iter，device_ratio 24.2% → mixed。
 
 ---
 
+### Entry 005 - 对比：`torch_mlu_ops.flash_attention` 单 op（非优化，仅作 device 上界对比）
+
+**状态**
+
+v3 单 Triton kernel 7.08x 之后，调查是否有现成 kernel library op 能直接拼出整道题，作为对比基线。`torch_mlu_ops.flash_attention` 单 op 把 QK^T + causal mask + softmax + AV 全部 fuse，与 base.py 的 `F.scaled_dot_product_attention(is_causal=True)` 一一对应。
+
+**优化手段**
+
+非优化。新建 `triton_flexattention_005.py` 调 `tmo.flash_attention` 单 op：
+
+```python
+q = query.unsqueeze(0)   # [1, T, H, D]
+k = key.unsqueeze(0)     # [1, T, H_kv, D]
+v = value.unsqueeze(0)   # [1, T, H_kv, D]
+tmo.flash_attention(
+    q, k, v, out,
+    None, None,           # cu_seq_lens_q/kv
+    None, None,           # alibi_slope, attn_bias
+    T, T,                 # max_seq_len_q/kv
+    self.scale,           # softmax_scale
+    True,                 # is_causal
+    -1, -1,               # window_size_left/right
+    torch.float16,        # compute_dtype
+    False,                # return_lse
+    None,                 # block_tables
+    None, None, None,     # k/v/q_quant_scale
+    None,                 # out_quant_scale
+    torch.float16,        # out_dtype
+)
+return out.squeeze(0).reshape(T, H * D)
+```
+
+kernel 与 v3 完全不同（v3 是手写 Triton SDPA，v5 是 tmo 库 op），仅作 device 端工程上界对比，**不替代 v3 作为 canonical**。
+
+**踩坑**
+
+- `inspect.signature(tmo.flash_attention)` 给出的 Python 层签名与 C++ schema 顺序不一致：inspect 给的顺序是 `out, cu_seq_lens_q, ..., max_seq_len_q, ...`（无 `out_lse`），C++ schema 是 `out, out_lse, cu_seq_lens_q, ..., q_quant_scale, k_quant_scale, v_quant_scale, out_quant_scale, block_tables, max_seq_len_q, ...`。按 inspect 顺序按位置传参才能命中正确 slot。
+- `compute_dtype` Python 层接 `torch.dtype`（传 `torch.float16`），但 C++ 层是 `str`（"half"/"float"/"bfloat16"）。Python wrapper 内部转换。直接传 str 会报 "Expected dtype" cast 错误。
+- 不存在 `out_dtype` C++ 参数（C++ schema 末尾没有它），但 Python wrapper 暴露了 `out_dtype` 关键字（默认 `torch.float16`），内部应该是落到 out tensor 自身的 dtype。本算子 fp16 已经够。
+
+**结果**
+
+- `auto_bench.py` wall：3 次稳定 run 0.171 / 0.166 / 0.175 ms，平均 ~0.171 ms（v3 ~0.140 ms），**比 v3 慢 ~22%**，相对 base 5.89x（v3 是 7.08x）。
+- 50 次 forward 的 kernel device time：`MLUFlashAttentionLatency<half,...,true,...>` 8.77 us / iter（v3 是 50.52 us，快 5.8x），外加 `MLUFlashAttentionLatencyAdaptiveSchedule` 1.47 us / iter（host 端调度自适应，按 cat 归到 kernel 也算一次）。
+- v5 device_ratio = 8.77 / 171 ≈ 5%，wall 几乎全是 host。
+- v5 trace：[flexattention_005_forward_50iter.pt.trace.json](log/flexattention_005_forward_50iter.pt.trace.json)
+
+**与 upbound 的差距**
+
+- device 端：v5 8.77 us 是真上界——单次 fused flash attention kernel 在 MLU 上的硬件极限就是这量级。v3 手写 Triton 50 us 距离这上界还差 5.8x，说明手写 Triton 的 `tl.dot` BMM 路径远未榨干硬件。
+- wall 端：v5 wall 171 us 比 v3 140 us **慢** 22%。根因：tmo `flash_attention` 单 op host launcher 路径在 T=83 小 shape 下比 Triton `fast_libentry` 重（v3 host ~89 us，v5 host ~162 us，多出 ~73 us 全是 tmo launcher + schedule）。groupedtopk 那边 tmo 单 op wall 上打过手写是因为 groupedtopk host overhead 占比更小、device 节省更多；flexattention 这边 device 节省 41 us 不够填补 host 多出的 73 us。
+- 即 v5 是"device 上界"而非"wall 上界"。要 wall 也接近上界，必须绕过 tmo launcher（如直接调 CNNL C++ 接口）或换更大 shape（T=4096+）让 device 重新主导 wall。
+
+**结论**
+
+- v5 不替代 v3。v3 仍为 canonical 实现（wall 最优 7.08x）。
+- v5 暴露了一个重要信号：手写 Triton 在 device 上距离硬件上界还有 5.8x 空间。如果未来 wall 不再 host-bound（如 harness 改造去掉 cuda stub sync，或 shape 增大），device 优化有明确的 stretch goal——把 v3 的 50 us 压到 ~10 us 量级。
+- 但当前 wall 主导项是 harness 固定成本，device 优化看不到 wall 收益，不做。
+
+**下一步**
+
+无。本次为对比探查，非优化轮。v3 维持为 final。
+
+---
+
 ## 5. 当前瓶颈判断
 
 ### 5.1 host-bound 倾斜：device 51 us / iter + host 89 us / call（device_ratio 36%）
@@ -302,8 +368,9 @@ jq -r '
 
 ## 8. Checkpoint
 
-记录生成时：2026-08-07。
+记录生成时：2026-08-10。
 
 - `base.py` 未修改
 - v1–v4 Triton：4 轮（v1 7.08x 累计到 v3，v4 noise-rejected 不进主实现）
+- v5 tmo `flash_attention` 单 op：device 上界对比（8.77 us / iter），wall 不及 v3（0.171 ms vs 0.140 ms），不替代 v3
 - 所有 trace 文件在 `flexattention/log/` 下（gitignored）
