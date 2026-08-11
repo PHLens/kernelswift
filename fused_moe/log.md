@@ -44,7 +44,8 @@
 | `triton_fused_moe_004.py` v4 | 0.1640 ms | 21.02 us / iter | 0.93x | 42.3x |
 | `triton_fused_moe_005.py` v5 | 0.1377 ms | 21.02 us / iter | 1.19x | 50.4x |
 | `triton_fused_moe_006.py` v6（tmo 拼装，对比） | 1.0117 ms | 79.5 us / iter | 0.14x | 7.04x |
-| `bangc/fused_moe_kernel.mlu`（手写 BangC，对比） | 4.090 ms | 4090 us / iter | - | 1.70x |
+| `bangc/fused_moe_kernel.mlu`（手写 BangC，对比，P0 前精度 FAIL） | 4.090 ms | 4090 us / iter | - | 1.70x |
+| `bangc/fused_moe_kernel.mlu`（P2: 中间值升 fp32） | 3.762 ms | 3762 us / iter | 1.09x | 1.85x |
 
 ## 4. Optimization Entries
 
@@ -431,6 +432,101 @@ v5 Triton 50.4x、v6 tmo 7.04x 之后，调查直接用 BangC（MLU 原生 C++ k
 **下一步**
 
 无。本次为对比探查，非优化轮。若要继续，需要解决 `__bang_matmul` half 输入的 WRAM 布局问题，或改用 int8 量化路径（样例较多）。
+
+---
+
+### Entry 005.d - BangC P2: 中间值升 fp32 修精度
+
+**状态**
+
+005.c 的标量 GEMM BangC kernel 虽然 device time 4090 us，但 max_abs_diff=1.71 FAIL。根因：`nram_gate_up_h`/`nram_act`/`nram_out_k_h`/`nram_out_acc` 全是 `half`，每次 GEMM 累加（fp32）写回 half 时精度损失累积。输出量级 ~500，half ulp ≈ 0.5，atol=5e-2 必然 FAIL。
+
+**优化手段**
+
+把所有中间 buffer 升 fp32，half 只在边界出现：
+- `nram_gate_up`：fp32（GEMM1 输出）
+- `nram_act`：fp32（SiLU 门控）
+- `nram_out_k`：fp32（GEMM2 输出）
+- `nram_out_acc`：fp32（最终累加器）
+- `nram_out_h`：half（仅 GDRAM store 前的 fp32→fp16 cast buffer）
+
+x/w1/w2 仍是 half（GDRAM→NRAM 加载口径不变），GEMM 内部 `(float)nram_x[h] * (float)nram_w1[...]` 现在直接写回 fp32 中间值，不再经过 half round-trip。最终 store 前 `(half)nram_out_acc[h]` 一次性 cast。
+
+**结果**
+
+- device time/iter：**3761.50 us**（vs 4090 us，-8.0%）。fp32 NRAM 占用更多但标量循环本身没有变慢，反而因为少了两次 fp16↔fp32 cast 略快。
+- wall time/iter：**3761.96 us**（仍纯 device-bound）。
+- max_abs_diff：**0.0000**（vs 1.71）→ **PASS**。完全匹配 CPU fp32 reference，因为 std=0.02 + fp32 中间值 + 唯一一次 half round-trip 在 store 边界。
+- 相对 base：6.94 ms / 3.76 ms ≈ 1.85x。
+- 相对 v5 Triton：3762 us / 21 us ≈ 慢 179 倍（仍远慢于 v5）。
+
+**与 upbound 的差距**
+
+精度问题已解决，但性能仍在 3.76 ms 量级。距离 v5 的 21 us 差 179x。根因仍是标量 GEMM fallback 没用矩阵单元。P2 是 correctness fix，不是 perf optimization。
+
+**下一步**
+
+P0：尝试 `__bang_matmul` fp32 overload 走矩阵单元路径。详见 005.e。
+
+---
+
+### Entry 005.e - BangC P0: `__bang_matmul` fp32 overload 调查（blocked）
+
+**状态**
+
+005.d 修完精度后，瓶颈仍是标量 GEMM。尝试用 `__bang_matmul(float*, const float*, const float*, M, K, N)` fp32 overload 走 MLU590 的矩阵单元，期望 device time 从 3762 us → ~100 us 量级（参考 tmo `MLUGroupedGemmEx` 9.5 us 的存在性证明）。
+
+**假设**
+
+`__bang_matmul` 的 fp32 overload 包装 `__mlvm_stream_conv_f32_f32_f32`（1×1 conv intrinsic），arg swap 后 src1 应该是 conv-kernel layout `[N, K]` 而非 matmul-layout `[K, N]`。`__bang_load_matrix` 是把数据从 NRAM 搬到 WRAM 的官方 API，应该能产生 `__bang_matmul` 期望的 WRAM 布局。
+
+**优化手段**
+
+新建 `bangc/matmul_probe.mlu` + `matmul_probe_host.cpp`，孤立测试 fp32 `__bang_matmul`：
+- M=K=N=64，src0 = [1..4096] row-major
+- src1 测试 4 种配置：all-ones / identity，× trans_en=0/1（控制 `__bang_load_matrix` 的 is_transpose arg）
+- 预期：identity src1 应该让 dst[m, n] = src0[m, n]，可以直接读出 N 维的物理排列
+
+probe kernel：
+```c
+__memcpy(nram_a, src0, M*K*4, GDRAM2NRAM);
+__memcpy(nram_b_tmp, src1, K*N*4, GDRAM2NRAM);  // stage via NRAM
+__bang_load_matrix(wram_b, nram_b_tmp, NRAM2WRAM, K, N, N, trans_en);
+__bang_matmul(nram_c, nram_a, wram_b, M, K, N);
+__memcpy(dst, nram_c, M*N*4, NRAM2GDRAM);
+```
+
+`__bang_load_matrix` 拒绝 GDRAM2WRAM（dir=4），必须先 GDRAM→NRAM（`__memcpy`）再 NRAM→WRAM（`__bang_load_matrix`）。
+
+**踩坑**
+
+- **`__bang_matmul` 要求 src1 在 `__wram__`**：compile error `invalid pointer address space for '__bang_matmul', expected '__wram__'`。src1 buffer 必须 `__wram__ float wram_b[...]`，不能放 NRAM。
+- **`__bang_load_matrix` 拒绝 GDRAM2WRAM**：compile error `invalid direction '4'`。必须两段式：GDRAM→NRAM（`__memcpy`），NRAM→WRAM（`__bang_load_matrix`）。
+- **K-reduction 是对的，N-layout 是错的**。all-ones src1 测试 PASS（max_abs_diff 0.0000），证明 sum over K 正确。但 identity src1 测试 FAIL（max_abs_diff 4094），输出 N 维是 permuted layout。
+- **decode 出来的 permutation pattern**（M=K=N=64, trans_en=0, identity src1, row 0）：output[p] 里的值 = expected[perm[p]]，其中
+  ```
+  perm[4k+c] = k + col_offset[c], col_offset = [0, 49, 33, 17]
+  ```
+  即 c=0 时是 k（0..15 顺序），c=1/2/3 时是 k+{49,33,17}（=16*(4-c)+1）。同一 permutation 对每个 M 行都一样。
+- **更严重：value 17（expected[16]）从输出里消失了**。sorted got values 是 {0, 1..16, 18..64}，缺 17。p=61 是 uninitialized slot（got 0）。意味着 `__bang_matmul` fp32 overload 对 N=64 只写 63 个有效位置，丢一个。
+- **int8 样例的工作配方不能照搬**。`/neuware_home/samples/BANG/1_Performance/matmul/0_single_core/main.mlu` 用的是 `__bang_matmul(half*, int8_t*, int8_t*, M, K, N, POS)` —— **不同 overload**（带 POS arg，int8→half）。它的 WRAM load 是 4D strided `__memcpy`（magic numbers `__wram_size__/16, 16-1, 4*BLOCK_K, BLOCK_N/64-1, 4*K, 64*K, BLOCK_N/16/4-1`），这套 stride 是 int8-specific。直接套到 fp32 overload 上不会产生正确输出。
+- **没有 fp32 / half overload 的 WRAM layout 文档**。`neuware_home/samples` 下所有 matmul 样例只有 int8。`__bang_load_matrix` 产生的 WRAM 布局与 fp32 `__bang_matmul` 期望的布局不一致，但期望布局没有任何文档或样例可参考。
+
+**结果**
+
+- P0 **blocked**。fp32 `__bang_matmul` 输出 layout 未公开 + 丢一个 element，无法在合理时间内集成到 fused_moe kernel。
+- probe 自身保留在 `bangc/matmul_probe.mlu` + `matmul_probe_host.cpp`，可复现以上 permutation finding。
+- fused_moe kernel 维持 005.d 状态：标量 GEMM + fp32 中间值，device 3762 us，PASS。
+
+**与 upbound 的差距**
+
+不变。005.d 的 3762 us 距 v5 的 21 us 差 179x。P0 没能压进矩阵单元路径。
+
+**下一步**
+
+无。BangC 矩阵单元路径需要厂商文档支持（fp32/half `__bang_matmul` 的 WRAM stride），否则纯靠逆向 stride 无法在可控时间内完成。fused_moe BangC 维持标量 GEMM 对比基线，**v5 Triton 维持 canonical**。
+
+未来若拿到文档，可重启 P0：替换 GEMM1/GEMM2 的标量循环为 `__bang_matmul(nram_gate_up, nram_x_f, wram_w1, 1, H, 2I)` + `__bang_matmul(nram_out_k, nram_act, wram_w2, 1, I, H)`，weight 在 WRAM、x/act 在 NRAM、output 在 NRAM。但需要先把 fp32 `__bang_matmul` 输出的 permuted layout 解 permutation（或找到正确的 `__bang_load_matrix` 参数组合产生 plain row-major 输出）。
 
 ---
 

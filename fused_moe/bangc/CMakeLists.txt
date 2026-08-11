@@ -44,3 +44,10 @@ bang_add_executable(fused_moe_bangc
 )
 
 target_link_libraries(fused_moe_bangc pthread stdc++ m cnrt)
+
+bang_add_executable(matmul_probe
+  matmul_probe.mlu
+  matmul_probe_host.cpp
+)
+
+target_link_libraries(matmul_probe pthread stdc++ m cnrt)

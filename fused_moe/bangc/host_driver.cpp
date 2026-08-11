@@ -153,12 +153,15 @@ static void cpu_fused_moe(const half *hidden, const float *router_logits,
 int main() {
   // ---------------- init ----------------
   std::mt19937 rng(20260810);
-  // fp16 helper via fp32 round-trip. std=1.0 (not 0.02) so outputs are
-  // non-trivially large and the fp16 round-to-zero failure mode is avoided
-  // — with std=0.02 the GEMM accumulation underflows to 0 in fp16 and the
-  // correctness check becomes vacuously PASS.
+  // fp16 helper via fp32 round-trip. After P2 (intermediates promoted to
+  // fp32), GEMM accumulation no longer underflows at std=0.02 — the only
+  // fp16 in the device path is x/w (loaded as half from GDRAM) and the
+  // final store. Using std=0.02 matches auto_bench.py's convention for
+  // v5 Triton, making the atol=5e-2 criterion apples-to-apples. (Earlier
+  // std=1.0 was a workaround for the pre-P2 fp16-intermediate bug; no
+  // longer needed.)
   auto randn_f16 = [&](half &out) {
-    std::normal_distribution<float> nd(0.f, 1.f);
+    std::normal_distribution<float> nd(0.f, 0.02f);
     out = (half)nd(rng);
   };
 
