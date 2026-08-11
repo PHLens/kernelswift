@@ -35,16 +35,18 @@ __mlu_global__ void FusedMoEKernel(
     half *out,              // [T, H]
     int T) {
   // Per-program on-chip memory
+  // All intermediates are fp32 — fp16 rounding in nram_gate_up_h/nram_act/
+  // nram_out_k_h/nram_out_acc was the root cause of max_abs_diff=1.71 (relative
+  // error ~0.1% but absolute > 5e-2 atol). Final cast to fp16 happens only at
+  // the GDRAM store.
   __nram__ half nram_x[H];                 // 256 B
   __nram__ float nram_logits[E];           // 32 B
   __nram__ float nram_scores[E];           // 32 B
-  __nram__ float nram_gate_up[TWO_I];      // 512 B
-  __nram__ half nram_gate_up_h[TWO_I];     // 256 B
-  __nram__ half nram_act[I];               // 128 B
-  __nram__ float nram_out_k[H];            // 512 B
-  __nram__ half nram_out_k_h[H];           // 256 B
-  __nram__ half nram_out_acc[H];           // 256 B
-  __nram__ half nram_w_mul[H];             // 256 B  (weight broadcast mul)
+  __nram__ float nram_gate_up[TWO_I];      // 512 B  (GEMM1 out, fp32)
+  __nram__ float nram_act[I];              // 256 B  (silu*up, fp32)
+  __nram__ float nram_out_k[H];            // 512 B  (GEMM2 out, fp32)
+  __nram__ float nram_out_acc[H];          // 512 B  (final accumulator, fp32)
+  __nram__ half nram_out_h[H];             // 256 B  (final fp16 store buffer)
   // Weights live in NRAM (not WRAM) because we do scalar accumulation — WRAM
   // is for the dedicated matrix unit and does not support scalar reads.
   __nram__ half nram_w1[TWO_I * H];        // 32 KiB  ([K=H, N=2I] = 128*128)
@@ -121,8 +123,8 @@ __mlu_global__ void FusedMoEKernel(
     float w0 = topk_vals[0] / wsum;
     float w1 = topk_vals[1] / wsum;
 
-    // zero accumulator
-    for (int h = 0; h < H; ++h) nram_out_acc[h] = (half)0;
+    // zero accumulator (fp32 now, no half round-trip)
+    for (int h = 0; h < H; ++h) nram_out_acc[h] = 0.f;
 
     // 5. per-expert GEMM loop
     for (int k = 0; k < K; ++k) {
@@ -130,7 +132,7 @@ __mlu_global__ void FusedMoEKernel(
       float wk = (k == 0) ? w0 : w1;
 
       // GEMM1 (manual scalar): gate_up[n] = sum_h x[h] * w1_T[eid, h, n]
-      // w1_T is [E, H, 2I] row-major. w1 is loaded into WRAM as a flat
+      // w1_T is [E, H, 2I] row-major. w1 is loaded into NRAM as a flat
       // contiguous block; we read it scalar-wise since the
       // `__bang_matmul(float*, const half*, const half*, M, K, N)` overload
       // produced wrong output — its expected WRAM stride layout for half
@@ -142,22 +144,16 @@ __mlu_global__ void FusedMoEKernel(
         for (int h = 0; h < H; ++h) {
           acc += (float)nram_x[h] * (float)nram_w1[h * TWO_I + n];
         }
-        nram_gate_up[n] = acc;
-      }
-      // cast to half for silu/mul
-      for (int i = 0; i < TWO_I; ++i) {
-        nram_gate_up_h[i] = (half)nram_gate_up[i];
+        nram_gate_up[n] = acc;  // fp32, no cast
       }
 
       // silu(gate) * up  where gate = [..I], up = [I..2I)
-      // silu(x) = x * sigmoid(x) = x / (1 + exp(-x))
+      // silu(x) = x * sigmoid(x) = x / (1 + exp(-x))   — all fp32
       for (int i = 0; i < I; ++i) {
-        half g = nram_gate_up_h[i];
-        half u = nram_gate_up_h[i + I];
-        float gf = (float)g;
-        float uf = (float)u;
-        float sig = 1.f / (1.f + expf(-gf));
-        nram_act[i] = (half)(gf * sig * uf);
+        float g = nram_gate_up[i];
+        float u = nram_gate_up[i + I];
+        float sig = 1.f / (1.f + expf(-g));
+        nram_act[i] = g * sig * u;  // fp32, no cast
       }
 
       // GEMM2 (manual scalar): out_k[h] = sum_i act[i] * w2_T[eid, i, h]
@@ -167,23 +163,21 @@ __mlu_global__ void FusedMoEKernel(
       for (int h = 0; h < H; ++h) {
         float acc = 0.f;
         for (int i = 0; i < I; ++i) {
-          acc += (float)nram_act[i] * (float)nram_w2[i * H + h];
+          acc += nram_act[i] * (float)nram_w2[i * H + h];  // act already fp32
         }
-        nram_out_k[h] = acc;
+        nram_out_k[h] = acc;  // fp32, no cast
       }
-      // cast to half and accumulate weighted
+      // weighted accumulate in fp32
       for (int h = 0; h < H; ++h) {
-        nram_out_k_h[h] = (half)nram_out_k[h];
-      }
-      // weighted: out_acc += wk * out_k_h
-      for (int h = 0; h < H; ++h) {
-        float v = (float)nram_out_k_h[h] * wk;
-        nram_out_acc[h] = (half)((float)nram_out_acc[h] + v);
+        nram_out_acc[h] += nram_out_k[h] * wk;
       }
     }
 
-    // 6. store out[token, :H]
-    __memcpy(out + (size_t)token * H, nram_out_acc, H * sizeof(half),
+    // 6. final cast fp32 -> fp16 only at the GDRAM store boundary
+    for (int h = 0; h < H; ++h) {
+      nram_out_h[h] = (half)nram_out_acc[h];
+    }
+    __memcpy(out + (size_t)token * H, nram_out_h, H * sizeof(half),
              NRAM2GDRAM);
   }
 }
