@@ -11,7 +11,8 @@ Branch: `fused-moe-opt`。目标 shape：`T=83, H=128, E=8, top_k=2, intermediat
 | 4 | `triton_fused_moe_004.py` — GEMM 用 `tl.dot(x_2d, tl.trans(w))` 替代 elementwise 外积，走 BMM 硬件单元（device 略降但 wall 因 host 噪声略升） | 0.1640 ms | 21.02 us / iter | 42.3x |
 | 5 | `triton_fused_moe_005.py` — 去掉 `with torch.mlu.device(...)` context manager（kernel 与 v4 一致，纯 host 路径优化） | 0.1377 ms | 21.02 us / iter | **50.4x** |
 | 对比 | `triton_fused_moe_006.py`（tmo 4 段拼装 `moe_softmax_topk` + `moe_gen_idx` + `group_gemm ×2` + eager combine，仅作对比，不替代 v5） | 1.012 ms | 79.5 us / iter | 7.04x |
-| 对比 | `bangc/fused_moe_kernel.mlu`（手写 BangC，per-token Union1 多核 + 标量 GEMM fallback，仅作对比） | 4.090 ms | 4090 us / iter | 1.70x |
+| 对比 | `bangc/fused_moe_kernel.mlu`（手写 BangC，per-token Union1 多核 + 标量 GEMM fallback，P0 前精度 FAIL） | 4.090 ms | 4090 us / iter | 1.70x |
+| 对比 | `bangc/fused_moe_kernel.mlu`（P2: 中间值升 fp32，PASS） | 3.762 ms | 3762 us / iter | 1.85x |
 
 ## 停止理由
 
@@ -29,7 +30,7 @@ Branch: `fused-moe-opt`。目标 shape：`T=83, H=128, E=8, top_k=2, intermediat
 
 ## 累计
 
-v0 → v5 累计 **50.4x**（auto_bench wall 6.94 ms → 0.138 ms）；tmo 4 段拼装 7.04x（wall 1.012 ms），比 v5 慢 7.3x；手写 BangC 标量 GEMM fallback 1.70x（wall 4.090 ms，device 4090 us），比 v5 慢 29.7x。
+v0 → v5 累计 **50.4x**（auto_bench wall 6.94 ms → 0.138 ms）；tmo 4 段拼装 7.04x（wall 1.012 ms），比 v5 慢 7.3x；手写 BangC 标量 GEMM + fp32 中间值（P2 后 PASS）1.85x（wall 3.762 ms，device 3762 us），比 v5 慢 27.3x。
 
 ## 对比参考（tmo 4 段拼装）
 
@@ -51,17 +52,19 @@ v0 → v5 累计 **50.4x**（auto_bench wall 6.94 ms → 0.138 ms）；tmo 4 段
 
 `bangc/fused_moe_kernel.mlu` 用 BangC（MLU 原生 C++ kernel 编程模型）写 per-token fused MoE：grid=(T,)，Union1 多核（32 core），每个 program 在 NRAM 内完成 softmax+top-2+renom+双 GEMM+SiLU+加权累加。host_driver.cpp 用 cnrt API 分配/拷贝/sync，CPU 预转置 w1/w2，cnrtNotifier 测 device time，CPU fp32 reference 校验。
 
-- wall 4.090 ms（host std::chrono）；device 4090 us / iter（cnrtNotifierDuration，微秒口径）；max_abs_diff 1.7117 → atol=5e-2 **FAIL**（输出值相对误差 ~0.1% 但绝对误差超阈值，根因是 `nram_gate_up_h`/`nram_act`/`nram_out_k_h`/`nram_out_acc` 都是 half，中间值精度损失累积）。
-- 相对 base 1.70x（看似比 base 快，但 base 的 6.94 ms 是 eager 50 个 kernel launch 的 wall，device 时间并非 4 ms，无可比性）。**比 v5 慢 29.7x（wall）/ 195x（device）；比 v6 tmo 慢 51.5x（device）**。
-- 根因：标量 GEMM fallback 没用矩阵单元。原本计划用 `__bang_matmul(float*, const half*, const half*, M, K, N)` 半精度入口直接调 MLU590 的矩阵单元，但：
-  - `bang_host_functions_decls.h` 里有该 overload 声明，但 `neuware_home/examples` 里所有 matmul 样例只用 int8 + 4D strided `__memcpy` 的 WRAM 布局，half 输入的 expected stride **没有任何文档或样例**。
-  - 直接用 `__bang_matmul(nram_out, nram_x, nram_w1, 1, H, TWO_I)` 输出全错（max_abs_diff 3378）。fallback 到标量 GEMM 才得到接近正确的输出（相对误差 ~0.1%）。
-  - WRAM 是矩阵单元专用 RAM，不支持标量读（标量读返回 NaN），所以即便把 w1/w2 放 `__wram__` 也无法手写 GEMM 循环，必须放 `__nram__` 走标量。
+- wall 3.762 ms（host std::chrono）；device 3762 us / iter（cnrtNotifierDuration，微秒口径）；max_abs_diff 0.0000 → atol=5e-2 **PASS**（P2 把 `nram_gate_up`/`nram_act`/`nram_out_k`/`nram_out_acc` 全部升 fp32，half 只在 GDRAM store 边界出现一次 cast）。修精度前（005.c 状态）max_abs_diff 1.7117 FAIL，device time 4090 us。
+- 相对 base 1.85x（看似比 base 快，但 base 的 6.94 ms 是 eager 50 个 kernel launch 的 wall，device 时间并非 4 ms，无可比性）。**比 v5 慢 27.3x（wall）/ 179x（device）；比 v6 tmo 慢 47.3x（device）**。
+- 根因：标量 GEMM fallback 没用矩阵单元。原本计划用 `__bang_matmul` 走 MLU590 矩阵单元，但 P0 调查 blocked：
+  - fp32 overload `__bang_matmul(float*, const float*, const float*, M, K, N)` 要求 src1 在 `__wram__`，但 `neuware_home/samples` 下所有 matmul 样例只有 int8（用 4D strided `__memcpy` + 带 POS arg 的不同 overload），fp32/half overload 的 WRAM stride **没有任何文档或样例**。
+  - 用 `__bang_load_matrix` 做 NRAM→WRAM 搬运后调 fp32 overload，K-reduction 正确（all-ones src1 PASS）但 N-layout 是 permuted tile，identity src1 FAIL。decode 出 perm[4k+c] = k + col_offset[c]，col_offset = [0, 49, 33, 17]；更严重的是 expected[16] 的值从输出里消失（p=61 是 uninitialized slot），fp32 overload 对 N=64 只写 63 个有效位置。
+  - int8 样例的 4D strided `__memcpy` magic numbers（`__wram_size__/16, 16-1, 4*BLOCK_K, BLOCK_N/64-1, ...`）是 int8-specific，套到 fp32 overload 上不会产生正确输出。
+  - WRAM 不支持标量读（标量读返回 NaN），所以即便把 w1/w2 放 `__wram__` 也无法手写 GEMM 循环，必须放 `__nram__` 走标量。
+  - 详见 `log.md` Entry 005.e + `bangc/matmul_probe.mlu`（permutation finding 可复现）。
 - 踩坑（详见 log.md Entry 005.c）：
   - `<<<dim, func_type, queue>>>` 是 BangC 专有语法，只有 cncc 能解析，g++ 报错；解法是把 launch 包进 .mlu 里的 `extern "C" launch_fused_moe(...)` wrapper，host_driver.cpp 只 link 这个符号。
   - cnrt API 命名：`cnrtMemcpyHostToDev`/`cnrtMemcpyDevToHost`（不是 `cnrtHost2Device`），`cnrtPlaceNotifier`（不是 `cnrtNotifierRecord`）。
   - `cnrtNotifierDuration` 返回微秒（不是毫秒），header 里参数名写的是 `ms` 但实际单位是 us；最初按 ms 处理乘 1e3，导致 device time 报 141565 us（1000x 偏大）。
   - g++ 编译 BangC host 端的 ABI 陷阱：`<random>` 在 `-std=c++11` 严格模式下 `vswprintf` ABI 报错，必须用 `-std=gnu++11`；`neuware_home/lib/clang/11.1.0/include/` 下的 `stdint.h` 用了 `__has_feature`（clang-only），会 shadow 系统 stdint.h，必须用绝对路径 `#include` 引入 bang_fp16.h；`__internal_float2half` 用 `reinterpret_cast` 类型双关在 `-fstrict-aliasing`（-O2 默认开）下是 UB，必须加 `-fno-strict-aliasing`。
-- 结论：手写 BangC 在没解决 `__bang_matmul` half 输入 WRAM 布局之前，性能远不如 Triton v5（195x 慢）和 tmo v6（51x 慢）。**Triton 在 MLU590 上的 `tl.dot` 路径已经能调用矩阵单元**，写 BangC 标量 GEMM 是反向优化。若未来能拿到 `__bang_matmul` half 输入的 WRAM stride 文档，手写 BangC 矩阵单元路径有望接近 v5（参考 tmo `MLUGroupedGemmEx` 单 op 9.5 us 的存在性证明）。本次未解决，留作 P2。**v5 Triton 维持为 canonical**，BangC 标量版仅作对比基线。
-- 文件：`bangc/fused_moe_kernel.mlu`、`bangc/host_driver.cpp`、`bangc/CMakeLists.txt`，build/run 命令在 `bangc/build/` 下 `cmake .. && make && ./fused_moe_bangc`。
+- 结论：手写 BangC 在没解决 `__bang_matmul` fp32/half 输入 WRAM 布局之前，性能远不如 Triton v5（179x 慢）和 tmo v6（47x 慢）。**Triton 在 MLU590 上的 `tl.dot` 路径已经能调用矩阵单元**，写 BangC 标量 GEMM 是反向优化。P0 调查确认 fp32 overload 输出 layout 未公开 + 丢一个 element，blocked。若未来拿到厂商文档（WRAM stride + 输出 permutation / `__bang_store_matrix` API），手写 BangC 矩阵单元路径有望接近 v5（参考 tmo `MLUGroupedGemmEx` 单 op 9.5 us 的存在性证明）。**v5 Triton 维持为 canonical**，BangC 标量版（P2 后 PASS）仅作对比基线。
+- 文件：`bangc/fused_moe_kernel.mlu`、`bangc/host_driver.cpp`、`bangc/CMakeLists.txt`、`bangc/matmul_probe.mlu`（P0 调查 probe）、`bangc/matmul_probe_host.cpp`，build/run 命令在 `bangc/build/` 下 `cmake .. && make && ./fused_moe_bangc`（或 `./matmul_probe` 复现 permutation finding）。
 
