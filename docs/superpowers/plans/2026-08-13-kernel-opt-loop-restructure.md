@@ -2,1292 +2,956 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Restructure the monolithic `kernel-opt-loop` skill into a Designer/Coder/Verifier team-orchestrated skill with file-based role contracts, hybrid team communication, 5-criterion team termination, resume design, and 3-tier memory with knowledge lift.
+**Goal:** Restructure `kernel-opt-loop` into a cross-runtime Designer/Coder/Verifier optimization workflow with explicit file contracts, deterministic round state, resumability, and tested Claude Code and Codex orchestration adapters.
 
-**Architecture:** Main skill `SKILL.md` becomes an orchestrator guide; role behavior lives in `prompts/{designer,coder,verifier}.md` injected as spawn-prompt prefixes for built-in `subagent_type` (architect/developer/qa); project-level artifacts (`project.md`, `rounds/decision_NNN.md`, `rounds/report_NNN.md`, `team-state.md`, `state/*.md`) replace the old monolithic `log.md`.
+**Architecture:** `SKILL.md` owns the runtime-neutral state machine and the common agent bootstrap contract. Role behavior lives in `prompts/{designer,coder,verifier}.md`; runtime-specific dispatch behavior lives in `adapters/{claude-code,codex}.md`. Project state is persisted in `project.md`, `team-state.md`, `rounds/`, and `state/`, while small Python helpers make baseline creation and profiler normalization reproducible.
 
-**Tech Stack:** Markdown skill files; Claude Code `Agent` tool with `team_name` + built-in `subagent_type`; Claude Code `TeamCreate`/`SendMessage`/`TeamDelete`; bash + `jq` for profiler JSON analysis (inherited from current skill).
+**Tech Stack:** Markdown Agent Skill files; Python 3 standard library helpers; existing `auto_bench.py`; Claude Code agent-team teammates; Codex multi-agent collaboration tools; bash for validation.
 
-**Spec:** `docs/superpowers/specs/2026-08-13-kernel-opt-loop-restructure-design.md`
+**Spec:** `docs/superpowers/specs/2026-08-13-kernel-opt-loop-restructure-design.md`. This plan resolves implementation defects discovered after the design was approved. Where the plan is more specific than the spec about runtime APIs, Phase 0 baseline, accepted-candidate state, or metric normalization, this plan is authoritative for implementation.
 
 ## Global Constraints
 
-- Skill source of truth: `skills/kernel-opt-loop/` in this repo (git-tracked). The `~/.claude/skills/kernel-opt-loop/` is a synced copy — implementation writes to the repo path; sync happens in Task 9.
-- Subagent embodiment: built-in `subagent_type` only (`architect`, `developer`, `qa`, `general-purpose`). Custom agent files under skill `agents/` are NOT auto-resolved (verified 2026-08-13 via probe). Role behavior lives in `prompts/*.md` and is injected as the spawn-prompt prefix.
-- Communication architecture: hybrid. Three roles form a long-lived team via `TeamCreate(team_name: "<op>-opt")` + `Agent(team_name=..., name=..., subagent_type=...)`. Round-internal handoffs use `SendMessage`. Main session intervenes only at round boundaries (commit, stop/continue, user decisions).
-- File contracts (spec §4.x):
-  - `rounds/decision_NNN.md` — Designer output, Coder input.
-  - `triton_<op>_<NNN>.py` — Coder output, Verifier input.
-  - `rounds/report_NNN.md` — Verifier output, Designer input (next round).
-  - `project.md` — project-level spec + overview table (replaces old `log.md` Sections 1-3, 7, 8).
-  - `team-state.md` — resume manifest.
-  - `state/{designer,coder,verifier}_state.md` — role-local reasoning state.
-  - `rounds/round_status_NNN.md` — opt-in visibility for long Verifier runs.
-- Round operation rules (spec §4.3):
-  - Coder→Designer revision: minor deviation = proceed + log; major = refuse + SendMessage; max 2 round-trips per round.
-  - Failure retry budgets: Coder code broken = 2 self-fix; Verifier env failure = 0 (escalate to user); Verifier accuracy FAIL = 1 Coder retry; Verifier < 5% noise = 2 Verifier re-runs.
-  - User visibility: passive idle notifications at each role's turn end + opt-in `round_status_NNN.md`. No polling.
-- Stop criteria (spec §5.1): measurement-bound, diminishing-returns (3 consecutive < 5% OR 3 aborts), upbound-reached, resource-exhausted (> 30 entries OR > 40 rounds OR > 24h), user-intervention. Verifier emits `shutdown_request`; Designer approves/rejects; main session is final authority.
-- Resume (spec §6): `team-state.md` manifest records stop_reason + resume_constraints; main session validates constraints before spawning fresh team; per `stop_reason` resume eligibility table drives behavior.
-- v1 supports only linear workflow (no parallel attempts).
-- Knowledge base: v1 leaves only a Designer-side hook. `references/anti-patterns.md` is seeded from groupedtopk's failed attempts; no external KB lookup.
-- Don't auto-migrate existing `groupedtopk/log.md` or `fused_moe/log.md` to the new structure (spec §10).
+- Skill source of truth is `skills/kernel-opt-loop/` in this repository.
+- The skill must work in both Claude Code and Codex. Runtime-neutral files must not contain tool-call syntax from either runtime.
+- Claude Code compatibility target is v2.1.178 or newer with `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. Do not use removed `TeamCreate` or `TeamDelete` tools; do not rely on `team_name`.
+- Codex requires the `multi_agent` capability. Use `spawn_agent` for initial role creation, `followup_task` for later turns, `send_message` only for steering a running role, and `wait_agent` for completion.
+- Use portable general-purpose/default agents plus the skill-local role contracts. Runtime-local `architect`, `developer`, and `qa` definitions are optional optimizations, not required dependencies.
+- Every spawned role receives the common bootstrap message defined in `SKILL.md`; do not inline the full role contract into the spawn message.
+- v1 is linear: exactly one active optimization round and one candidate at a time. The three roles may stay alive, but they do not work on competing candidates in parallel.
+- `base.py` is user-owned and immutable. Phase 0 generates `baseline_adapter.py`; it never rewrites `base.py`.
+- `last_accepted_kernel` is the only canonical implementation pointer. A candidate that is slower, improves by less than 5%, fails accuracy, or aborts must not become the next Coder starting point.
+- Every terminal round result is exactly one of `accepted`, `no-improvement`, `accuracy-fail`, `abort`, or `env-fail`. Phase 0 uses `baseline`.
+- Profiler totals must be normalized to one forward call before computing `device_ratio`.
+- Existing `groupedtopk/log.md` and `fused_moe/log.md` are not migrated. Historical anti-pattern extraction uses the pinned Git object `bd80f49^:groupedtopk/log.md` because the working-tree log no longer contains Entries 005–024.
+- Runtime state and role state are committed at every completed state transition so a fresh session can resume from disk.
+- Manifest phases are `initializing`, `ready`, `designing`, `coding`, `verifying`, `blocked`, and `stopped`. Role dispatch is allowed only when the predecessor artifact is complete and schema-valid.
+- Implementation must begin in an isolated worktree created through `superpowers:using-git-worktrees`; do not create or merge branches from inside the skill workflow itself.
 
 ---
 
-## File Structure
+## Final File Structure
 
-After this plan, the skill directory will look like:
-
-```
+```text
 skills/kernel-opt-loop/
-  SKILL.md                          # orchestrator guide (main session) — REWRITTEN
-  prompts/                          # NEW subdirectory
-    designer.md                     # Designer role behavior
-    coder.md                        # Coder role behavior
-    verifier.md                     # Verifier role behavior
+  SKILL.md
+  adapters/
+    claude-code.md
+    codex.md
+  prompts/
+    designer.md
+    coder.md
+    verifier.md
   references/
-    bottleneck-judgment.md          # PRESERVED (no changes)
-    project-template.md             # RENAMED from log-template.md, content adapted
-    invariants.md                   # NEW — code invariants (AST filter, fast_libentry, etc.)
-    anti-patterns.md                # NEW — cross-project failure patterns from groupedtopk
+    anti-patterns.md
+    bottleneck-judgment.md
+    decision-template.md
+    invariants.md
+    project-template.md
+    report-template.md
+    team-state-template.md
+  scripts/
+    make_baseline_adapter.py
+    summarize_trace.py
+  tests/
+    check_contracts.sh
+    test_helpers.py
 ```
 
-Removed:
-- `references/log-template.md` (replaced by `project-template.md`).
+Project structure produced by the skill:
 
-Project-level (per operator) structure produced when the skill runs:
-
-```
+```text
 <op>/
   base.py
+  baseline_adapter.py
   project.md
   team-state.md
   triton_<op>_<NNN>.py
   rounds/
-    decision_001.md
-    report_001.md
-    round_status_001.md
-    ...
+    decision_NNN.md
+    report_NNN.md
+    round_status_NNN.md
   state/
     designer_state.md
     coder_state.md
     verifier_state.md
-  log/                              # gitignored
+  log/
     *.pt.trace.json
 ```
 
+`log/` remains gitignored. All other files are durable project artifacts.
+
+## State Machine Contract
+
+The orchestrator is the sole writer of `team-state.md` and `project.md` overview rows. Roles write only their own state file and their declared decision/report/kernel output.
+
+| Result | Required artifacts | Canonical pointer | Counter update | Next action |
+|---|---|---|---|---|
+| `baseline` | `baseline_adapter.py`, `report_000.md` | `last_accepted_kernel: baseline_adapter.py` | both streaks = 0 | start Round 1 |
+| `accepted` | decision, candidate, report | advance to candidate | both streaks = 0 | next round |
+| `no-improvement` | decision, candidate, report | unchanged | no-improvement +1; failed-attempts = 0 | next round or stop at 3 |
+| `accuracy-fail` | decision, candidate, report | unchanged | failed-attempts +1; no-improvement = 0 | next round or stop at 3 |
+| `abort` | decision only | unchanged | failed-attempts +1; no-improvement = 0 | next round or stop at 3 |
+| `env-fail` | Phase 0: environment report; Round N: decision, candidate, environment report | unchanged | streaks unchanged | set phase `blocked`, surface to user |
+
+Round comparison is always against `last_accepted_report`, whose implementation must equal `last_accepted_kernel`, never merely Round N-1. `last_completed_report` tracks the newest audit result independently. Audit commits may contain rejected or broken candidates, but `team-state.md` prevents them from becoming canonical.
+
 ---
 
-## Task 1: Branch, backup, and skeleton
+## Task 1: Add deterministic helper scripts and tests
 
 **Files:**
-- Create: `skills/kernel-opt-loop/SKILL.md.legacy` (backup of current SKILL.md)
-- Create: `skills/kernel-opt-loop/prompts/` (directory)
+- Create: `skills/kernel-opt-loop/scripts/make_baseline_adapter.py`
+- Create: `skills/kernel-opt-loop/scripts/summarize_trace.py`
+- Create: `skills/kernel-opt-loop/tests/test_helpers.py`
 
 **Interfaces:**
-- Consumes: current `skills/kernel-opt-loop/SKILL.md` (source material for later extraction).
-- Produces: backup file `SKILL.md.legacy` (read by Task 2 for pitfalls extraction); `prompts/` directory (written by Tasks 5-7).
+- `make_baseline_adapter.py SOURCE DEST` reads a Python operator file, renames its one top-level `Model` class to `ModelNew`, and writes an AST-equivalent adapter without modifying the source.
+- `summarize_trace.py TRACE --iterations N [--scope RECORD_FUNCTION]` prints JSON with `iterations`, `device_total_us`, `device_us_per_call`, and a per-kernel breakdown. `--scope` restricts events to kernels nested under one profiler `record_function` span when the trace contains both accepted-reference and candidate calls.
 
-- [ ] **Step 1: Create feature branch**
+- [ ] **Step 1: Write failing tests for baseline adapter generation**
 
-```bash
-git checkout -b kernel-opt-loop-restructure
+Add `unittest` cases that create a temporary source containing `Model`, `get_inputs`, and `get_init_inputs`, invoke the helper, and assert:
+
+```python
+self.assertIn("class ModelNew", output)
+self.assertNotIn("class Model(", output)
+self.assertIn("def get_inputs", output)
+self.assertEqual(source_path.read_text(), original_source)
 ```
 
-Verify: `git branch --show-current` outputs `kernel-opt-loop-restructure`.
+Also add failure cases for zero or two top-level `Model` classes; both must exit non-zero with a clear error.
 
-- [ ] **Step 2: Backup current SKILL.md**
+- [ ] **Step 2: Write failing tests for trace normalization**
 
-```bash
-cp skills/kernel-opt-loop/SKILL.md skills/kernel-opt-loop/SKILL.md.legacy
+Use a synthetic trace with three kernel events:
+
+```json
+{"traceEvents": [
+  {"cat": "kernel", "name": "k1", "dur": 20},
+  {"cat": "kernel", "name": "k1", "dur": 30},
+  {"cat": "kernel", "name": "k2", "dur": 50},
+  {"cat": "cpu_op", "name": "ignored", "dur": 999}
+]}
 ```
 
-Verify: `ls skills/kernel-opt-loop/SKILL.md.legacy` succeeds.
+For `--iterations 10`, assert total `100.0`, per-call `10.0`, `k1.total_us == 50.0`, and `k1.per_call_us == 5.0`. Add a synthetic trace with `reference_*` and `candidate_*` record-function spans, CPU launch events inside each span, and asynchronous kernels linked by `External id`/`correlation`; assert `--scope candidate_test` excludes reference kernels even when kernel timestamps extend beyond the CPU span. Add rejection tests for `--iterations 0`, an unknown scope, ambiguous duplicate scopes, missing correlation metadata, and missing `traceEvents`.
 
-- [ ] **Step 3: Create prompts/ directory**
+- [ ] **Step 3: Run the helper tests and verify RED**
 
-```bash
-mkdir -p skills/kernel-opt-loop/prompts
-```
-
-Verify: `ls -d skills/kernel-opt-loop/prompts` succeeds.
-
-- [ ] **Step 4: Commit backup + skeleton**
+Run:
 
 ```bash
-git add skills/kernel-opt-loop/SKILL.md.legacy
-git commit -m "skills: backup current kernel-opt-loop SKILL.md before restructure"
+python3 -m unittest discover -s skills/kernel-opt-loop/tests -p 'test_*.py' -v
 ```
 
-Verify: `git log --oneline -1` shows the backup commit.
+Expected: failures because both scripts are absent.
+
+- [ ] **Step 4: Implement `make_baseline_adapter.py`**
+
+Use `argparse`, `ast.parse`, an `ast.NodeTransformer`, `ast.fix_missing_locations`, and `ast.unparse`. Rename only a top-level `ClassDef` named `Model`; preserve every other definition. Refuse ambiguous input rather than guessing.
+
+- [ ] **Step 5: Implement `summarize_trace.py`**
+
+Use only the Python standard library. Without `--scope`, sum numeric `dur` values where `cat == "kernel"`. With `--scope`, resolve exactly one complete or begin/end record-function span; collect correlation identifiers from CPU launch descendants on the same thread, then include only kernel events whose `External id`/`correlation` links to those descendants. Timestamp containment may be used only when the trace explicitly lacks async accelerator events; otherwise refuse un-attributable or ambiguous data. Group by `name`, divide totals and counts by the supplied iteration count, sort breakdown rows by descending total duration, and emit stable JSON via `json.dumps(..., indent=2, sort_keys=True)`.
+
+- [ ] **Step 6: Run tests and verify GREEN**
+
+Run the command from Step 3. Expected: all tests pass.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add skills/kernel-opt-loop/scripts skills/kernel-opt-loop/tests/test_helpers.py
+git commit -m "skills: add reproducible baseline and trace helpers"
+```
 
 ---
 
-## Task 2: Write `references/invariants.md`
-
-Extract code invariants from the current `SKILL.md.legacy` pitfalls log + `bottleneck-judgment.md` compressible-vs-fixed table. Target audience: Coder (reads this to know what patterns are safe) and Designer (reads this to know what's already solved, so doesn't re-propose).
+## Task 2: Add invariant and anti-pattern references
 
 **Files:**
 - Create: `skills/kernel-opt-loop/references/invariants.md`
-
-**Interfaces:**
-- Consumes: `skills/kernel-opt-loop/SKILL.md.legacy` (Pitfalls log + Step 3 AST filter section + Step 4 accuracy failure causes); `skills/kernel-opt-loop/references/bottleneck-judgment.md` (Compressible vs fixed table).
-- Produces: `references/invariants.md` referenced by `prompts/coder.md` (Task 6) and `prompts/designer.md` (Task 5).
-
-**Content checklist (each must appear in the file):**
-1. `_filter_module_ast` stripping — auto_bench's filter drops non-literal module-level assigns. Pattern: `fast_libentry()(_kernel)` at module scope → NameError. Fix: class-body `globals()` trick.
-2. argmax sentinel — `tl.where(is_best, e_idx, E)` corrupts the sum. Use `tl.where(is_best, e_idx, 0)`.
-3. `tl.dot` shape — requires 2D inputs and matching inner dims. `[1, H] @ [2I, H]` is wrong; transpose first.
-4. `torch.mlu.device()` context manager — has host enter/exit overhead. If caller sets device, drop it.
-5. `torch.empty_like` per forward — allocator overhead. Cache output tensor on ModelNew instance.
-6. `torch.cuda.is_available()` on MLU box — returns True (CUDA stub loaded), so `sync_devices()` syncs BOTH cuda and mlu → double sync cost per iter. Harness overhead, not fixable in kernel.
-7. `fast_libentry` — compresses Triton launcher default path. (From compressible-vs-fixed table.)
-8. Routing PyTorch ops (softmax/topk/cast) — fuse into kernel. (From compressible-vs-fixed table.)
-9. `set_seed` per forward — fixed (harness). Don't try to optimize.
-10. `sync_devices` syncing multiple accelerators — fixed (harness). Don't try to optimize.
-11. `build_case` + `load_state_dict` state diff — fixed (harness). Don't try to optimize.
-
-- [ ] **Step 1: Read source material**
-
-Read `skills/kernel-opt-loop/SKILL.md.legacy` (full file, ~200 lines) and `skills/kernel-opt-loop/references/bottleneck-judgment.md` (full file).
-
-- [ ] **Step 2: Write the failing test (content checklist)**
-
-Create a temporary checklist file `skills/kernel-opt-loop/references/.invariants-checklist.tmp` with the 11 items above (one per line). This is the test — each item must appear in the final `invariants.md`.
-
-- [ ] **Step 3: Verify test fails**
-
-```bash
-test -f skills/kernel-opt-loop/references/invariants.md && echo "exists" || echo "missing"
-```
-
-Expected: `missing` (file doesn't exist yet).
-
-- [ ] **Step 4: Write `invariants.md`**
-
-Structure:
-```markdown
-# Kernel Implementation Invariants
-
-[1-paragraph intro: this file is read by Coder (to know safe patterns) and Designer (to know what's already solved). Updates here propagate to all projects.]
-
-## Code patterns (apply when writing kernels)
-
-### _filter_module_ast stripping
-[explanation + the class-body globals() trick with code block, copied from SKILL.md.legacy Step 3]
-
-### argmax sentinel
-[explanation + correct tl.where pattern]
-
-### tl.dot shape requirements
-[explanation + correct shape pattern]
-
-### fast_libentry
-[explanation + usage]
-
-### Output tensor caching
-[explanation + ModelNew instance cache pattern]
-
-### torch.mlu.device() context manager
-[explanation + when to drop it]
-
-## Harness fixed costs (do not try to optimize)
-
-### set_seed per forward
-[explanation]
-
-### sync_devices multi-accelerator sync
-[explanation, especially torch.cuda.is_available() returning True on MLU box]
-
-### build_case + load_state_dict state diff
-[explanation]
-
-## Compressible vs fixed quick reference
-
-[Table copied from bottleneck-judgment.md "Compressible vs fixed host overhead" section]
-```
-
-- [ ] **Step 5: Verify test passes (content checklist)**
-
-For each of the 11 items in `.invariants-checklist.tmp`, grep the new file:
-
-```bash
-while IFS= read -r item; do
-  if grep -qF "$item" skills/kernel-opt-loop/references/invariants.md; then
-    echo "OK: $item"
-  else
-    echo "MISSING: $item"
-  fi
-done < skills/kernel-opt-loop/references/.invariants-checklist.tmp
-```
-
-Expected: all 11 lines start with `OK:`. If any `MISSING`, edit `invariants.md` to add the missing item.
-
-- [ ] **Step 6: Cleanup checklist + commit**
-
-```bash
-rm skills/kernel-opt-loop/references/.invariants-checklist.tmp
-git add skills/kernel-opt-loop/references/invariants.md
-git commit -m "skills: add invariants reference for kernel-opt-loop"
-```
-
-Verify: `git log --oneline -1` shows the commit.
-
----
-
-## Task 3: Write `references/anti-patterns.md`
-
-Seed the cross-project failure-pattern catalog from groupedtopk's 16 failed attempts. Target audience: Designer (scans before picking optimization path; records hit/miss in `decision_NNN.md` KB hook section).
-
-**Files:**
 - Create: `skills/kernel-opt-loop/references/anti-patterns.md`
 
 **Interfaces:**
-- Consumes: `groupedtopk/log.md` (entries 004, 005, 006, 007, 011, 012, 013, 014, 015, 016, 017, 019, 021, 022, 023, 024 — all marked 失败).
-- Produces: `references/anti-patterns.md` referenced by `prompts/designer.md` (Task 5).
+- Consumes current `skills/kernel-opt-loop/SKILL.md`, `references/bottleneck-judgment.md`, and pinned historical log `bd80f49^:groupedtopk/log.md`.
+- Produces references read by Designer and Coder.
 
-**Anti-pattern extraction approach:**
-Each failed entry's "踩坑" or "状态" + "结果" sections reveal a structural failure mode. Abstract the *pattern* (not the shape-specific code) — e.g. "winner tree" not "winner tree with 32 experts". Each anti-pattern entry should answer: (a) what was the hypothesis, (b) why it structurally failed (not just "didn't speed up"), (c) how to recognize it before trying.
-
-- [ ] **Step 1: Read failed entries from groupedtopk/log.md**
-
-Read `groupedtopk/log.md` lines covering entries 004, 005, 006, 007 (around lines 267-369 based on grep output). Use `Read` tool with offset/limit to capture all 16 failed entries (004-024, skipping 008/010/018 which succeeded). Total ~700 lines.
-
-- [ ] **Step 2: Catalog patterns to scratch file**
-
-Write `skills/kernel-opt-loop/references/.anti-patterns-catalog.tmp` with one line per failed entry:
-
-```
-entry_004 | <one-line pattern name> | <one-line structural reason>
-entry_005 | ...
-...
-entry_024 | ...
-```
-
-Aim for 16 lines. If two entries share a pattern, note both entry numbers on one line (e.g. `entry_021,022,023 | U1 batch tile attempts | <reason>`).
-
-- [ ] **Step 3: Verify catalog has 16 entries**
+- [ ] **Step 1: Verify the pinned anti-pattern source exists**
 
 ```bash
-wc -l skills/kernel-opt-loop/references/.anti-patterns-catalog.tmp
+git show bd80f49^:groupedtopk/log.md | grep -q "### Entry 024"
 ```
 
-Expected: between 10 and 16 lines (some entries may merge). If fewer than 10, re-read entries — you missed some.
+Expected: exit 0. If the Git object is unavailable, stop this task; do not silently use the truncated working-tree log.
 
-- [ ] **Step 4: Write `anti-patterns.md`**
+- [ ] **Step 2: Write `invariants.md`**
 
-Structure:
-```markdown
-# Kernel Optimization Anti-Patterns
+Include concrete safe/unsafe examples for all of these:
 
-[1-paragraph intro: this file is read by Designer before picking an optimization path. Each entry is a structural failure mode observed in past projects. When considering a path that matches an anti-pattern, record the hit in decision_NNN.md KB hook section and justify why this attempt is different.]
+1. `_filter_module_ast` strips non-literal module assignments; use the class-body `globals()` pattern for `fast_libentry`.
+2. The `argmax sentinel` for masked lanes is zero, not `E`, when values will be summed.
+3. `tl.dot` inputs are 2D and inner dimensions match; transpose `[2I,H]` before multiplying by `[1,H]`.
+4. Drop `torch.mlu.device()` only when the caller establishes the device.
+5. Cache output buffers on `ModelNew` with `torch.empty_like` or an equivalent allocation when shape/device/dtype are stable.
+6. `fast_libentry` reduces launcher overhead but does not remove harness synchronization.
+7. Fuse routing softmax/top-k/cast when they appear as separate device kernels.
+8. Treat `set_seed`, multi-accelerator `sync_devices`, and `build_case/load_state_dict` as harness-fixed costs.
+9. Coder starts from `team-state.md:last_accepted_kernel`, never from the numerically previous candidate.
 
-## Catalog
+- [ ] **Step 3: Extract anti-patterns from the pinned log**
 
-### <Pattern name> (seen in: entry_XXX, entry_YYY)
-
-**Hypothesis it tried to validate**: <one line>
-
-**Structural reason it failed**: <2-3 lines — why this approach can't work for this class of problem, not just "didn't measure up">
-
-**Recognition signs**: <how to tell a future proposal is the same pattern>
-
----
-
-[repeat for each pattern]
-```
-
-- [ ] **Step 5: Verify each catalog entry appears in the file**
+Read the historical log without modifying the worktree:
 
 ```bash
-while IFS='|' read -r entries name reason; do
-  if grep -qF "$(echo "$name" | xargs)" skills/kernel-opt-loop/references/anti-patterns.md; then
-    echo "OK: $entries"
-  else
-    echo "MISSING: $entries ($name)"
-  fi
-done < skills/kernel-opt-loop/references/.anti-patterns-catalog.tmp
+git show bd80f49^:groupedtopk/log.md > /tmp/kernel-opt-loop-groupedtopk-history.md
 ```
 
-Expected: all lines `OK`. Fix any `MISSING` by adding the pattern to `anti-patterns.md`.
+Abstract Entries 004, 005, 006, 007, 011, 012, 013, 014, 015, 016, 017, 019, 021, 022, 023, and 024. Each catalog entry must contain:
 
-- [ ] **Step 6: Cleanup + commit**
+- source entry numbers;
+- hypothesis;
+- structural failure reason;
+- recognition signs;
+- evidence boundary explaining when the pattern may not apply.
+
+- [ ] **Step 4: Validate reference coverage**
+
+Run:
 
 ```bash
-rm skills/kernel-opt-loop/references/.anti-patterns-catalog.tmp
-git add skills/kernel-opt-loop/references/anti-patterns.md
-git commit -m "skills: seed anti-patterns reference from groupedtopk failures"
-```
-
-Verify: `git log --oneline -1` shows the commit.
-
----
-
-## Task 4: Write `references/project-template.md` (replaces log-template.md)
-
-Adapt the current `log-template.md` to the new structure: only project-level sections (1-3, 7, 8 from the old template). Per-round entries are no longer in this file — they live in `rounds/decision_NNN.md` + `rounds/report_NNN.md`.
-
-**Files:**
-- Create: `skills/kernel-opt-loop/references/project-template.md`
-- Delete: `skills/kernel-opt-loop/references/log-template.md`
-
-**Interfaces:**
-- Consumes: `skills/kernel-opt-loop/references/log-template.md` (source material to adapt from).
-- Produces: `references/project-template.md` referenced by `prompts/designer.md` (Task 5, used in Phase 0 to initialize project.md).
-
-- [ ] **Step 1: Read current log-template.md**
-
-Read `skills/kernel-opt-loop/references/log-template.md` (full file, ~160 lines).
-
-- [ ] **Step 2: Write `project-template.md`**
-
-Keep only Sections 1 (problem + measurement), 2 (upbound), 3 (overview table), 7 (repro), 8 (checkpoint) from the old template. Drop Sections 4, 5, 6 — they're per-round and now live in `rounds/`. Structure:
-
-```markdown
-# <Operator Name> Triton Kernel Optimization Project
-
-[1-paragraph intro: what this operator does, what device, what the optimization goal is. Per-round entries live in rounds/decision_NNN.md + rounds/report_NNN.md. This file is the project-level contract written once in Phase 0; the overview table grows by one row per round.]
-
-## 1. 固定问题与测试口径
-
-### 1.1 算子语义
-[copy from log-template.md Section 1.1]
-
-### 1.2 环境
-[copy from log-template.md Section 1.2]
-
-### 1.3 测量规则
-[copy from log-template.md Section 1.3, but adapt rule 5 to reference the new abort/noise handling from spec §4.3(b)]
-
-## 2. Upbound 定义
-[copy from log-template.md Section 2]
-
-## 3. 当前结果总览
-
-| 实现 | Wall time/call (auto_bench) | Kernel device time | 相对上一阶段 | 相对 base |
-|---|---:|---:|---:|---:|
-| `base.py` eager | <X> ms | ~<Y> ms / 50 iter | - | 1.00x |
-
-[Note: each round adds one row. Updated by main session at round commit time, not by subagents.]
-
-## 4. 复现命令
-[copy from log-template.md Section 7]
-
-## 5. Checkpoint
-[copy from log-template.md Section 8, but adapt: v1–v<NNN> Triton refers to files in triton_<op>_<NNN>.py; per-round decisions/reports in rounds/]
-```
-
-- [ ] **Step 3: Verify template covers required sections**
-
-```bash
-for section in "1. 固定问题与测试口径" "2. Upbound 定义" "3. 当前结果总览" "4. 复现命令" "5. Checkpoint"; do
-  grep -qF "$section" skills/kernel-opt-loop/references/project-template.md && echo "OK: $section" || echo "MISSING: $section"
+for token in _filter_module_ast fast_libentry "argmax sentinel" tl.dot torch.mlu.device torch.empty_like set_seed sync_devices last_accepted_kernel; do
+  grep -qF "$token" skills/kernel-opt-loop/references/invariants.md || exit 1
+done
+for entry in 004 005 006 007 011 012 013 014 015 016 017 019 021 022 023 024; do
+  grep -q "Entry $entry" skills/kernel-opt-loop/references/anti-patterns.md || exit 1
 done
 ```
 
-Expected: all 5 `OK`. Fix any `MISSING`.
-
-- [ ] **Step 4: Delete old log-template.md**
-
-```bash
-git rm skills/kernel-opt-loop/references/log-template.md
-```
-
-Verify: `ls skills/kernel-opt-loop/references/log-template.md 2>&1` shows "No such file or directory".
+Expected: exit 0.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add skills/kernel-opt-loop/references/project-template.md
-git commit -m "skills: replace log-template with project-template for kernel-opt-loop"
+git add skills/kernel-opt-loop/references/invariants.md skills/kernel-opt-loop/references/anti-patterns.md
+git commit -m "skills: add kernel invariants and historical anti-patterns"
 ```
-
-Verify: `git log --oneline -1` shows the commit.
 
 ---
 
-## Task 5: Write `prompts/designer.md`
+## Task 3: Replace the monolithic log template with explicit contracts
 
-Designer role behavior. Spawned via `Agent(subagent_type: "architect", team_name: "<op>-opt", name: "designer", prompt: <contents of this file> + <round briefing>)`. Per spec §4.1.
+**Files:**
+- Create: `skills/kernel-opt-loop/references/project-template.md`
+- Create: `skills/kernel-opt-loop/references/decision-template.md`
+- Create: `skills/kernel-opt-loop/references/report-template.md`
+- Create: `skills/kernel-opt-loop/references/team-state-template.md`
+- Delete: `skills/kernel-opt-loop/references/log-template.md`
+
+**Interfaces:**
+- Produces the exact schemas used by every role and by the orchestrator.
+- `team-state.md` is Markdown with YAML frontmatter and a short human-readable transition log.
+
+- [ ] **Step 1: Write `team-state-template.md` with the complete manifest schema**
+
+The template frontmatter must contain these keys and initial values:
+
+```yaml
+---
+schema_version: 1
+skill_version: 2.0.0
+runtime: unset
+phase: initializing
+project_started_at: null
+current_round: "000"
+last_completed_round: null
+last_accepted_round: null
+last_accepted_kernel: null
+last_completed_decision: null
+last_completed_report: null
+last_accepted_report: null
+last_result: null
+consecutive_no_improvement: 0
+consecutive_failed_attempts: 0
+total_rounds: 0
+measurement_fingerprint: null
+stop_reason: null
+stop_timestamp: null
+skill_version_at_stop: null
+measurement_fingerprint_at_stop: null
+kb_revision_at_stop: null
+resume_eligible: always
+resume_constraints: []
+---
+```
+
+Below the frontmatter, include `## Transition Log`, with one append-only row per orchestrator update.
+
+Define `measurement_fingerprint` deterministically as `sha256(base_bytes + b"\0" + harness_bytes + b"\0" + settings_json_bytes)`, where settings JSON uses `sort_keys=True` and separators `(',', ':')` and contains shape, dtype, device, warmup, repeat, profile mode, profile warmup, and profile iterations. Resume validation must recompute exactly this value.
+
+- [ ] **Step 2: Write `decision-template.md`**
+
+Require these fields:
+
+```text
+Decision: proceed | abort
+Round
+Reference implementation
+Reference report
+Bottleneck class and normalized device_ratio
+Falsifiable hypothesis
+One optimization means
+Expected wall improvement percentage
+Pitfall warnings
+Anti-pattern consultation hit/miss
+Acceptance rule
+```
+
+An abort decision still fills Round, Reference, rejection rationale, and anti-pattern consultation; it is not a one-line file.
+
+- [ ] **Step 3: Write `report-template.md`**
+
+Require these fields:
+
+```text
+Result: baseline | accepted | no-improvement | accuracy-fail | env-fail
+Round
+Candidate and reference implementation paths
+Correctness and diff summary
+Accepted-reference and candidate trial medians, with aggregate median for each
+Reference median wall time
+Improvement percentage versus last accepted
+profile_iterations
+device_total_us
+device_us_per_call
+device_ratio
+Per-kernel per-call breakdown
+Upbound gap
+Retry history
+Stop recommendation and evidence
+```
+
+Define the unit formula in the template:
+
+```text
+improvement_pct = (reference_median_ms - candidate_median_ms) / reference_median_ms * 100
+device_ratio = device_us_per_call / (candidate_wall_ms * 1000)
+```
+
+- [ ] **Step 4: Write `project-template.md`**
+
+Preserve the old project-level sections for semantics, environment, measurement regime, upbound, reproduction, and checkpoint. Change the overview table to:
+
+```markdown
+| Round | Candidate | Result | Compared against | Wall ms | Device us/call | Improvement | Relative to base | Canonical after round |
+|---:|---|---|---|---:|---:|---:|---:|---|
+```
+
+Document that rejected candidates remain audit rows but do not change the canonical column.
+
+- [ ] **Step 5: Delete `log-template.md` and validate all schemas**
+
+```bash
+git rm skills/kernel-opt-loop/references/log-template.md
+for file in project-template decision-template report-template team-state-template; do
+  test -s "skills/kernel-opt-loop/references/${file}.md" || exit 1
+done
+for key in last_accepted_kernel last_completed_report last_accepted_report consecutive_no_improvement consecutive_failed_attempts resume_constraints; do
+  grep -qF "$key" skills/kernel-opt-loop/references/team-state-template.md || exit 1
+done
+```
+
+Expected: exit 0.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add skills/kernel-opt-loop/references
+git commit -m "skills: define project round and resume contracts"
+```
+
+---
+
+## Task 4: Write the Claude Code runtime adapter
+
+**Files:**
+- Create: `skills/kernel-opt-loop/adapters/claude-code.md`
+
+**Interfaces:**
+- Consumes the bootstrap template from `SKILL.md` and role contracts from `prompts/`.
+- Produces runtime-specific instructions for spawning, messaging, waiting, and shutdown.
+
+- [ ] **Step 1: Capture an unguided control**
+
+In a disposable Claude Code session, ask only: “run kernel-opt-loop with designer, coder, verifier agents.” Record whether it tries `TeamCreate`, relies on a custom agent type, or omits role-contract paths. This establishes the RED behavior; do not alter repository files from the control session.
+
+- [ ] **Step 2: Write `adapters/claude-code.md`**
+
+The adapter must require:
+
+1. Verify Claude Code version is at least 2.1.178.
+2. Verify `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`; if absent, use the sequential fallback in `SKILL.md` or ask the user to enable it.
+3. Spawn three **agent-team teammates** named `designer`, `coder`, and `verifier`; explicitly say “agent-team teammate” so Claude does not choose ordinary one-shot subagents.
+4. Use a portable general-purpose agent unless an equivalent runtime-local role is already available.
+5. Let Claude choose its currently supported teammate-spawn primitive; the adapter specifies desired roles and lifecycle, not a hardcoded creation call.
+6. Pass only the common bootstrap message with absolute role-contract, adapter, project, input, and output paths. Do not paste the full role prompt into the spawn request.
+7. Use `SendMessage` for teammate-to-teammate and teammate-to-lead communication.
+8. On finish, the lead sends a shutdown request to each teammate. Do not call `TeamCreate`, `TeamDelete`, or depend on `team_name`; session cleanup is automatic.
+
+- [ ] **Step 3: Run a guided smoke test**
+
+Spawn one disposable teammate with a bootstrap pointing to `prompts/designer.md` and a temporary project fixture. Require it to echo the resolved contract path, adapter path, project root, phase, inputs, and outputs before exiting. Verify all six fields appear.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add skills/kernel-opt-loop/adapters/claude-code.md
+git commit -m "skills: add Claude Code orchestration adapter"
+```
+
+---
+
+## Task 5: Write the Codex runtime adapter
+
+**Files:**
+- Create: `skills/kernel-opt-loop/adapters/codex.md`
+
+**Interfaces:**
+- Maps runtime-neutral role lifecycle operations to Codex collaboration tools.
+- Must work when only the `default` agent type is portable.
+
+- [ ] **Step 1: Capture an unguided control**
+
+In a disposable Codex session with multi-agent enabled, ask only: “run kernel-opt-loop with designer, coder, verifier agents.” Record whether the workers receive role-contract and artifact paths. This is the RED baseline.
+
+- [ ] **Step 2: Write `adapters/codex.md`**
+
+Specify this mapping:
+
+| Lifecycle operation | Codex action |
+|---|---|
+| Create role first time | `spawn_agent` with `fork_turns="none"` and the common bootstrap message |
+| Start a later idle turn | `followup_task` with current phase and new input/output paths |
+| Steer a running turn | `send_message` |
+| Wait for completion | `wait_agent` with a multi-minute timeout |
+| Inspect live roles | `list_agents` only for diagnostics |
+| End workflow | let completed roles finish; interrupt only a stuck role |
+
+Prefer `architect`, `developer`, and `qa` when the current Codex runtime exposes them; otherwise use `default`. The role contract, not the optional agent type, defines behavior.
+
+Require a preflight check for multi-agent collaboration. If unavailable, invoke the sequential fallback; do not shell out to nested `codex exec` processes.
+
+- [ ] **Step 3: Run a guided smoke test**
+
+Spawn a disposable default agent with `fork_turns="none"` and a bootstrap pointing to one role contract. Verify that it reads the contract and returns all bootstrap fields without relying on parent conversation history.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add skills/kernel-opt-loop/adapters/codex.md
+git commit -m "skills: add Codex orchestration adapter"
+```
+
+---
+
+## Task 6: Write the Designer role contract
 
 **Files:**
 - Create: `skills/kernel-opt-loop/prompts/designer.md`
 
 **Interfaces:**
-- Consumes: `references/bottleneck-judgment.md`, `references/invariants.md` (Task 2), `references/anti-patterns.md` (Task 3), `references/project-template.md` (Task 4), `base.py` (round 0 only), `rounds/report_<NNN-1>.md` (previous round), `state/designer_state.md` (own state).
-- Produces: `rounds/decision_NNN.md` (round N≥1) or `project.md` (round 0 special case).
+- Phase 0 consumes `base.py`, `project-template.md`, and environment inputs; produces `project.md` and `state/designer_state.md`.
+- Round N consumes `team-state.md`, `last_accepted_report`, `last_completed_decision`, `last_completed_report`, anti-patterns, bottleneck judgment, and invariants; produces `decision_NNN.md` and updates only `designer_state.md`.
 
-- [ ] **Step 1: Write `prompts/designer.md`**
+- [ ] **Step 1: Write an unguided Designer pressure fixture**
 
-Content must cover (per spec §4.1):
+Create a temporary project whose Round 2 immediately follows a slower Round 1, while `team-state.md` still points to the accepted baseline. Ask an unguided agent to choose its reference. Record the RED failure if it chooses `triton_test_001.py` merely because it is numerically previous.
 
-```markdown
-# Designer Role
+- [ ] **Step 2: Write `prompts/designer.md`**
 
-You are the Designer in a kernel-opt-loop team. Your job: analyze the previous round's runtime report, pick ONE bottleneck, write a decision that Coder can implement without re-deciding.
+The contract must state:
 
-## Inputs you read each round
+- Read the bootstrap-named files completely before acting.
+- In Phase 0, write `project.md` and initialize only `designer_state.md`; this is the only phase in which Designer may create `project.md`. Do not invent baseline timings.
+- In Round N, read `team-state.md:last_accepted_kernel` with `last_accepted_report` as the performance reference. Read `last_completed_decision` and `last_completed_report` only as recent evidence; a rejected Round N-1 result never becomes the reference.
+- Use exactly one bottleneck and one falsifiable optimization.
+- Quantify expected improvement relative to the accepted reference.
+- If a stable 5% improvement cannot be justified, write a complete abort decision from `decision-template.md` and notify the orchestrator; do not contact Coder.
+- Consult `anti-patterns.md` every round and record hits/misses plus why a superficially matching attempt differs.
+- Outside Phase 0, own only `state/designer_state.md` and the current decision; never write `team-state.md` or `project.md` overview rows.
+- For a Coder major-deviation request, revise the same decision at most twice before aborting.
+- Never overwrite a completed prior-round decision. A rejected shutdown after Round N creates `decision_<N+1>.md`.
 
-- Round 0: `base.py` (operator reference) + `references/project-template.md` (to write `project.md`).
-- Round N≥1: `rounds/report_<NNN-1>.md` (Verifier's previous report), `state/designer_state.md` (your hypothesis queue), `references/anti-patterns.md`, `references/bottleneck-judgment.md`, `references/invariants.md`.
+- [ ] **Step 3: Run the guided pressure test**
 
-## Output: `rounds/decision_NNN.md`
+Use the same fixture and bootstrap the Designer with its contract. Expected: the produced decision names the accepted baseline from `team-state.md`, not the slower previous candidate, and contains every `decision-template.md` field.
 
-Required sections, in order:
-
-### Bottleneck class
-- Compute `device_ratio = sum(kernel dur) / wall_time` from the previous `report_NNN.md`.
-- Label: device-bound (>80%) / mixed (20-80%) / host-bound (<20%) / measurement-bound (<5% AND wall stuck).
-- 2-3 sentence justification with the numbers.
-
-### Hypothesis
-- What the proposed change should do. Concrete, falsifiable: "switching from elementwise outer product to `tl.dot` for the GEMM should drop device time from 21us to ~12us by using tensor cores".
-
-### Optimization means
-- Concrete pattern (e.g. "fuse routing into kernel", "use `fast_libentry`"). Specific enough that Coder doesn't re-decide. Reference `references/invariants.md` for the safe pattern.
-
-### Expected improvement
-- Quantitative: "≥5% wall drop, device_ratio moves from 15% → 35%".
-- If you cannot justify ≥5%, output `decision: abort` as the only content and stop. Do NOT write a kernel. Record the rejection reason in `state/designer_state.md` hypothesis queue.
-
-### Pitfall warnings
-- Anti-patterns relevant to this round. Reference `references/anti-patterns.md` entries by name + the structural reason they failed. If this attempt matches an anti-pattern, justify why this attempt is different.
-
-### KB hook
-- Record "consulted anti-patterns.md, hit/miss: X, Y" — even if anti-patterns.md is empty, write "consulted anti-patterns.md, no hits (file empty or no matching patterns)".
-
-## Round 0 special case
-
-In Round 0, you do NOT write `decision_000.md`. Instead, you write `project.md` from `references/project-template.md`:
-1. Read `base.py` — extract operator semantics, shape, dtype, routing/scoring math.
-2. Fill in Section 1.1 (operator semantic), 1.2 (environment — ask user for device/python/triton versions if not in `base.py`), 1.3 (measurement rules — use defaults from project-template).
-3. Section 2 (upbound): ask user for the upbound reference (e.g. CNNL `Op<half>` latency). If user gives none, write "no upbound declared; stop on measurement-bound or diminishing-returns only".
-4. Section 3 (overview table): write the base.py row only.
-5. Section 4 (repro): write the auto_bench command using the python interpreter + path.
-6. Section 5 (checkpoint): today's date, "v1 Triton: 待补".
-7. Initialize `state/designer_state.md` with empty hypothesis queue + current leaning "start round 1: identify biggest bottleneck in base.py".
-
-## Communicating with Coder
-
-When your `decision_NNN.md` is written, SendMessage to `coder`:
-- `to: "coder"`
-- `message`: one-paragraph briefing + the path `rounds/decision_NNN.md`. Example: "Round 5 decision ready at rounds/decision_005.md. Bottleneck: host-bound, launcher dominates. Optimization: switch to fast_libentry. Expected ≥10% wall drop."
-
-## Handling Coder revision requests
-
-If Coder SendMessage you saying the decision is unimplementable (major deviation), you have two options:
-- Revise `decision_NNN.md` in place (overwrite — no version bump) with the corrected approach. Max 2 revisions per round.
-- Mark `decision: abort` and stop the round.
-
-## Handling Verifier shutdown_request
-
-When Verifier sends `shutdown_request`, respond within 30s:
-- If reason is `user-intervention`, `measurement-bound`, or `upbound-reached`: approve=true.
-- If reason is `diminishing-returns` or `resource-exhausted`: check your hypothesis queue. If you have a viable ≥5% path, approve=false and attach a new `decision_NNN.md` (overwrite). If not, approve=true.
-
-Response format: `SendMessage(to: "verifier", message: {type: "shutdown_response", request_id: <echo>, approve: bool, feedback: <if reject, reasoning>})`.
-
-## State file: `state/designer_state.md`
-
-Append per round:
-- Next-round candidate hypothesis queue (directions you considered but didn't pick, with rejection reasons).
-- Current leaning for next round.
-
-This file is your role-local memory. Main session does not read it; you read it at start of each round to recall what you considered last time.
-```
-
-- [ ] **Step 2: Smoke test — spawn Designer with minimal fixture**
-
-Spawn an architect subagent with this prompt + a minimal fixture (synthetic base.py + a fake previous report) to verify the prompt is coherent and produces a decision.md with required sections.
-
-Prepare fixture at `/tmp/kernel-opt-loop-test/designer-smoke/`:
-```bash
-mkdir -p /tmp/kernel-opt-loop-test/designer-smoke
-cat > /tmp/kernel-opt-loop-test/designer-smoke/base.py <<'EOF'
-import torch
-import torch.nn as nn
-
-class Model(nn.Module):
-    def __init__(self, N=64):
-        super().__init__()
-        self.weight = nn.Parameter(torch.randn(N, N))
-    def forward(self, x):
-        return torch.matmul(x, self.weight)
-
-def get_inputs():
-    return (torch.randn(1, 64),)
-
-def get_init_inputs():
-    return (64,)
-EOF
-
-cat > /tmp/kernel-opt-loop-test/designer-smoke/report_000.md <<'EOF'
-# Report 000
-
-**Correctness**: PASS
-**Wall time**: v0=1.2 ms, v1=1.2 ms, speedup=1.0x
-**Device time**: 980 us / iter (50 iters total 49 ms)
-**device_ratio**: 81% (device-bound)
-**Upbound gap**: base row, no comparison
-**Stop recommendation**: none
-
-## Per-kernel breakdown
-matmul: count=50, total=49000us, avg=980us
-EOF
-```
-
-Spawn:
-```
-Agent(
-  subagent_type: "architect",
-  description: "Designer smoke test",
-  prompt: <<contents of skills/kernel-opt-loop/prompts/designer.md>>
-
-Fixture base for this smoke test:
-- base.py: /tmp/kernel-opt-loop-test/designer-smoke/base.py
-- previous report: /tmp/kernel-opt-loop-test/designer-smoke/report_000.md
-- output path: /tmp/kernel-opt-loop-test/designer-smoke/decision_001.md
-
-Round 1 task: read base.py + report_000.md, produce decision_001.md per your role contract. Do NOT actually optimize — this is a smoke test to verify your prompt is coherent. Write the decision with placeholder content if you can't determine real numbers.
-)
-```
-
-- [ ] **Step 3: Verify smoke test output has required sections**
+- [ ] **Step 4: Commit**
 
 ```bash
-for section in "Bottleneck class" "Hypothesis" "Optimization means" "Expected improvement" "Pitfall warnings" "KB hook"; do
-  grep -qF "$section" /tmp/kernel-opt-loop-test/designer-smoke/decision_001.md && echo "OK: $section" || echo "MISSING: $section"
-done
-```
-
-Expected: all 6 `OK`. If any `MISSING`, fix `prompts/designer.md` and re-spawn.
-
-- [ ] **Step 4: Cleanup fixture + commit**
-
-```bash
-rm -rf /tmp/kernel-opt-loop-test
 git add skills/kernel-opt-loop/prompts/designer.md
-git commit -m "skills: add Designer role prompt for kernel-opt-loop"
+git commit -m "skills: add Designer role contract"
 ```
-
-Verify: `git log --oneline -1` shows the commit.
 
 ---
 
-## Task 6: Write `prompts/coder.md`
-
-Coder role behavior. Spawned via `Agent(subagent_type: "developer", team_name: ..., name: "coder", prompt: <contents of this file> + <round briefing>)`. Per spec §4.2.
+## Task 7: Write the Coder role contract
 
 **Files:**
 - Create: `skills/kernel-opt-loop/prompts/coder.md`
 
 **Interfaces:**
-- Consumes: `rounds/decision_NNN.md` (Designer's output), `references/invariants.md` (Task 2), `state/coder_state.md` (own state), previous round's `triton_<op>_<NNN-1>.py`.
-- Produces: `triton_<op>_<NNN>.py` exposing `ModelNew` with `__init__`/`forward`/`get_inputs`/`get_init_inputs` matching `base.py`.
+- Consumes `decision_NNN.md`, `team-state.md:last_accepted_kernel`, `base.py`, invariants, and `coder_state.md`.
+- Produces `triton_<op>_<NNN>.py` and updates only `coder_state.md`.
 
-- [ ] **Step 1: Write `prompts/coder.md`**
+- [ ] **Step 1: Write an unguided Coder pressure fixture**
 
-Content must cover (per spec §4.2 + §4.3(a) revision loop + §4.3(b) failure handling):
+Create a fixture where `triton_test_001.py` exists but is marked `no-improvement`, while `team-state.md:last_accepted_kernel` points to `baseline_adapter.py`. Ask an unguided agent what to copy. Record RED if it chooses the numerically previous file.
 
-```markdown
-# Coder Role
+- [ ] **Step 2: Write `prompts/coder.md`**
 
-You are the Coder in a kernel-opt-loop team. Your job: read Designer's `decision_NNN.md`, produce `triton_<op>_<NNN>.py` that implements the decision. Change ONLY what the decision requires — no unrelated refactoring.
+Require Coder to:
 
-## Inputs you read each round
-
-- `rounds/decision_NNN.md` (the contract — what to implement).
-- `references/invariants.md` (safe patterns: AST filter, fast_libentry, output caching, etc.).
-- `state/coder_state.md` (invariants from previous round, unresolved smells).
-- Previous round's `triton_<op>_<NNN-1>.py` (copy as starting point — change only what decision requires).
-- `base.py` (for the `ModelNew` contract: `__init__` signature matching `get_init_inputs()`, `forward` matching `get_inputs()`).
-
-## Output: `triton_<op>_<NNN>.py`
-
-Must expose `ModelNew` with:
-- `__init__(self, ...)` matching `base.py`'s `get_init_inputs()` signature.
-- `forward(self, ...)` matching `base.py`'s `get_inputs()` argument list.
-- Same dtype/shape semantics as `base.py` for correctness to pass.
-
-Apply invariants from `references/invariants.md`:
-- AST-filter-safe patterns (class-body `globals()` trick if `fast_libentry` is needed).
-- Cache output tensor on `ModelNew` instance (no `torch.empty_like` per forward).
-- Drop `torch.mlu.device()` context if caller sets device.
-
-## Self-check before handoff
-
-Before SendMessage to Verifier:
-1. AST parse your own file: `python -c "import ast; ast.parse(open('<path>').read())"`. If it fails, fix and retry (max 2 self-fix attempts).
-2. Verify `ModelNew` class exists and has `__init__` + `forward` matching `base.py`'s contract.
-3. Verify no module-level `fast_libentry()(_kernel)` (would be stripped by `_filter_module_ast`).
-
-## Communicating with Verifier
-
-When your file is ready + self-check passes, SendMessage to `verifier`:
-- `to: "verifier"`
-- `message`: file path `triton_<op>_<NNN>.py` + any invariants established this round that affect measurement (e.g. "switched to preallocated output — Verifier should expect lower host overhead").
-
-## Handling Designer revision requests (minor vs major deviation)
-
-When reading `decision_NNN.md`, classify any implementation-level inconsistency:
-
-- **Minor deviation** (clearly implied by decision's intent, e.g. adding `tl.trans` to make `tl.dot` shape-legal): proceed + log deviation in `state/coder_state.md` under "Deviations this round". No Designer round-trip.
-
-- **Major deviation** (decision's core path is unimplementable as specified, e.g. decision says "use `tl.dot` for GEMM" but the shapes fundamentally don't allow it without restructuring): refuse + SendMessage `designer` requesting revision. Format:
-  - `to: "designer"`
-  - `message`: "Decision NNN has major implementation blocker: <one-paragraph reason>. Requesting revision or abort."
-  
-Budget: max 2 Coder→Designer revision round-trips per round. Beyond that, Designer marks `decision: abort`.
-
-## State file: `state/coder_state.md`
-
-Append per round:
-- Invariants established this round (AST-filter pattern chosen, fast_libentry variant, output caching state).
-- Unresolved code smells (for next round's Coder to know what's pending).
-- Deviations from decision (minor ones, with reasoning).
-
-This file is your role-local memory. Main session does not read it.
-```
-
-- [ ] **Step 2: Smoke test — spawn Coder with minimal fixture**
-
-Prepare fixture at `/tmp/kernel-opt-loop-test/coder-smoke/`:
-```bash
-mkdir -p /tmp/kernel-opt-loop-test/coder-smoke
-cp /tmp/kernel-opt-loop-test/designer-smoke/base.py /tmp/kernel-opt-loop-test/coder-smoke/ 2>/dev/null || cat > /tmp/kernel-opt-loop-test/coder-smoke/base.py <<'EOF'
-import torch
-import torch.nn as nn
-
-class Model(nn.Module):
-    def __init__(self, N=64):
-        super().__init__()
-        self.weight = nn.Parameter(torch.randn(N, N))
-    def forward(self, x):
-        return torch.matmul(x, self.weight)
-
-def get_inputs():
-    return (torch.randn(1, 64),)
-
-def get_init_inputs():
-    return (64,)
-EOF
-
-cat > /tmp/kernel-opt-loop-test/coder-smoke/decision_001.md <<'EOF'
-# Decision 001
-
-### Bottleneck class
-device-bound (device_ratio ~81% from report_000).
-
-### Hypothesis
-Switching from torch.matmul to a triton kernel with tiling should reduce device time.
-
-### Optimization means
-Write a Triton kernel for matmul using tl.dot with 2D tiling. Expose ModelNew wrapping it.
-
-### Expected improvement
-≥5% wall drop, device_ratio stays similar but device time drops.
-
-### Pitfall warnings
-- tl.dot shape: requires 2D inputs and matching inner dims. See invariants.md.
-
-### KB hook
-consulted anti-patterns.md, no hits (matmul is too basic to match groupedtopk patterns)
-EOF
-```
-
-Spawn:
-```
-Agent(
-  subagent_type: "developer",
-  description: "Coder smoke test",
-  prompt: <<contents of skills/kernel-opt-loop/prompts/coder.md>>
-
-Fixture:
-- base.py: /tmp/kernel-opt-loop-test/coder-smoke/base.py
-- decision: /tmp/kernel-opt-loop-test/coder-smoke/decision_001.md
-- output path: /tmp/kernel-opt-loop-test/coder-smoke/triton_test_001.py
-
-Round 1 task: write triton_test_001.py per decision_001.md. This is a smoke test — the kernel need not be correct, just structurally valid (ModelNew class, AST-parseable).
-)
-```
-
-- [ ] **Step 3: Verify smoke test output**
+- Read the common bootstrap inputs and `invariants.md`.
+- Copy `last_accepted_kernel` as the starting point, even when later rejected files exist.
+- Implement only the decision; no unrelated refactor.
+- Preserve the `ModelNew`, `get_inputs`, and `get_init_inputs` contract.
+- Classify deviations as minor or major. Minor deviations are logged in `coder_state.md`; major deviations trigger a Designer revision request, with at most two round trips.
+- Self-check with both `ast.parse` and the actual harness loader:
 
 ```bash
-python -c "import ast; ast.parse(open('/tmp/kernel-opt-loop-test/coder-smoke/triton_test_001.py').read()); print('AST OK')"
-grep -q "class ModelNew" /tmp/kernel-opt-loop-test/coder-smoke/triton_test_001.py && echo "ModelNew OK" || echo "MISSING ModelNew"
-grep -q "def forward" /tmp/kernel-opt-loop-test/coder-smoke/triton_test_001.py && echo "forward OK" || echo "MISSING forward"
-grep -q "def get_inputs" /tmp/kernel-opt-loop-test/coder-smoke/triton_test_001.py && echo "get_inputs OK" || echo "MISSING get_inputs"
-grep -q "def get_init_inputs" /tmp/kernel-opt-loop-test/coder-smoke/triton_test_001.py && echo "get_init_inputs OK" || echo "MISSING get_init_inputs"
+<python> -c "from pathlib import Path; import auto_bench as b; m=b.load_ks_module(Path('<candidate>')); assert hasattr(m, 'ModelNew'); assert hasattr(m, 'get_inputs'); assert hasattr(m, 'get_init_inputs')"
 ```
 
-Expected: all 5 `OK`. If any `MISSING`, fix `prompts/coder.md` and re-spawn.
+- Attempt at most two self-fixes for syntax/import/load failures before escalating.
+- Hand the candidate path, source accepted-kernel path, and deviations to Verifier through the active runtime adapter.
+- Own only `state/coder_state.md` and the current candidate; never edit `team-state.md`, manifest counters, or canonical pointers.
 
-- [ ] **Step 4: Cleanup + commit**
+- [ ] **Step 3: Run the guided pressure test**
+
+Expected: Coder copies `baseline_adapter.py`, produces an AST-parseable candidate, and records its source path in `coder_state.md`.
+
+- [ ] **Step 4: Commit**
 
 ```bash
-rm -rf /tmp/kernel-opt-loop-test
 git add skills/kernel-opt-loop/prompts/coder.md
-git commit -m "skills: add Coder role prompt for kernel-opt-loop"
+git commit -m "skills: add Coder role contract"
 ```
-
-Verify: `git log --oneline -1` shows the commit.
 
 ---
 
-## Task 7: Write `prompts/verifier.md`
-
-Verifier role behavior. Spawned via `Agent(subagent_type: "qa", team_name: ..., name: "verifier", prompt: <contents of this file> + <round briefing>)`. Per spec §4.4 + §4.3(b) failure handling + §4.3(c) user visibility + §5 stop criteria.
+## Task 8: Write the Verifier role contract
 
 **Files:**
 - Create: `skills/kernel-opt-loop/prompts/verifier.md`
 
 **Interfaces:**
-- Consumes: `triton_<op>_<NNN>.py` (Coder's output), `project.md` (measurement regime, repro command), `state/verifier_state.md` (env snapshot, noise baseline), `auto_bench.py` (harness), python interpreter path.
-- Produces: `rounds/report_NNN.md`; `rounds/round_status_NNN.md` (status updates during long runs); `shutdown_request` SendMessage to Designer when stop criteria hit.
+- Phase 0 consumes `base.py`, `project.md`, helper scripts, `auto_bench.py`, and the interpreter path; produces `baseline_adapter.py`, `report_000.md`, and `verifier_state.md`.
+- Round N consumes the candidate, `last_accepted_kernel`, `last_accepted_report`, project measurement regime, and verifier state; produces `report_NNN.md`, optional status file, and updates only `verifier_state.md`.
 
-- [ ] **Step 1: Write `prompts/verifier.md`**
+- [ ] **Step 1: Write an unguided metric pressure fixture**
 
-Content must cover (per spec §4.4 + §4.3(b) + §4.3(c) + §5):
+Give an unguided agent a trace totaling 1,000 us across 50 forwards and a wall time of 0.1 ms/call. Record RED if it reports `device_ratio = 1000 / 100 = 1000%` instead of `(1000/50)/100 = 20%`.
 
-```markdown
-# Verifier Role
+- [ ] **Step 2: Write the Phase 0 contract**
 
-You are the Verifier in a kernel-opt-loop team. Your job: run `auto_bench.py` + torch.profiler on Coder's `triton_<op>_<NNN>.py`, produce `report_NNN.md` with the numbers, and emit `shutdown_request` when stop criteria hit.
+Require Verifier to:
 
-## Inputs you read each round
+1. Generate `baseline_adapter.py` with `make_baseline_adapter.py`.
+2. Run `auto_bench.py --v0_file base.py --v1_file baseline_adapter.py` using project warmup/repeat settings.
+3. Profile baseline forward calls using the declared iteration count.
+4. Run `summarize_trace.py TRACE --iterations N --scope candidate_baseline_adapter` (or the exact emitted candidate record-function label).
+5. Write `report_000.md` with `Result: baseline`, normalized device metrics, and the exact reproduction commands.
+6. Initialize `state/verifier_state.md` with environment, measurement regime, and baseline samples.
 
-- `triton_<op>_<NNN>.py` (the implementation to test).
-- `project.md` Section 1.3 (measurement regime: warmup, repeat, sync rules) + Section 4 (repro command).
-- `state/verifier_state.md` (env snapshot + noise baseline from previous rounds).
-- `auto_bench.py` path + python interpreter (from project.md Section 4).
+- [ ] **Step 3: Write the Round N verification contract**
 
-## Output: `rounds/report_NNN.md`
+Require:
 
-Required sections:
+- Correctness first. One Coder retry is allowed; a second failure produces `Result: accuracy-fail` and a full audit report.
+- For a passing candidate, compare to `last_accepted_kernel` and `last_accepted_report`, not simply Round N-1.
+- Run three interleaved accepted-reference/candidate timing pairs with identical flags in the same Verifier turn, in the order reference, candidate, reference, candidate, reference, candidate. Each run uses `auto_bench.py --v0_file base.py --v1_file <implementation>`. Record all six v1 measurements and compare the median of the three reference samples with the median of the three candidate samples; do not compare the candidate to a stale baseline-only sample.
+- Compute `improvement_pct = (reference_median_ms - candidate_median_ms) / reference_median_ms * 100` without using rounded display values.
+- `accepted` requires correctness PASS and median improvement of at least 5%.
+- Any slower result or improvement below 5% is `no-improvement`.
+- Environment failure gets zero retries and produces `Result: env-fail` with command, exit code, stderr summary, and remediation requirement.
+- Profile the accepted reference and candidate in the same trace with `--profile-reference-file <last_accepted_kernel> --profile-mode forward`; summarize each emitted record-function scope separately. If the harness cannot produce distinguishable scopes, emit `env-fail` instead of combining both implementations' kernels.
+- All device metrics use `summarize_trace.py`; calculate `device_ratio` only from the candidate or canonical-after-round `device_us_per_call`, never from a mixed trace total.
+- Status updates go to `round_status_NNN.md` at start, after correctness, after each timing sample, and at end. Main does not poll.
+- Verifier owns the current report/status files and `state/verifier_state.md`; it never edits `team-state.md` or `project.md`.
 
-### Correctness
-- PASS/FAIL + diff summary. On FAIL: do NOT commit; proceed to failure-handling flow below.
+- [ ] **Step 4: Define stop recommendations**
 
-### Wall time
-- auto_bench numbers: `v0`, `v1`, `speedup`. Use project.md's measurement regime (warmup 50, repeat 100 by default — adapt if project.md declares otherwise).
+The report recommends stop when any criterion is met:
 
-### Device time
-- Sum of `dur` for `cat == "kernel"` events in profiler JSON.
-- Per-kernel breakdown table (top kernels by total dur).
+1. `measurement-bound`: the canonical-after-round implementation has normalized device ratio below 5% and measured remaining host overhead is entirely harness-fixed. If the current candidate was rejected, use the paired accepted-reference data.
+2. `diminishing-returns`: manifest already shows two consecutive matching streak events and this report would make the third.
+3. `upbound-reached`: accepted cumulative performance enters the declared band.
+4. `resource-exhausted`: this transition would exceed 30 overview entries, 40 total rounds, or 24 hours since `project_started_at`.
+5. `user-intervention`: lead forwarded a user stop request.
 
-### device_ratio
-- `device_time / wall_time`. With bottleneck class label (device-bound / mixed / host-bound / measurement-bound).
+Verifier sends the recommendation and evidence to both Designer and orchestrator. The orchestrator remains final authority.
 
-### Upbound gap
-- Quantitative distance to project.md's declared upbound. If no upbound declared, write "no upbound; gap analysis skipped".
+- [ ] **Step 5: Run the guided metric pressure test**
 
-### Noise check
-- If wall is within 5% of previous round (from `state/verifier_state.md` noise baseline), flag as noise. Re-run 2 times. If still < 5%, accept as no-improvement.
+Expected: `device_us_per_call = 20`, `device_ratio = 20%`, and all report fields are present.
 
-### Stop recommendation
-- If any of the 5 stop criteria (below) hit, emit `shutdown_request` via SendMessage to `designer` (CC main session).
-
-## Stop criteria — emit shutdown_request if any hits
-
-1. **measurement-bound** (hard): `device_ratio < 5%` AND remaining host overhead is entirely harness fixed costs (set_seed + sync_devices).
-2. **diminishing-returns** (hard): 3 consecutive successful rounds each < 5% wall improvement. OR 3 consecutive failed attempts (Designer aborts).
-3. **upbound-reached** (soft): cumulative speedup enters project.md's declared upbound X% band.
-4. **resource-exhausted** (hard): project.md overview table > 30 entries, OR total rounds > 40, OR team has run > 24h.
-5. **user-intervention**: main session forwards user stop signal; emit immediately.
-
-For each, include `reason` + `data` (round number, current numbers, streak counts) in the shutdown_request.
-
-## Failure handling (per spec §4.3(b))
-
-| Failure type | Action |
-|---|---|
-| Verifier env failure (auto_bench won't run, OOM, missing dep) | 0 retries. SendMessage main session "env failure: <details>". Do NOT write report_NNN.md. |
-| Verifier accuracy FAIL | Coder gets 1 retry. SendMessage `coder` with the failure + diff. If 2nd attempt fails, write report_NNN.md with FAIL + commit for audit; round aborts. |
-| Verifier PASS but < 5% (noise) | Re-run 2 times. If still < 5%, accept as no-improvement; write report_NNN.md with the median + noise flag; counts as failed attempt. |
-
-## Status updates (per spec §4.3(c))
-
-Write `rounds/round_status_NNN.md` at:
-- Turn start: 1 line "verifier started at <ISO time>, round <NNN>".
-- Mid-run (for long auto_bench): update with progress, e.g. "warmup done, 30/100 repeats".
-- Turn end: 1 line "verifier done at <ISO time>, result: PASS/FAIL, wall=X ms".
-
-This file is opt-in visibility for the user; main session does not poll it.
-
-## Communicating with Designer
-
-After report_NNN.md is written, SendMessage `designer`:
-- `to: "designer"`
-- `message`: "Report NNN ready at rounds/report_NNN.md. Wall=X ms, device_ratio=Y%, bottleneck class=Z. [stop recommendation if any]"
-
-If shutdown_request: use the structured format `{type: "shutdown_request", request_id: <uuid>, reason: <one of 5>, data: {...}}`. CC main session.
-
-## State file: `state/verifier_state.md`
-
-Append per round:
-- Env snapshot (python path, warmup/repeat, device state).
-- Noise baseline (last 3 rounds' wall times, so next round can compare).
-- Any harness quirks discovered.
-
-## Repro command (always)
-
-Use the command from project.md Section 4. Adapt `--v1_file` to the current `triton_<op>_<NNN>.py`. Standard:
-```bash
-<python> auto_bench.py \
-  --v0_file <op>/base.py \
-  --v1_file <op>/triton_<op>_<NNN>.py \
-  --warmup 50 --repeat 100
-```
-
-For profiler:
-```bash
-<python> -c "
-import torch, json
-from torch.profiler import profile, ProfilerActivity
-... (per project.md Section 4 if specified, else default 50-iter forward profile)
-" > <op>/log/<NNN>.pt.trace.json
-```
-```
-
-- [ ] **Step 2: Smoke test — spawn Verifier with minimal fixture**
-
-Prepare fixture at `/tmp/kernel-opt-loop-test/verifier-smoke/`:
-```bash
-mkdir -p /tmp/kernel-opt-loop-test/verifier-smoke
-cat > /tmp/kernel-opt-loop-test/verifier-smoke/project.md <<'EOF'
-# Test Project
-
-## 1.3 测量规则
-1. auto_bench.py --warmup 50 --repeat 100
-2. python: /usr/bin/python3
-
-## 4. 复现命令
-python3 auto_bench.py --v0_file base.py --v1_file triton_test_001.py --warmup 5 --repeat 10
-EOF
-
-cat > /tmp/kernel-opt-loop-test/verifier-smoke/triton_test_001.py <<'EOF'
-import torch
-import torch.nn as nn
-
-class ModelNew(nn.Module):
-    def __init__(self, N=64):
-        super().__init__()
-        self.weight = nn.Parameter(torch.randn(N, N))
-    def forward(self, x):
-        return torch.matmul(x, self.weight)
-
-def get_inputs():
-    return (torch.randn(1, 64),)
-
-def get_init_inputs():
-    return (64,)
-EOF
-
-cat > /tmp/kernel-opt-loop-test/verifier-smoke/base.py <<'EOF'
-import torch
-import torch.nn as nn
-
-class Model(nn.Module):
-    def __init__(self, N=64):
-        super().__init__()
-        self.weight = nn.Parameter(torch.randn(N, N))
-    def forward(self, x):
-        return torch.matmul(x, self.weight)
-
-def get_inputs():
-    return (torch.randn(1, 64),)
-
-def get_init_inputs():
-    return (64,)
-EOF
-
-# create a stub auto_bench.py that just prints fake numbers
-cat > /tmp/kernel-opt-loop-test/verifier-smoke/auto_bench.py <<'EOF'
-import sys, argparse
-parser = argparse.ArgumentParser()
-parser.add_argument("--v0_file", required=True)
-parser.add_argument("--v1_file", required=True)
-parser.add_argument("--warmup", type=int, default=50)
-parser.add_argument("--repeat", type=int, default=100)
-args = parser.parse_args()
-print(f"PASS accuracy")
-print(f"v0=1.20 ms, v1=1.00 ms, speedup=1.20x")
-EOF
-```
-
-Spawn:
-```
-Agent(
-  subagent_type: "qa",
-  description: "Verifier smoke test",
-  prompt: <<contents of skills/kernel-opt-loop/prompts/verifier.md>>
-
-Fixture:
-- project.md: /tmp/kernel-opt-loop-test/verifier-smoke/project.md
-- base.py: /tmp/kernel-opt-loop-test/verifier-smoke/base.py
-- triton_test_001.py: /tmp/kernel-opt-loop-test/verifier-smoke/triton_test_001.py
-- auto_bench.py: /tmp/kernel-opt-loop-test/verifier-smoke/auto_bench.py
-- output: /tmp/kernel-opt-loop-test/verifier-smoke/report_001.md
-- python: python3
-- op_name: test
-- round: 1
-
-This is a smoke test with a stub auto_bench. Verify you can produce a structurally-valid report_001.md; profiler step can be skipped (no MLU available in smoke env). Note in report that profiler was skipped.
-)
-```
-
-- [ ] **Step 3: Verify smoke test output has required sections**
+- [ ] **Step 6: Commit**
 
 ```bash
-for section in "Correctness" "Wall time" "Device time" "device_ratio" "Upbound gap" "Noise check" "Stop recommendation"; do
-  grep -qF "$section" /tmp/kernel-opt-loop-test/verifier-smoke/report_001.md && echo "OK: $section" || echo "MISSING: $section"
-done
-```
-
-Expected: all 7 `OK`. If any `MISSING`, fix `prompts/verifier.md` and re-spawn.
-
-- [ ] **Step 4: Cleanup + commit**
-
-```bash
-rm -rf /tmp/kernel-opt-loop-test
 git add skills/kernel-opt-loop/prompts/verifier.md
-git commit -m "skills: add Verifier role prompt for kernel-opt-loop"
+git commit -m "skills: add Verifier role contract"
 ```
-
-Verify: `git log --oneline -1` shows the commit.
 
 ---
 
-## Task 8: Rewrite `SKILL.md` as orchestrator guide + cleanup
-
-The new `SKILL.md` is the main session's guide: how to spawn the team, run Phase 0 + Phase N rounds, handle round boundaries, commit, stop, resume. Per spec §3 (architecture) + §5 (termination) + §6 (resume) + §7 (multi-project) + §9 (KB hook) + §10 (no auto-migration).
+## Task 9: Rewrite `SKILL.md` as the runtime-neutral orchestrator
 
 **Files:**
-- Modify: `skills/kernel-opt-loop/SKILL.md` (full rewrite — read `SKILL.md.legacy` only if needed for cross-reference, but the new content is the source of truth).
-- Delete: `skills/kernel-opt-loop/SKILL.md.legacy` (after SKILL.md is rewritten and verified).
+- Modify: `skills/kernel-opt-loop/SKILL.md`
 
 **Interfaces:**
-- Consumes: `prompts/{designer,coder,verifier}.md` (Tasks 5-7), `references/{bottleneck-judgment,invariants,anti-patterns,project-template}.md` (Tasks 2-4).
-- Produces: the orchestrator guide main session reads when user invokes `kernel-opt-loop` skill.
+- Loads exactly one runtime adapter, then applies the shared bootstrap and state-machine contracts.
+- Main session is the only writer of `team-state.md`, project overview rows, and Git commits.
 
-- [ ] **Step 1: Write the new `SKILL.md`**
+- [ ] **Step 1: Preserve valid trigger metadata**
 
-Full content structure:
+Keep frontmatter with `name: kernel-opt-loop`. Rewrite the description to trigger on iterative operator/kernel optimization involving Triton and an auto_bench-style harness, without summarizing the full workflow.
 
-```markdown
----
-name: kernel-opt-loop
-description: [updated to reflect team-based architecture — keep trigger phrases "optimize operator X" + Triton + auto_bench]
----
+- [ ] **Step 2: Add runtime detection and sequential fallback**
 
-# Kernel Opt Loop — Orchestrator Guide
+Define this selection order:
 
-[1-paragraph intro: this skill drives an iterative kernel optimization loop with three team-embodied roles — Designer (decision), Coder (implementation), Verifier (runtime feedback). Main session orchestrates; team-internal P2P for round work; main session intervenes at round boundaries.]
+1. If Codex collaboration tools are available, read `adapters/codex.md`.
+2. Else if Claude Code agent-team support is enabled, read `adapters/claude-code.md`.
+3. Else execute Designer, Coder, and Verifier contracts sequentially in the main session, preserving the same file ownership and state transitions.
 
-## When to use
-[Copy from spec §2 non-goals + original skill's "When to use" section, adapted]
+The fallback is required so missing experimental collaboration support does not make the skill unusable.
 
-## Required inputs
-[From spec §2 + original skill's "Required inputs": base.py, auto_bench.py, python interpreter, target device. Note: base.py is user-provided, do not write yourself.]
+- [ ] **Step 3: Add the common bootstrap contract**
 
-## Architecture
-[Summarize spec §3.1 + §3.2: three roles + prompts/ + built-in subagent_type + hybrid team communication. Reference prompts/{designer,coder,verifier}.md + references/.]
+Include this exact template in `SKILL.md`:
 
-## Phase 0 — Setup
+```text
+You are the <role> for kernel-opt-loop.
 
-1. Verify required inputs exist (base.py, auto_bench.py, python, device). Ask user for missing pieces.
-2. Create branch: `git checkout -b <op-name>-opt` from master.
-3. `TeamCreate(team_name: "<op-name>-opt")`.
-4. Spawn three teammates:
-   - `Agent(subagent_type: "architect", team_name: "<op-name>-opt", name: "designer", prompt: <contents of skills/kernel-opt-loop/prompts/designer.md> + "Phase 0: read base.py at <path>, write project.md per references/project-template.md. Output project.md path.")`
-   - `Agent(subagent_type: "developer", team_name: ..., name: "coder", prompt: <contents of prompts/coder.md>)` — idle until Designer sends a decision.
-   - `Agent(subagent_type: "qa", team_name: ..., name: "verifier", prompt: <contents of prompts/verifier.md>)` — idle until Coder sends a kernel.
-5. Wait for Designer to write `project.md` + `state/designer_state.md`.
-6. Read project.md yourself. Verify Section 1-5 are filled. Ask user to confirm upbound (Section 2).
-7. Commit Phase 0: `git add <op>/base.py <op>/project.md && git commit -m "<op>: add eager baseline"`.
+Before taking any action, read these files completely and follow them:
+- Role contract: <absolute-skill-root>/prompts/<role>.md
+- Runtime adapter: <absolute-skill-root>/adapters/<runtime>.md
 
-## Phase N — Round N (N ≥ 1)
+Skill root: <absolute-skill-root>
+Project root: <absolute-project-root>
+Current phase: <phase-or-round>
+Inputs:
+- <absolute-input-path>
+Required outputs:
+- <absolute-output-path>
 
-Each round is ONE bottleneck, ONE .py file, ONE decision+report pair, ONE commit. Driven by team-internal P2P; main session intervenes at boundaries.
-
-### Round-internal flow (team P2P, no main session)
-1. Designer reads previous `rounds/report_<NNN-1>.md` + `state/designer_state.md`, scans `references/anti-patterns.md`, writes `rounds/decision_NNN.md`, SendMessage Coder.
-2. Coder reads decision, writes `triton_<op>_<NNN>.py`, self-checks (AST parse, ModelNew contract), SendMessage Verifier.
-3. Verifier runs auto_bench + profiler, writes `rounds/report_NNN.md`, SendMessage Designer (with optional shutdown_request).
-
-### Round-boundary actions (main session)
-1. Receive Verifier's idle notification (report_NNN.md written).
-2. Read report_NNN.md.
-3. If Verifier sent `shutdown_request`:
-   - Wait up to 30s for Designer's `shutdown_response`.
-   - If `approve=true`: commit final round, write final entry to project.md overview table, `TeamDelete`. Skill ends.
-   - If `approve=false`: confirm continuation (Designer has a new decision); team persists; loop back to step 1 of next round.
-4. If no shutdown_request:
-   - Append one row to project.md overview table (`| triton_<op>_<NNN> | <wall> ms | <device> us | <rel-to-prev>x | <rel-to-base>x |`).
-   - Commit: `git add <op>/triton_<op>_<NNN>.py <op>/rounds/decision_NNN.md <op>/rounds/report_NNN.md <op>/project.md && git commit -m "<op>: v<NNN> <short method>, <rel-to-base>x"`.
-   - SendMessage Designer "round N complete, start round N+1".
-
-### Abort path (Designer emitted `decision: abort`)
-- No Coder or Verifier run.
-- Commit `rounds/decision_NNN.md` alone with commit message `<op>: v<NNN> abort (no viable ≥5% path)`.
-- Update `team-state.md` "abort streak = K".
-- If K ≥ 3: emit shutdown (diminishing-returns hard stop).
-- Otherwise: signal Designer to try a different direction next round.
-
-## Stop criteria
-[Copy spec §5.1 five criteria table + §5.2 mechanical flow.]
-
-## Resume
-[Copy spec §6 resume design: team-state.md manifest fields, per-stop_reason eligibility table, resume flow steps 1-5.]
-
-## Multi-project structure
-[Copy spec §7 file structure: skill-level (Tier 1), project-level (Tier 2), role-level (Tier 3) + knowledge lift mechanism.]
-
-## Knowledge base hook (v1)
-[Copy spec §9: Designer scans references/anti-patterns.md before picking path; records hit/miss in decision_NNN.md KB hook section. No external KB lookup in v1.]
-
-## Migration
-[Copy spec §10: existing groupedtopk/log.md + fused_moe/log.md are NOT auto-migrated. Future projects use new structure from Phase 0.]
-
-## References
-- [bottleneck-judgment.md](references/bottleneck-judgment.md) — bottleneck class procedure (preserved from current skill)
-- [project-template.md](references/project-template.md) — skeleton for project.md
-- [invariants.md](references/invariants.md) — code invariants (AST filter, fast_libentry, output caching, etc.)
-- [anti-patterns.md](references/anti-patterns.md) — cross-project failure patterns (seeded from groupedtopk)
-- See `groupedtopk/log.md` and `fused_moe/log.md` in this repo for worked examples (legacy format — pre-restructure)
+Do not rely on parent conversation history. Do not write files outside your
+declared ownership. Report completion through the runtime adapter.
 ```
 
-- [ ] **Step 2: Verify SKILL.md covers all spec sections**
+State that every placeholder is resolved before dispatch and that the full role contract is never pasted into the bootstrap message.
+
+- [ ] **Step 4: Implement Phase 0 orchestration**
+
+Specify these ordered actions:
+
+1. Resolve absolute paths for skill root, project root, `base.py`, `auto_bench.py`, interpreter, and device.
+2. Initialize `rounds/`, `state/`, `log/`, `team-state.md`, and empty role state files.
+3. Record `runtime`, `project_started_at`, and `phase: initializing` in the manifest.
+4. Run Designer Phase 0 to produce `project.md`.
+5. Ask the user only for environment/upbound fields that cannot be discovered locally.
+6. Run Verifier Phase 0 to generate `baseline_adapter.py` and `report_000.md`.
+7. Compute `measurement_fingerprint` as SHA-256 over `base.py`, `auto_bench.py`, and the canonicalized shape/dtype/warmup/repeat/profile settings recorded in `project.md`, then update the project base row and manifest:
+
+```yaml
+phase: ready
+current_round: "000"
+last_completed_round: "000"
+last_accepted_round: "000"
+last_accepted_kernel: baseline_adapter.py
+last_completed_decision: null
+last_completed_report: rounds/report_000.md
+last_accepted_report: rounds/report_000.md
+last_result: baseline
+total_rounds: 0
+measurement_fingerprint: <sha256>
+```
+
+8. If Phase 0 benchmarking fails because of the environment, preserve the evidence as `rounds/report_000_envfail_<UTC-timestamp>.md`, set `last_completed_report` to that path while leaving `last_completed_round` and every accepted pointer null, set `last_result: env-fail` and `phase: blocked`, commit the failure transition, and require remediation before rerunning Phase 0. Never overwrite the preserved failure report.
+9. Otherwise commit Phase 0 artifacts, including manifest and all initialized state files.
+
+- [ ] **Step 5: Implement Round N orchestration**
+
+At a new round start, the lead derives `NNN = total_rounds + 1`, sets `current_round` and `phase: designing`, and bootstraps Designer. Then:
+
+1. Designer writes decision.
+2. On abort, skip Coder and Verifier and apply the abort transition.
+3. Otherwise the lead validates the decision, sets `phase: coding`, and Coder writes the candidate from `last_accepted_kernel`.
+4. The lead validates the candidate with the harness loader, sets `phase: verifying`, and Verifier writes one terminal report.
+5. Lead validates artifact paths and result enum.
+6. Lead appends exactly one project overview row.
+7. Lead increments `total_rounds` exactly once and updates `last_completed_round`, `last_completed_decision`, `last_completed_report`, and `last_result` for every terminal result; an abort sets the completed round/decision/result and leaves `last_completed_report` null. Only `accepted` updates `last_accepted_round`, `last_accepted_kernel`, and `last_accepted_report`. A non-stopping, non-environment terminal transition returns to `phase: ready`.
+8. Lead commits decision, candidate when present, report/status when present, project, manifest, and all changed role states.
+9. Only after commit does the lead dispatch the next round.
+
+- [ ] **Step 6: Implement stop-decision and resume semantics**
+
+A Verifier stop recommendation is evidence, not a state transition. The lead asks Designer to review it: `measurement-bound` and `upbound-reached` are approved; `diminishing-returns` and `resource-exhausted` may be rejected only with a concrete next-round hypothesis expected to deliver at least 5%; `user-intervention` is unconditional. The lead remains final authority. Record the review in `designer_state.md`; never edit or replace the completed round decision. If work continues, Designer creates a new decision at the next unused round number.
+
+After every terminal transition, the lead independently evaluates counter- and resource-based criteria. This is required for an abort path where Verifier did not run: reaching three consecutive failed attempts must still produce a `diminishing-returns` recommendation. An approved stop sets `phase: stopped`, `stop_reason`, `stop_timestamp`, `resume_eligible`, and `resume_constraints` atomically before the final commit. An environment failure instead sets `phase: blocked` and `stop_reason: env-fail`.
+
+Use these resume rules:
+
+| stop reason | eligibility | required change |
+|---|---|---|
+| measurement-bound | blocked | new shape or measurement regime |
+| diminishing-returns | conditional | new hypothesis, new anti-pattern evidence, or skill upgrade |
+| upbound-reached | conditional | explicit stretch goal |
+| resource-exhausted | always | user acknowledges safety stop |
+| user-intervention | conditional | user explicitly resumes |
+| env-fail | conditional | environment remediation evidence |
+
+At stop, snapshot `skill_version_at_stop`, `measurement_fingerprint_at_stop`, and the current anti-pattern Git revision into the manifest. On resume from `stopped` or `blocked`, recompute the measurement fingerprint, validate all constraints before spawning roles, then run a Designer sanity-check decision for the next unused round number. Never reuse or overwrite a completed decision/report.
+
+For session interruption in `designing`, `coding`, or `verifying`, do not allocate a new round. Reopen `current_round`, validate all predecessor artifacts, and resume the missing role. A schema-valid decision or harness-loadable candidate is reused; an incomplete current-round artifact may be repaired in place because it was never committed as terminal. `total_rounds` remains unchanged until the round reaches a terminal result.
+
+- [ ] **Step 7: Implement shutdown and knowledge lift**
+
+At an approved stop:
+
+1. Commit the final transition.
+2. Ask runtime roles to shut down using the active adapter.
+3. Read `designer_state.md` for generic failure patterns.
+4. Present proposed anti-pattern additions to the user.
+5. Modify skill-level `anti-patterns.md` only after explicit user approval and in a separate commit.
+
+- [ ] **Step 8: Validate `SKILL.md` structure**
 
 ```bash
-for section in "When to use" "Required inputs" "Architecture" "Phase 0" "Phase N" "Stop criteria" "Resume" "Multi-project structure" "Knowledge base hook" "Migration" "References"; do
-  grep -qF "## $section" skills/kernel-opt-loop/SKILL.md && echo "OK: $section" || echo "MISSING: $section"
+for section in "When to use" "Required inputs" "Runtime selection" "Agent bootstrap contract" "Phase 0" "Round N" "State transitions" "Stop criteria" "Resume" "Knowledge lift" "References"; do
+  grep -qF "## $section" skills/kernel-opt-loop/SKILL.md || exit 1
 done
+! grep -Eq 'TeamCreate|TeamDelete|team_name[[:space:]]*=' skills/kernel-opt-loop/SKILL.md
 ```
 
-Expected: all 11 `OK`. Fix any `MISSING`.
+Expected: exit 0.
 
-- [ ] **Step 3: Verify frontmatter is valid**
+- [ ] **Step 9: Commit**
 
 ```bash
-head -5 skills/kernel-opt-loop/SKILL.md
+git add skills/kernel-opt-loop/SKILL.md
+git commit -m "skills: rewrite kernel-opt-loop as cross-runtime orchestrator"
 ```
 
-Expected: starts with `---`, has `name: kernel-opt-loop`, has `description:` line. The description should retain trigger phrases from the original ("optimize operator X", "Triton + auto_bench").
+---
 
-- [ ] **Step 4: Delete `SKILL.md.legacy`**
+## Task 10: Add a static contract checker and run role pressure tests
+
+**Files:**
+- Create: `skills/kernel-opt-loop/tests/check_contracts.sh`
+
+**Interfaces:**
+- Validates cross-file names, forbidden obsolete APIs, state fields, role ownership, and result enums.
+
+- [ ] **Step 1: Write `check_contracts.sh`**
+
+Use `set -euo pipefail`. The checker must assert:
+
+- every final-structure file exists and is non-empty;
+- frontmatter contains `name` and `description`;
+- all six state-machine values (`baseline`, `accepted`, `no-improvement`, `accuracy-fail`, `abort`, `env-fail`) appear in the orchestrator, while the five report-producing values appear in the report template;
+- `last_accepted_kernel`, `last_completed_report`, and `last_accepted_report` appear in the relevant role, template, and orchestrator contracts;
+- all seven phase names and the deterministic `measurement_fingerprint` inputs appear in the state/orchestrator contracts;
+- `profile_iterations`, `device_us_per_call`, and the unit formula appear in Verifier and report template;
+- each role contract says it must not edit `team-state.md`;
+- bootstrap includes absolute role-contract, adapter, project, input, and output paths;
+- no skill file contains active invocation syntax for the retired Claude team APIs (`TeamCreate(`, `TeamDelete(`, or `team_name=`); adapters may name them only in compatibility warnings;
+- no sync verification hardcodes a user home directory.
+
+- [ ] **Step 2: Run all static tests**
 
 ```bash
-git rm skills/kernel-opt-loop/SKILL.md.legacy
+bash skills/kernel-opt-loop/tests/check_contracts.sh
+python3 -m unittest discover -s skills/kernel-opt-loop/tests -p 'test_*.py' -v
 ```
 
-Verify: `ls skills/kernel-opt-loop/SKILL.md.legacy 2>&1` shows "No such file or directory".
+Expected: both commands pass.
+
+- [ ] **Step 3: Run three combined-pressure scenarios**
+
+Run each scenario once through Claude Code and once through Codex where available:
+
+1. Previous candidate is slower but has the highest round number: Designer and Coder must use `last_accepted_kernel`.
+2. Profiler contains 50 calls: Verifier must divide before computing ratio.
+3. Session resumes after `accuracy-fail`: orchestrator must allocate a new round number and preserve the old decision/report.
+
+Capture outputs under `/tmp/kernel-opt-loop-contract-tests/<runtime>/<scenario>/`. A scenario passes only when the produced artifacts satisfy `check_contracts.sh`-equivalent assertions; do not accept a verbal claim.
+
+- [ ] **Step 4: Fix any discovered loopholes and rerun**
+
+Edit only the smallest relevant contract, then rerun Step 2 and the failing scenario until all pass.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add skills/kernel-opt-loop/SKILL.md
-git commit -m "skills: rewrite kernel-opt-loop SKILL.md as orchestrator guide"
+git add skills/kernel-opt-loop/tests/check_contracts.sh skills/kernel-opt-loop
+git commit -m "skills: add kernel-opt-loop contract validation"
 ```
-
-Verify: `git log --oneline -1` shows the commit.
 
 ---
 
-## Task 9: Sync to `~/.claude/skills/` + verify final structure
-
-Sync the restructured skill from repo to `~/.claude/skills/` so Claude Code can load it. Verify final structure.
+## Task 11: Sync and verify both runtime installations
 
 **Files:**
-- Sync: `skills/kernel-opt-loop/` (repo) → `~/.claude/skills/kernel-opt-loop/` (loaded by Claude Code).
+- Sync source: `skills/kernel-opt-loop/`
+- Claude Code destination: `${HOME}/.claude/skills/kernel-opt-loop/`
+- Codex destination: `${HOME}/.codex/skills/kernel-opt-loop/`
 
-- [ ] **Step 1: Sync repo to ~/.claude/skills/**
+**Interfaces:**
+- Produces identical runtime copies without hardcoded usernames.
 
-```bash
-rsync -av --delete skills/kernel-opt-loop/ ~/.claude/skills/kernel-opt-loop/
-```
-
-`--delete` removes the old `references/log-template.md` from `~/.claude/skills/` since it's gone from the repo.
-
-- [ ] **Step 2: Verify final structure**
+- [ ] **Step 1: Sync to Claude Code and Codex**
 
 ```bash
-find ~/.claude/skills/kernel-opt-loop -type f | sort
+rsync -av --delete skills/kernel-opt-loop/ "${HOME}/.claude/skills/kernel-opt-loop/"
+rsync -av --delete skills/kernel-opt-loop/ "${HOME}/.codex/skills/kernel-opt-loop/"
 ```
 
-Expected output (exact):
-```
-/home/lipenghui/.claude/skills/kernel-opt-loop/SKILL.md
-/home/lipenghui/.claude/skills/kernel-opt-loop/prompts/coder.md
-/home/lipenghui/.claude/skills/kernel-opt-loop/prompts/designer.md
-/home/lipenghui/.claude/skills/kernel-opt-loop/prompts/verifier.md
-/home/lipenghui/.claude/skills/kernel-opt-loop/references/anti-patterns.md
-/home/lipenghui/.claude/skills/kernel-opt-loop/references/bottleneck-judgment.md
-/home/lipenghui/.claude/skills/kernel-opt-loop/references/invariants.md
-/home/lipenghui/.claude/skills/kernel-opt-loop/references/project-template.md
-```
+`--delete` intentionally removes legacy `log-template.md` and stale files inside these two exact skill directories.
 
-If `log-template.md` appears, the `--delete` didn't take; re-run rsync.
+- [ ] **Step 2: Compare installed trees with the source**
 
-If `SKILL.md.legacy` appears, the `--delete` didn't take; re-run rsync.
-
-- [ ] **Step 3: Verify skill loads**
-
-In a fresh Claude Code session (user does this manually since current session has cached skills), the skill should appear in `/skills` list with the new description. Note: in current session, the skill description in the system reminder will still show the OLD description (cached at session start). That's expected — verification happens in a fresh session.
-
-For this session: verify the file is readable.
 ```bash
-head -10 ~/.claude/skills/kernel-opt-loop/SKILL.md
+diff -ru skills/kernel-opt-loop "${HOME}/.claude/skills/kernel-opt-loop"
+diff -ru skills/kernel-opt-loop "${HOME}/.codex/skills/kernel-opt-loop"
 ```
 
-Expected: frontmatter starts with `---`, has `name: kernel-opt-loop`.
+Expected: no output and exit 0 for both commands.
 
-- [ ] **Step 4: No commit needed (sync is filesystem-only, not git-tracked)**
+- [ ] **Step 3: Verify runtime discovery in fresh sessions**
 
-`~/.claude/skills/` is outside the repo; no git commit. Repo state already committed in Task 8.
+In fresh Claude Code and Codex sessions, ask each runtime to list or resolve `kernel-opt-loop` and report the skill description. Verify that invocation loads the new `SKILL.md` and selects the matching adapter.
+
+- [ ] **Step 4: Record the sync result without committing home-directory files**
+
+The repository already contains the source. Do not `git add` anything under `${HOME}/.claude` or `${HOME}/.codex`.
 
 ---
 
-## Task 10: End-to-end Phase 0 + 1 round smoke test on fused_moe
-
-Manual acceptance test: run the restructured skill on the existing `fused_moe/base.py` operator. Verify Phase 0 produces `project.md`, and Round 1 produces a valid `decision_001.md` + `triton_fused_moe_001.py` + `report_001.md`. Stop short of full optimization — just verify the workflow mechanics.
-
-**Prerequisites:**
-- MLU environment available (python with torch + torch_mlu + triton).
-- `fused_moe/base.py` exists (it does — confirmed during investigation).
-- `auto_bench.py` exists at repo root (it does).
+## Task 12: Run an isolated end-to-end Phase 0 and Round 1 smoke test
 
 **Files:**
-- Read: `fused_moe/base.py`
-- Expect produced: `fused_moe/project.md`, `fused_moe/team-state.md`, `fused_moe/rounds/decision_001.md`, `fused_moe/triton_fused_moe_001.py`, `fused_moe/rounds/report_001.md`, `fused_moe/state/designer_state.md` (+ coder/verifier state).
+- Read only from implementation branch: `fused_moe/base.py`, `auto_bench.py`, `skills/kernel-opt-loop/`
+- Produce only inside a temporary worktree: `smoke_fused_moe/` artifacts and smoke commits
 
-- [ ] **Step 1: Verify environment**
+**Interfaces:**
+- Verifies real workflow mechanics without overwriting existing `fused_moe/triton_fused_moe_001.py` through `006.py`.
 
-```bash
-ls fused_moe/base.py auto_bench.py
-<python from fused_moe/project.md or ask user> -c "import torch, torch_mlu, triton; print('env OK')"
-```
-
-If env not available, mark this task as "deferred — requires MLU env" and stop. The skill is structurally complete; this is acceptance testing.
-
-- [ ] **Step 2: Invoke the restructured skill**
-
-In a fresh Claude Code session (so the new skill description loads), invoke `kernel-opt-loop` with input: "optimize operator fused_moe".
-
-Or, in current session, manually drive the workflow per the new SKILL.md:
-1. Create branch `fused_moe-opt` (or reuse existing if present).
-2. TeamCreate `fused_moe-opt`.
-3. Spawn three teammates per Task 8 Phase 0 step 4.
-4. Wait for Designer to write `fused_moe/project.md`.
-5. Read project.md, verify Sections 1-5 filled, ask user to confirm upbound.
-6. Commit Phase 0.
-7. SendMessage Designer "start round 1".
-8. Wait for Verifier's idle notification (report_001.md written).
-9. Read report_001.md, append overview table row, commit round 1.
-
-- [ ] **Step 3: Verify Phase 0 artifacts**
+- [ ] **Step 1: Create a temporary smoke-test worktree and branch**
 
 ```bash
-test -f fused_moe/project.md && echo "project.md OK" || echo "MISSING project.md"
-test -f fused_moe/team-state.md && echo "team-state.md OK" || echo "MISSING team-state.md"
-test -f fused_moe/state/designer_state.md && echo "designer_state.md OK" || echo "MISSING designer_state.md"
+smoke_root=$(mktemp -d /tmp/kernel-opt-loop-smoke.XXXXXX)
+smoke_branch="kernel-opt-loop-smoke-$(basename "$smoke_root")"
+git worktree add -b "$smoke_branch" "$smoke_root" HEAD
+mkdir -p "$smoke_root/smoke_fused_moe"
+cp "$smoke_root/fused_moe/base.py" "$smoke_root/smoke_fused_moe/base.py"
 ```
 
-Expected: all 3 `OK`.
+Record the resolved `smoke_root`; do not use an unresolved environment variable in later cleanup.
 
-For project.md, verify required sections:
-```bash
-for section in "1. 固定问题与测试口径" "2. Upbound 定义" "3. 当前结果总览" "4. 复现命令" "5. Checkpoint"; do
-  grep -qF "$section" fused_moe/project.md && echo "OK: $section" || echo "MISSING: $section"
-done
-```
+- [ ] **Step 2: Verify accelerator prerequisites**
 
-Expected: all 5 `OK`.
-
-- [ ] **Step 4: Verify Round 1 artifacts**
+Use the intended interpreter:
 
 ```bash
-test -f fused_moe/rounds/decision_001.md && echo "decision_001.md OK" || echo "MISSING"
-test -f fused_moe/triton_fused_moe_001.py && echo "triton_001.py OK" || echo "MISSING"
-test -f fused_moe/rounds/report_001.md && echo "report_001.md OK" || echo "MISSING"
-python -c "import ast; ast.parse(open('fused_moe/triton_fused_moe_001.py').read()); print('AST OK')"
+<python> -c "import torch, torch_mlu, triton; print('env OK')"
 ```
 
-Expected: all 4 `OK`.
+If unavailable, mark only the hardware E2E as deferred. Tasks 1–11 must still pass; do not claim hardware acceptance.
 
-For report_001.md, verify required sections:
-```bash
-for section in "Correctness" "Wall time" "Device time" "device_ratio" "Upbound gap" "Noise check" "Stop recommendation"; do
-  grep -qF "$section" fused_moe/rounds/report_001.md && echo "OK: $section" || echo "MISSING: $section"
-done
+- [ ] **Step 3: Run Phase 0 through the installed skill**
+
+Invoke `kernel-opt-loop` for project root `$smoke_root/smoke_fused_moe`, explicitly authorizing its three-role workflow. Verify creation of:
+
+```text
+baseline_adapter.py
+project.md
+team-state.md
+rounds/report_000.md
+state/designer_state.md
+state/coder_state.md
+state/verifier_state.md
 ```
 
-Expected: all 7 `OK`.
+Verify `report_000.md` has normalized per-call device time and `team-state.md` points to `baseline_adapter.py`.
 
-- [ ] **Step 5: Verify git history**
+- [ ] **Step 4: Run one optimization round**
 
-```bash
-git log --oneline -5
-```
+Verify creation of `decision_001.md`, then inspect its terminal path. For `accepted`, `no-improvement`, or `accuracy-fail`, also require `triton_smoke_fused_moe_001.py` and `report_001.md`. For `abort`, require neither candidate nor report. Accept any terminal result except `env-fail` for mechanics testing. Check that manifest behavior matches the result:
 
-Expected: see commits for Phase 0 (add eager baseline) and Round 1 (v001 + method + speedup).
+- `accepted`: canonical pointer advances.
+- `no-improvement` or `accuracy-fail`: canonical pointer remains `baseline_adapter.py`.
+- `abort`: no candidate or report is required and failed-attempt count becomes 1.
 
-- [ ] **Step 6: TeamDelete + final commit**
+- [ ] **Step 5: Verify commits and source-worktree isolation**
 
-If the team is still alive:
-```
-SendMessage(to: "designer", message: {type: "shutdown_request", reason: "smoke test complete"})
-```
-Wait for approve=true, then `TeamDelete`.
-
-```bash
-git add fused_moe/project.md fused_moe/team-state.md fused_moe/rounds/ fused_moe/state/ fused_moe/triton_fused_moe_001.py
-git commit -m "skills: kernel-opt-loop smoke test on fused_moe (Phase 0 + Round 1)"
-```
-
-Verify: `git log --oneline -1` shows the smoke test commit.
-
-- [ ] **Step 7: Mark skill restructure complete**
+Inside the smoke worktree, confirm Phase 0 and Round 1 commits exist. In the implementation worktree, run:
 
 ```bash
-git checkout master
-git merge kernel-opt-loop-restructure
+git status --short
 ```
 
-If merge clean, the restructure is complete. If conflicts, resolve manually (likely only on `docs/superpowers/specs/` and `docs/superpowers/plans/` paths if other work landed on master).
+Expected: no new `fused_moe/` files and no modifications caused by the smoke workflow.
+
+- [ ] **Step 6: Shut down runtime roles and clean the disposable worktree**
+
+Use the active adapter to stop live roles. Then, from outside the smoke worktree, rediscover and validate the exact worktree path before removal:
+
+```bash
+smoke_root=$(git worktree list --porcelain | awk '/^worktree \/tmp\/kernel-opt-loop-smoke\./ {print $2}')
+test -n "$smoke_root"
+test "$(printf '%s\n' "$smoke_root" | wc -l)" -eq 1
+case "$smoke_root" in /tmp/kernel-opt-loop-smoke.*) ;; *) exit 1 ;; esac
+smoke_branch=$(git -C "$smoke_root" branch --show-current)
+case "$smoke_branch" in kernel-opt-loop-smoke-kernel-opt-loop-smoke.*) ;; *) exit 1 ;; esac
+git worktree remove "$smoke_root"
+git branch -D "$smoke_branch"
+```
+
+The branch is disposable and contains only smoke artifacts. Do not merge it.
 
 ---
+
+## Final Verification
+
+Run from the implementation worktree:
+
+```bash
+bash skills/kernel-opt-loop/tests/check_contracts.sh
+python3 -m unittest discover -s skills/kernel-opt-loop/tests -p 'test_*.py' -v
+git diff --check
+git status --short
+```
+
+Expected:
+
+- contract checker passes;
+- helper tests pass;
+- `git diff --check` emits no errors;
+- status contains only intentional implementation changes, or is clean after commits;
+- no existing `fused_moe/triton_fused_moe_*.py` file was modified by testing.
 
 ## Self-Review
 
-After writing the complete plan, I checked it against the spec:
-
-**1. Spec coverage:**
-- §3.1 architecture (3 roles + prompts + built-in subagent_type) → Tasks 5-7 (prompts) + Task 8 (SKILL.md orchestrator).
-- §3.2 hybrid team communication → Task 8 SKILL.md (Phase 0 spawn + Phase N round-boundary actions + abort path).
-- §4.1 Designer contract → Task 5.
-- §4.2 Coder contract → Task 6.
-- §4.3 Round operation rules (revision loop, failure handling, visibility) → embedded in Tasks 5/6/7 prompts.
-- §4.4 Verifier contract → Task 7.
-- §5 termination (5 criteria + mechanical flow) → Task 7 (Verifier emits) + Task 8 (SKILL.md documents flow).
-- §6 resume (team-state.md manifest + per-role state + per-stop_reason eligibility) → Task 8 SKILL.md (Resume section).
-- §7 multi-project structure (3 tiers + knowledge lift) → Task 8 SKILL.md.
-- §8 log.md fate → Tasks 4 (project-template.md replaces log-template.md) + 8 (SKILL.md orchestrates per-round files in rounds/).
-- §9 KB hook → Task 5 (Designer prompt has KB hook section) + Task 8 (SKILL.md documents hook).
-- §10 migration → Task 8 SKILL.md (no auto-migration).
-- §11 resolved decisions (subagent type, etc.) → embedded across Tasks 5-8.
-- §11 open questions (slash command, project.md format, invariants content, anti-patterns seed, resume sanity check form) → addressed: invariants content = Task 2 checklist; anti-patterns seed = Task 3; project.md format = Task 4 (markdown, not hybrid); slash command = deferred (SKILL.md relies on user typing "optimize operator X" — matches current skill's invocation pattern); resume sanity check = embedded in Task 5 Designer prompt ("Round 0 special case" handles initial, resume sanity check is implicit in reading state files).
-
-**2. Placeholder scan:** No "TBD", "TODO", "implement later", "similar to Task N" patterns found. All steps have concrete content. Test code is real (smoke spawn with fixtures).
-
-**3. Type consistency:**
-- `decision_NNN.md` referenced consistently in Tasks 5/6/7/8.
-- `report_NNN.md` referenced consistently.
-- `team-state.md` referenced consistently.
-- `state/{designer,coder,verifier}_state.md` referenced consistently.
-- File paths: `skills/kernel-opt-loop/...` (repo) for implementation; `<op>/...` (project-level) for skill output. Both consistent.
-- subagent_type values: `architect` (Designer), `developer` (Coder), `qa` (Verifier) — consistent across Tasks 5/6/7/8.
-
-No issues found. Plan is complete.
+- Runtime API coverage: Claude Code adapter uses post-2.1.178 teammate semantics; Codex adapter uses collaboration tools and has a sequential fallback.
+- Bootstrap coverage: the common message is owned by `SKILL.md` and passes paths rather than duplicating role prompt contents.
+- Baseline coverage: `baseline_adapter.py` makes the existing v0/v1 harness contract executable and Phase 0 produces `report_000.md` before Round 1.
+- State coverage: every result maps to one manifest transition; only accepted results advance the canonical pointer.
+- Resume coverage: manifest and role states are initialized and committed from Phase 0 onward.
+- Measurement coverage: total profiler duration is divided by the declared number of forward calls before ratio calculation.
+- Historical data coverage: anti-pattern extraction uses a pinned Git revision containing Entries 004–024.
+- Safety coverage: E2E runs in a disposable worktree and cannot overwrite the existing fused_moe version files.
+- Portability coverage: installation paths use `${HOME}` and verify both runtime copies without hardcoded usernames.
