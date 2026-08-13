@@ -23,11 +23,12 @@ Root cause: the skill treats kernel optimization as one monolithic task. It is a
 
 ### 3.1 Components
 
-- **Main skill** `~/.claude/skills/kernel-opt-loop/SKILL.md` — becomes an **orchestrator guide**. Defines phases (Phase 0 setup, Phase N round, stop), how to spawn the team, round-boundary actions (stop/continue/commit), and user-decision points. No longer contains "how to analyze a bottleneck" or "how to write a Triton kernel" — that content moves to subagent definitions.
-- **Three subagent definitions** under `~/.claude/skills/kernel-opt-loop/agents/`:
-  - `kernel-designer.md` — uses `Plan`-style profile. Reads `base.py` + previous `report_NNN.md` + `references/anti-patterns.md`. Produces `decision_NNN.md`.
-  - `kernel-coder.md` — uses `developer`-style profile. Reads `decision_NNN.md` + `references/invariants.md`. Produces `triton_<op>_<NNN>.py`.
-  - `kernel-verifier.md` — uses `qa`-style profile. Reads `triton_<op>_<NNN>.py` + `project.md` measurement regime. Runs `auto_bench.py` + profiler. Produces `report_NNN.md`, sends `shutdown_request` signal when stop criteria hit.
+- **Main skill** `~/.claude/skills/kernel-opt-loop/SKILL.md` — becomes an **orchestrator guide**. Defines phases (Phase 0 setup, Phase N round, stop), how to spawn the team, round-boundary actions (stop/continue/commit), and user-decision points. No longer contains "how to analyze a bottleneck" or "how to write a Triton kernel" — that content moves to role prompt files.
+- **Three role prompt files** under `~/.claude/skills/kernel-opt-loop/prompts/`:
+  - `designer.md` — role behavior for Designer. Spawned via `Agent(subagent_type: "architect", team_name: ..., name: "designer", prompt: <contents of prompts/designer.md> + <round briefing>)`. Reads `base.py` + previous `report_NNN.md` + `references/anti-patterns.md`. Produces `decision_NNN.md`.
+  - `coder.md` — role behavior for Coder. Spawned via `Agent(subagent_type: "developer", ...)` with `prompts/coder.md` as prompt prefix. Reads `decision_NNN.md` + `references/invariants.md`. Produces `triton_<op>_<NNN>.py`.
+  - `verifier.md` — role behavior for Verifier. Spawned via `Agent(subagent_type: "qa", ...)` with `prompts/verifier.md` as prompt prefix. Reads `triton_<op>_<NNN>.py` + `project.md` measurement regime. Runs `auto_bench.py` + profiler. Produces `report_NNN.md`, sends `shutdown_request` when stop criteria hit.
+- **Why built-in `subagent_type` + prompt injection (not custom agent files)**: Technical verification (2026-08-13) confirmed Claude Code does NOT resolve custom agent files under a skill's `agents/` subdirectory. Files under `~/.claude/agents/` are loaded only at session start, so installing a skill mid-session requires a reload. Built-in types (`architect` / `developer` / `qa`) are always available with full tool access, matching the three roles' needs. Role-specific behavior lives in skill-local `prompts/*.md`, kept portable within the skill — no cross-skill pollution, no reload friction.
 - **References** under `~/.claude/skills/kernel-opt-loop/references/` (see §7.1).
 
 ### 3.2 Communication architecture — hybrid (team-internal + main session boundary)
@@ -50,7 +51,7 @@ Root cause: the skill treats kernel optimization as one monolithic task. It is a
 
 ## 4. Role contracts
 
-### 4.1 Designer (`kernel-designer.md`)
+### 4.1 Designer (`prompts/designer.md`)
 
 **Inputs** (per round):
 - `base.py` (round 0 only, or when shape changes)
@@ -70,7 +71,7 @@ Root cause: the skill treats kernel optimization as one monolithic task. It is a
 
 **Round 0 special case**: Designer also writes `project.md` (problem spec, measurement regime, upbound) instead of `decision_000.md`. This is the one-time project initialization.
 
-### 4.2 Coder (`kernel-coder.md`)
+### 4.2 Coder (`prompts/coder.md`)
 
 **Inputs**:
 - `rounds/decision_NNN.md` (the contract)
@@ -85,7 +86,37 @@ Root cause: the skill treats kernel optimization as one monolithic task. It is a
 
 **Communication**: SendMessage to Verifier with the file path + any invariants Coder established this round (which Verifier needs to know if they affect measurement, e.g. "switched to preallocated output").
 
-### 4.3 Verifier (`kernel-verifier.md`)
+### 4.3 Round operation rules
+
+Three operating rules disambiguate in-round behavior — added after the original role contracts were drafted.
+
+**(a) Coder → Designer revision loop.** When Coder reads `decision_NNN.md` and finds an implementation-level inconsistency, behavior depends on the deviation type:
+
+- **Minor deviation** (clearly implied by the decision's intent, e.g. adding `tl.trans` to make `tl.dot` shape-legal): Coder proceeds + logs the deviation in `coder_state.md`. No Designer round-trip.
+- **Major deviation** (the decision's core path is unimplementable as specified): Coder refuses + SendMessage Designer requesting revision. Designer either revises `decision_NNN.md` (overwrite, no version bump — see (d)) or marks `decision: abort`.
+
+Budget: max 2 Coder→Designer revision round-trips per round. Beyond that the round aborts (logged as failed attempt, counts toward diminishing-returns streak per §5.1.2).
+
+**(b) In-round failure handling.** Three failure types with retry budgets:
+
+| Failure type | Detected by | Retry budget | Escalation path |
+|---|---|---|---|
+| Coder code broken (syntax/import crash) | Coder self-check (AST parse before handoff) | Coder self-fix, 2 attempts | Beyond 2 → SendMessage Designer "decision unimplementable", Designer revises or aborts |
+| Verifier env failure (auto_bench won't run, OOM, missing dep) | Verifier | 0 retries (env issue, not attempt issue) | SendMessage main session → main session surfaces to user |
+| Verifier accuracy FAIL | Verifier | Coder gets 1 retry (reads report, fixes kernel, hands back) | 2nd FAIL → round aborts; `decision_NNN.md` marked `decision: failed-accuracy`; failed `report_NNN.md` committed for audit |
+| Verifier PASS but < 5% wall improvement (noise) | Verifier | Verifier re-runs 2 times | Still < 5% → round marked no-improvement, counts as failed attempt toward diminishing-returns streak |
+
+Cross-role escalation budget: max 2 per round (aligns with (a)'s revision budget). When all retries are exhausted without progress, the round aborts cleanly and counts toward the §5.1.2 streak.
+
+**(c) User-facing visibility during long rounds.** Claude Code team mechanism fires an idle notification to main session each time a subagent's turn ends, so a round naturally produces 3 checkpoints (Designer-done, Coder-done, Verifier-done). Main session receives these passively — no polling.
+
+For long single-turn work (especially Verifier's `auto_bench` + profiler, 3-5 min), each subagent writes 1-line status updates to `rounds/round_status_NNN.md` at turn start, mid-turn (for Verifier: "warmup done, K/N repeats"), and turn end. Main session does not poll this file; user can request a status read at any time and main session reads on demand.
+
+Rationale for no-polling: hybrid architecture keeps main session at round boundary. Polling would re-couple main session to intra-round progress and defeat the role isolation. Status file is the opt-in visibility layer.
+
+**(d) Decision revision versioning.** When Designer revises `decision_NNN.md` mid-round (per (a)), the file is overwritten in place — no `decision_NNN_v2.md`. Audit trail integrity is preserved by git (each commit captures the state at commit time), and intra-round revisions are not committed individually. Only the final state of `decision_NNN.md` (whether "approved by Coder", "abort", or "failed-accuracy") is committed at round boundary.
+
+### 4.4 Verifier (`prompts/verifier.md`)
 
 **Inputs**:
 - `triton_<op>_<NNN>.py` (the implementation to test)
@@ -206,18 +237,18 @@ kb_version_at_stop: null             # v1 not integrated
 ```
 ~/.claude/skills/kernel-opt-loop/
   SKILL.md                          # orchestrator guide (main session)
-  agents/
-    kernel-designer.md
-    kernel-coder.md
-    kernel-verifier.md
+  prompts/
+    designer.md                     # role behavior, injected as spawn prompt prefix
+    coder.md
+    verifier.md
   references/
     bottleneck-judgment.md          # preserved from current skill
     project-template.md             # replaces log-template.md
     invariants.md                    # AST filter, fast_libentry, output caching, etc.
-    anti-patterns.md                 # cross-project failure modes; v1 empty placeholder
+    anti-patterns.md                 # cross-project failure modes; v1 seeded from groupedtopk's 18 failed attempts
 ```
 
-Subagent definitions live under `agents/` (not global `~/.claude/agents/`) so the skill is self-contained — easier to version, share, migrate.
+Role behavior files live under `prompts/` (not `agents/`). Subagents are spawned using built-in `subagent_type` (`architect`/`developer`/`qa`) with the role prompt file's contents prepended to the spawn prompt. See §3.1 for the technical verification rationale.
 
 ### 7.2 Tier 2 — project-level (per operator)
 
@@ -277,7 +308,18 @@ For active projects that may resume: they remain on the old `log.md` format unti
 ## 11. Open questions for implementation plan
 
 These are deferred to the writing-plans phase:
-- Exact `subagent_type` for each role (likely `Plan` for Designer, `developer` for Coder, `qa` for Verifier — but final choice happens in implementation).
 - Whether to provide a `kernel-opt-loop-init` slash command for Phase 0, or rely on user typing "optimize operator X".
 - Whether `project.md` should be markdown or YAML+markdown hybrid for the overview table (machine-parseable vs human-readable tradeoff).
 - Concrete `invariants.md` content — needs to be populated from the current skill's "Pitfalls log" + `bottleneck-judgment.md` compressible-vs-fixed table.
+- Concrete `anti-patterns.md` seed content — should be populated from groupedtopk's 18 failed attempts (winner tree, sort-32+sort-64, `tl.gather` compact, cumsum collect, etc.) so the v1 hook isn't a no-op. (Originally listed as "v1 empty placeholder" — on reflection, seeding from existing evidence makes the hook immediately useful and validates the lift mechanism.)
+- Whether Designer's first round on resume (§6.4 step 5) should output a separate `resume-sanity-check_NNN.md` or just embed the sanity check as the first section of the next `decision_NNN.md`.
+
+**Resolved during design dialogue** (recorded here for the implementation author):
+- Subagent embodiment: subagent per role (not single-session role phases, not multi-skill).
+- Communication architecture: hybrid (team-internal P2P + main session at round boundary).
+- Knowledge base: v1 only a Designer-side hook, no external lookup.
+- Subagent file location: built-in `subagent_type` (`architect` for Designer, `developer` for Coder, `qa` for Verifier) + role behavior injected via `prompts/*.md` as spawn-prompt prefix. Verified via probe on 2026-08-13 that skill-local `agents/` is not auto-resolved.
+- Coder→Designer revision loop: hybrid (minor deviation = proceed + log; major deviation = refuse + request revision; max 2 round-trips per round).
+- In-round failure handling: 3-tier (Coder code broken / Verifier env failure / Verifier accuracy-or-noise FAIL) with per-tier retry budgets (2 / 0 / 1-or-2 respectively).
+- User-facing visibility: passive idle notifications at turn end + opt-in `rounds/round_status_NNN.md` for long Verifier runs. No polling.
+- Parallel attempts: v1 NOT supported — workflow is strictly linear. (Current groupedtopk parallel attempt families would be sequential under v1.)
