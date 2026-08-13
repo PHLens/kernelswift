@@ -199,6 +199,8 @@ Include concrete safe/unsafe examples for all of these:
 7. Fuse routing softmax/top-k/cast when they appear as separate device kernels.
 8. Treat `set_seed`, multi-accelerator `sync_devices`, and `build_case/load_state_dict` as harness-fixed costs.
 9. Coder starts from `team-state.md:last_accepted_kernel`, never from the numerically previous candidate.
+10. Decision output carries a Unified Sketch four-tuple `𝒮 = (𝒟, 𝒪, 𝒞, ℋ)` — Declarations, Core Operations, Control Flow, Optimization Hints — written in runtime-neutral primitives (`alloc/load/store/compute`, standard Python control flow, `@llm_hint`-style directives). Coder translates only from the four-tuple, never from prose.
+11. Coder deviation classification is by decision layer, not by severity. Deviations confined to DSL implementation (API typos, syntax, literal values that do not alter the Sketch) are minor. Deviations that require changing any Sketch subsection (`𝒟`/`𝒪`/`𝒞`/`ℋ`) are major and require a Designer revision request that names the specific subsection.
 
 - [ ] **Step 3: Extract anti-patterns from the pinned log**
 
@@ -221,7 +223,7 @@ Abstract Entries 004, 005, 006, 007, 011, 012, 013, 014, 015, 016, 017, 019, 021
 Run:
 
 ```bash
-for token in _filter_module_ast fast_libentry "argmax sentinel" tl.dot torch.mlu.device torch.empty_like set_seed sync_devices last_accepted_kernel; do
+for token in _filter_module_ast fast_libentry "argmax sentinel" tl.dot torch.mlu.device torch.empty_like set_seed sync_devices last_accepted_kernel "Unified Sketch" "minor" "major"; do
   grep -qF "$token" skills/kernel-opt-loop/references/invariants.md || exit 1
 done
 for entry in 004 005 006 007 011 012 013 014 015 016 017 019 021 022 023 024; do
@@ -301,14 +303,21 @@ Reference implementation
 Reference report
 Bottleneck class and normalized device_ratio
 Falsifiable hypothesis
-One optimization means
+
+Sketch (Unified Sketch four-tuple 𝒮 = (𝒟, 𝒪, 𝒞, ℋ)):
+  Declarations (𝒟): tensor/buffer shapes, dtypes, memory hints using hardware-agnostic descriptors ('fastest'=registers, 'fast'=shared/L1)
+  Core Operations (𝒪): only alloc / load / store / compute primitives
+  Control Flow (𝒞): parallelization strategy, loop nesting, work mapping — no DSL syntax
+  Optimization Hints (ℋ): runtime-neutral directives (parallel, pipeline, unroll) with concrete parameters (e.g. BLOCK_M=128, num_stages=2, num_warps=4)
+
+One optimization means (the single bottleneck this round targets)
 Expected wall improvement percentage
 Pitfall warnings
 Anti-pattern consultation hit/miss
 Acceptance rule
 ```
 
-An abort decision still fills Round, Reference, rejection rationale, and anti-pattern consultation; it is not a one-line file.
+An abort decision still fills Round, Reference, rejection rationale, the Sketch (restating the accepted reference's structure for auditability), and anti-pattern consultation; it is not a one-line file. The Coder translates only from the Sketch four-tuple, not from prose. When the Coder cannot translate faithfully, its major-deviation request names the specific Sketch subsection (`𝒟`/`𝒪`/`𝒞`/`ℋ`) that must change.
 
 - [ ] **Step 3: Write `report-template.md`**
 
@@ -480,7 +489,7 @@ The contract must state:
 - If a stable 5% improvement cannot be justified, write a complete abort decision from `decision-template.md` and notify the orchestrator; do not contact Coder.
 - Consult `anti-patterns.md` every round and record hits/misses plus why a superficially matching attempt differs.
 - Outside Phase 0, own only `state/designer_state.md` and the current decision; never write `team-state.md` or `project.md` overview rows.
-- For a Coder major-deviation request, revise the same decision at most twice before aborting.
+- For a Coder major-deviation request, revise only the named Sketch subsection (`𝒟`/`𝒪`/`𝒞`/`ℋ`) at most twice before aborting; never rewrite the entire decision when the Coder's request is localized. If the requested change spans more than one subsection or invalidates the bottleneck classification, write a fresh decision at the next unused round number instead of patching the current one.
 - Never overwrite a completed prior-round decision. A rejected shutdown after Round N creates `decision_<N+1>.md`.
 
 - [ ] **Step 3: Run the guided pressure test**
@@ -517,7 +526,7 @@ Require Coder to:
 - Copy `last_accepted_kernel` as the starting point, even when later rejected files exist.
 - Implement only the decision; no unrelated refactor.
 - Preserve the `ModelNew`, `get_inputs`, and `get_init_inputs` contract.
-- Classify deviations as minor or major. Minor deviations are logged in `coder_state.md`; major deviations trigger a Designer revision request, with at most two round trips.
+- Classify deviations as minor or major by which decision layer they touch, not by severity. Minor deviations are confined to the DSL implementation (API typos, syntax, literal values that do not change the Sketch four-tuple) and are logged in `coder_state.md`. Major deviations require changing any Sketch subsection — `𝒟` Declarations, `𝒪` Core Operations, `𝒞` Control Flow, or `ℋ` Optimization Hints — and trigger a Designer revision request that names the specific subsection it could not translate faithfully, with at most two round trips.
 - Self-check with both `ast.parse` and the actual harness loader:
 
 ```bash
@@ -767,6 +776,8 @@ Use `set -euo pipefail`. The checker must assert:
 - all seven phase names and the deterministic `measurement_fingerprint` inputs appear in the state/orchestrator contracts;
 - `profile_iterations`, `device_us_per_call`, and the unit formula appear in Verifier and report template;
 - each role contract says it must not edit `team-state.md`;
+- `decision-template.md`, `prompts/designer.md`, and `prompts/coder.md` all reference the Unified Sketch four-tuple and all four subsections (`𝒟 Declarations`, `𝒪 Core Operations`, `𝒞 Control Flow`, `ℋ Optimization Hints`);
+- `prompts/coder.md` classifies deviations by Sketch subsection impact (minor = DSL-only, major = Sketch change) and the Coder's major-deviation request names the specific subsection;
 - bootstrap includes absolute role-contract, adapter, project, input, and output paths;
 - no skill file contains active invocation syntax for the retired Claude team APIs (`TeamCreate(`, `TeamDelete(`, or `team_name=`); adapters may name them only in compatibility warnings;
 - no sync verification hardcodes a user home directory.
