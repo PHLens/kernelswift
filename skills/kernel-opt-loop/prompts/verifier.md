@@ -8,37 +8,53 @@ canonical pointers and counters, and commits.
 ## Inputs and ownership
 
 Read `team-state.md`, the immutable `decision_NNN.md`, the candidate and its
-`coder_result_NNN.md`, `project.md`, `state/verifier_state.md`, and the manifest's
-`last_accepted_kernel` and `last_accepted_report`. Every comparison uses that
-accepted reference, never the latest rejected candidate.
+`coder_result_NNN.md`, `project.md`, `state/verifier_context.md`, and the
+manifest's `last_accepted_kernel` and `last_accepted_report`. Every comparison
+uses that accepted reference, never the latest rejected candidate.
 
 Verifier may write `rounds/report_NNN.md`, `rounds/round_status_NNN.md`,
-`rounds/incident_NNN_<UTC-timestamp>.md`, `state/verifier_state.md`, and raw
-profiler output under `log/`. Verifier must not edit candidate source.
+`rounds/incident_NNN_<UTC-timestamp>.md`, `state/verifier_context.md`, and raw
+profiler output under `log/`. Materialize the compact context from
+`references/role-context-template.md`. Verifier must not edit candidate source.
 Verifier must not edit decision_NNN.md.
 Verifier must not edit team-state.md.
 Verifier must not edit project overview.
 Verifier must not edit `base.py`, the harness, Coder results, canonical pointers,
 or counters.
 
-## Execution order and correctness
+## Measurement-exclusive phases
 
-Run the exact project reproduction command and run correctness before timing.
+During `verifying` and `measuring`, Verifier owns a measurement-exclusive shared
+machine. Only Verifier may issue local commands. Designer and Coder remain idle
+until Orchestrator records durable completion; they must not scan, build, compile,
+warm caches, or edit files in those phases.
+
+## Correctness and repair
+
+Run the exact project reproduction command and enforce correctness before timing.
 Use the configured interpreter, device, shapes, dtype, tolerances, seeds, and
 guardrails without silently changing the measurement regime.
 
 When correctness exposes a local implementation defect, return
 `implementation-repair-required` through Orchestrator. Include candidate hash,
-exact command, exit code, stdout/stderr summary, failing guardrail, and a minimal
-diff or trace diagnosis. The workflow permits exactly one same-round Coder repair.
-After repair, verify the before/after hashes and rerun the complete correctness
-gate. A second local correctness failure classifies `candidate-failed`. A fix
-that requires an algorithm, dataflow, lifecycle, or Evaluation Contract change
-is `design-revision-required` and Orchestrator completes `design-rejected`.
+exact command, exit status, stdout/stderr summary, failing guardrail, and a
+minimal diff or trace diagnosis. The workflow permits exactly one same-round Coder repair. After repair, verify before/after hashes and rerun the complete
+correctness gate. A second local correctness failure classifies
+`candidate-failed`. A fix requiring an algorithm, dataflow, lifecycle, or
+Evaluation Contract change is `design-revision-required` and Orchestrator
+completes `design-rejected`.
 
-## Authoritative wall timing
+## Screening and authoritative timing
 
-After correctness passes, execute three interleaved pairs in one Verifier turn:
+After correctness passes, execute two short interleaved accepted reference,
+candidate pairs in the current measurement regime. Persist ordered raw evidence
+for both pairs. Emit `screened-out` only when both pairs are at least 10% slower
+than the accepted reference and write those two pairs into `report_NNN.md`.
+`screened-out` consumes a terminal round but changes neither progress streak and
+skips the profiler. Verifier must not promote a screen result to `accepted` or `no-improvement`.
+
+Every other correct candidate proceeds to authoritative timing. Execute three
+interleaved pairs in one Verifier turn:
 
 ```text
 accepted reference, candidate
@@ -46,13 +62,14 @@ accepted reference, candidate
 accepted reference, candidate
 ```
 
-Use the existing harness and change only `--v1_file`. Keep interpreter, base,
-warmup, repeat, device, environment, and every other flag byte-for-byte
-identical across all six invocations. Persist all three accepted-reference and
-all three candidate raw measurements. Compare the unrounded median of the three
-reference samples with the unrounded median of the three candidate samples.
+Keep interpreter, base, warmup, repeat, device, environment, and every other
+flag byte-for-byte identical across pairs. Compare the unrounded median of the
+accepted-reference and candidate samples. Correctness, every guardrail, and
+`improvement_pct >= 5.0` are required for `accepted`; otherwise classify
+`no-improvement`. Benchmark wall time controls adoption; profiler time never
+substitutes for authoritative timing.
 
-The command shape is:
+Use the existing harness and change only `--v1_file`, for example:
 
 ```bash
 python3 auto_bench.py --v0_file operator/base.py \
@@ -60,11 +77,6 @@ python3 auto_bench.py --v0_file operator/base.py \
 python3 auto_bench.py --v0_file operator/base.py \
   --v1_file operator/triton_operator_001.py --warmup 50 --repeat 100
 ```
-
-At runtime substitute the manifest's accepted and candidate paths. Correctness,
-all guardrails, and `improvement_pct >= 5.0` are all required for `accepted`.
-Otherwise, after the configured repeat/noise check, classify `no-improvement`.
-Benchmark wall time controls adoption; profiler time never substitutes for it.
 
 ## Evaluation Contract and profiler evidence
 
@@ -77,19 +89,19 @@ any adoption decision.
 
 Use these evidence levels:
 
-- Level 0 for every candidate: correctness, guardrails, and paired wall timing.
-- Level 1 after correctness passes: scoped reference and candidate
-  `device_us_per_call`, `kernel_count_per_call`, device totals, `device_ratio`,
-  and top kernels via `scripts/summarize_trace.py`.
-- Level 2 only for mechanism observables explicitly named by the Evaluation
-  Contract, such as host decomposition or a specific external kernel count.
-- Level 3 only when evidence conflicts, remains unattributed, is noise-bound, or
-  lies at a stop boundary and a deeper trace is necessary.
+- Level 0: correctness, guardrails, screening, and authoritative timing.
+- Profile baseline and accepted candidates with separately scoped reference and
+  candidate `device_us_per_call`, `kernel_count_per_call`, device totals,
+  `device_ratio`, and top kernels via `scripts/summarize_trace.py`.
+- Level 2: profile a boundary case or insufficient bottleneck evidence named by
+  the Evaluation Contract, such as host decomposition or external kernel count.
+- Level 3: use a deeper trace only when evidence conflicts, remains
+  unattributed, or the stop boundary requires it.
 
-Profiler totals must normalize by the declared iteration count per forward call.
+Profiler totals must normalize by declared iteration count per forward call.
 Reference and candidate events are always summarized in separate scopes; never
-combine their totals. Use the harness's existing dual-scope interface rather
-than editing it:
+combine their totals. Do not profile `screened-out` candidates. Use the
+harness's existing dual-scope interface rather than editing it:
 
 ```bash
 python3 auto_bench.py --v0_file operator/base.py \
@@ -100,42 +112,41 @@ python3 auto_bench.py --v0_file operator/base.py \
 ```
 
 Summarize `reference_baseline_adapter` and
-`candidate_triton_operator_001` independently. Record the iteration count,
-device total and per-call time, total and per-call kernel counts, ratio, and
-top-k kernels for each scope.
+`candidate_triton_operator_001` independently. Record iteration count, device
+total and per-call time, total and per-call kernel counts, ratio, and top-k
+kernels for each scope. Always populate `evidence_for_next_round` with observed
+facts, falsified or remaining mechanisms, and the current bottleneck. Do not
+prescribe the next implementation.
 
-Always populate `evidence_for_next_round` with observed facts, falsified or
-remaining mechanisms, and the current bottleneck. Do not prescribe the next
-implementation.
+## Liveness watchdog and incidents
 
-## Reports, progress, and classifications
-
-Write `round_status_NNN.md` at verification start, after correctness, after each
-timing pair, and at verification end so interruption can resume deterministically.
-Each update records phase, completed commands, artifact hashes, raw samples, and
-the next safe action. `state/verifier_state.md` may retain only concise runtime
-facts and resume context.
-
-Terminal evidence is classified for Orchestrator as exactly
-`accepted|no-improvement|candidate-failed|design-rejected`. Verifier never
-updates `last_accepted_kernel`, even after an accepted classification. A final
-report includes decision, candidate, accepted-reference and source hashes; the
-correctness/guardrail matrix; all samples and unrounded medians; improvement;
-the Evaluation Contract mirror; hypothesis verdict; profiler data; retry
-history; upbound gap; `evidence_for_next_round`; stop recommendation; and exact
-reproduction commands.
-
-## Environment incidents and stop behavior
-
-An import failure, missing dependency, missing interpreter, device loss, OOM
-unrelated to candidate design, or indistinguishable required profiler scopes is
+A liveness watchdog derived from baseline-equivalent elapsed time protects a
+stalled command. It is an environment incident, not a performance result. An
+import failure, missing dependency, missing interpreter, device loss, unrelated
+OOM, watchdog expiry, or indistinguishable required profiler scopes is likewise
 an environment incident. Write `incident_NNN_<UTC-timestamp>.md` with the exact
-command, exit code, stderr, runtime and measurement fingerprints, affected safe
-step, and remediation need. Return the incident path to Orchestrator.
+command, exit status, stderr, runtime and measurement fingerprints, affected
+safe step, and remediation need. Return the incident path to Orchestrator.
 An environment incident does not write a terminal result.
 It does not change total_rounds and does not change either progress streak.
 
-Recommend stopping, with evidence, for `measurement-bound`, `diminishing returns`,
-`upbound reached`, `resource exhausted`, or `user intervention`. Verifier does
-not perform the transition. Environment remediation resumes the same safe step
-when fingerprints and artifact hashes still match.
+## Reports and classifications
+
+Write `round_status_NNN.md` at verification start, after correctness, after each
+screening or authoritative timing pair, and at verification end so interruption
+can resume deterministically. Each update records phase, completed commands,
+artifact hashes, raw samples, and next safe action.
+
+Terminal evidence is classified for Orchestrator as exactly
+`accepted|no-improvement|screened-out|candidate-failed|design-rejected|aborted`.
+Verifier never updates `last_accepted_kernel`, even after an accepted
+classification. A final report includes decision, candidate, accepted-reference
+and source hashes; correctness and guardrail matrix; samples and unrounded
+medians; improvement; Evaluation Contract mirror; hypothesis verdict; applicable
+profiler data; retry history; `evidence_for_next_round`; global stop observation;
+and exact reproduction commands.
+
+Global stop observations are `target-reached`, `valid-no-improvement-limit`,
+`round-budget-exhausted`, or `user-intervention`. Verifier reports evidence but
+does not perform the transition. Environment remediation resumes the same safe
+step when fingerprints and artifact hashes still match.
