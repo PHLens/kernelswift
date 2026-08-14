@@ -67,6 +67,8 @@ silently converted to `accepted` or `no-improvement`.
 
 - profiler_level: `summary | targeted | deep-on-demand`
 - iterations: `<forward call count>`
+- normalized_fields: `device_total_us`, `device_us_per_call`,
+  `kernel_count_total`, `kernel_count_per_call`, `device_ratio`, `kernels`
 
 Reference and candidate scopes are collected and summarized independently. All
 totals below are normalized by `iterations` before they are compared.
