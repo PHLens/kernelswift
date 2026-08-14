@@ -27,6 +27,10 @@
 - Runtime state and role state are committed at every completed state transition so a fresh session can resume from disk.
 - Manifest phases are `initializing`, `ready`, `designing`, `coding`, `verifying`, `blocked`, and `stopped`. Role dispatch is allowed only when the predecessor artifact is complete and schema-valid.
 - Implementation must begin in an isolated worktree created through `superpowers:using-git-worktrees`; do not create or merge branches from inside the skill workflow itself.
+- The Sketch is a single fenced ```` ```sketch ```` block written in the C DSL grammar (four commented subsections `# 𝒟`, `# 𝒪`, `# 𝒞`, `# ℋ`). Sketch grammar is runtime-neutral and shared across all target DSLs; one Sketch translates to many backends.
+- The LLM Coder is the Sketch→DSL translator. There is no Sketch compiler. Each `prompts/coder_targets/<x>.md` carries the translation contract (Sketch construct → target-DSL idiom) plus a Capabilities self-report table for that target. Adding a target DSL adds exactly one file.
+- Coder terminal responses are five: `accepted`, `minor-dev`, `major-dev`, `capability-miss`, `abort`. `capability-miss` means a Sketch construct is not expressible in the current `target_dsl`. v1 has only `triton_mlu`, so `capability-miss` degrades to a `major-dev` sub-path (Designer drops the construct from the Sketch). v2 will route it to a DSL switch via `target_dsl_candidates`.
+- v1 targets only `triton_mlu`. The `target_dsl_candidates` and `capability_miss_log` manifest fields are reserved empty for v2 DSL switching; the file contracts and Coder response taxonomy are stable across v1→v2 and only the capability-miss handling logic changes.
 
 ---
 
@@ -41,6 +45,10 @@ skills/kernel-opt-loop/
   prompts/
     designer.md
     coder.md
+    coder_targets/
+      triton_mlu.md
+      triton_cuda.md
+      tilelang.md
     verifier.md
   references/
     anti-patterns.md
@@ -53,6 +61,7 @@ skills/kernel-opt-loop/
   scripts/
     make_baseline_adapter.py
     summarize_trace.py
+    validate_sketch.py
   tests/
     check_contracts.sh
     test_helpers.py
@@ -103,11 +112,13 @@ Round comparison is always against `last_accepted_report`, whose implementation 
 **Files:**
 - Create: `skills/kernel-opt-loop/scripts/make_baseline_adapter.py`
 - Create: `skills/kernel-opt-loop/scripts/summarize_trace.py`
+- Create: `skills/kernel-opt-loop/scripts/validate_sketch.py`
 - Create: `skills/kernel-opt-loop/tests/test_helpers.py`
 
 **Interfaces:**
 - `make_baseline_adapter.py SOURCE DEST` reads a Python operator file, renames its one top-level `Model` class to `ModelNew`, and writes an AST-equivalent adapter without modifying the source.
 - `summarize_trace.py TRACE --iterations N [--scope RECORD_FUNCTION]` prints JSON with `iterations`, `device_total_us`, `device_us_per_call`, and a per-kernel breakdown. `--scope` restricts events to kernels nested under one profiler `record_function` span when the trace contains both accepted-reference and candidate calls.
+- `validate_sketch.py DECISION_FILE` reads a `decision_NNN.md`, extracts the ```` ```sketch ```` fenced block, and asserts it conforms to the C DSL grammar. Returns zero on success, non-zero with line-numbered errors on failure. Stdlib only.
 
 - [ ] **Step 1: Write failing tests for baseline adapter generation**
 
@@ -137,7 +148,51 @@ Use a synthetic trace with three kernel events:
 
 For `--iterations 10`, assert total `100.0`, per-call `10.0`, `k1.total_us == 50.0`, and `k1.per_call_us == 5.0`. Add a synthetic trace with `reference_*` and `candidate_*` record-function spans, CPU launch events inside each span, and asynchronous kernels linked by `External id`/`correlation`; assert `--scope candidate_test` excludes reference kernels even when kernel timestamps extend beyond the CPU span. Add rejection tests for `--iterations 0`, an unknown scope, ambiguous duplicate scopes, missing correlation metadata, and missing `traceEvents`.
 
-- [ ] **Step 3: Run the helper tests and verify RED**
+- [ ] **Step 3: Write failing tests for Sketch validation**
+
+Add `unittest` cases for `validate_sketch.py`:
+
+```python
+VALID_SKETCH = """```sketch
+# 𝒟 Declarations
+A: [M, K] fp16 @ fastest
+B: [K, N] fp16 @ slow
+C: [M, N] fp16 @ fast
+
+# 𝒪 Core Operations
+alloc   C_tile : [BLOCK_M, BLOCK_N] fp16 @ fastest
+load    A_tile  <- A[m:m+BLOCK_M, k:k+BLOCK_K]
+load    B_tile  <- B[k:k+BLOCK_K, n:n+BLOCK_N]
+compute C_tile += A_tile @ B_tile
+store   C[m:m+BLOCK_M, n:n+BLOCK_N] += C_tile
+
+# 𝒞 Control Flow
+parallel M over BLOCK_M=128, N over BLOCK_N=128
+for k in range(0, K, BLOCK_K=32):
+    load    A_tile  <- A[m:m+BLOCK_M, k:k+BLOCK_K]
+    load    B_tile  <- B[k:k+BLOCK_K, n:n+BLOCK_N]
+    compute C_tile += A_tile @ B_tile
+store C[m:m+BLOCK_M, n:n+BLOCK_N] += C_tile
+
+# ℋ Optimization Hints
+pipeline stages=2
+unroll k factor=4
+num_warps=4  num_stages=2
+```"""
+```
+
+Assert:
+- `validate(VALID_SKETCH)` returns zero exit code and an empty error list.
+- A Sketch missing any of the four `# 𝒟`/`# 𝒪`/`# 𝒞`/`# ℋ` subsection markers fails with a line-numbered message naming the missing subsection.
+- A Sketch with subsections out of order (e.g. `# ℋ` before `# 𝒟`) fails.
+- A `# 𝒟` line using `mem=foo` (not in `{fastest, fast, slow}`) fails and names the offending line.
+- A `# 𝒪` line whose first token is not in `{alloc, load, store, compute}` fails.
+- A `# 𝒢` (wrong subsection character) fails with "unknown subsection".
+- A decision file with no ```` ```sketch ```` fenced block fails.
+- A decision file where the fenced block uses a language tag other than `sketch` (e.g. ```` ```python ````) is ignored unless it is the only fenced block; if no `sketch` block exists, fail.
+- `--report-json` emits a JSON document with `valid: bool`, `errors: [{line, message}]`, and `subsections_present: ["𝒟", "𝒪", "𝒞", "ℋ"]`.
+
+- [ ] **Step 4: Run the helper tests and verify RED**
 
 Run:
 
@@ -145,25 +200,37 @@ Run:
 python3 -m unittest discover -s skills/kernel-opt-loop/tests -p 'test_*.py' -v
 ```
 
-Expected: failures because both scripts are absent.
+Expected: failures because all three scripts are absent.
 
-- [ ] **Step 4: Implement `make_baseline_adapter.py`**
+- [ ] **Step 5: Implement `make_baseline_adapter.py`**
 
 Use `argparse`, `ast.parse`, an `ast.NodeTransformer`, `ast.fix_missing_locations`, and `ast.unparse`. Rename only a top-level `ClassDef` named `Model`; preserve every other definition. Refuse ambiguous input rather than guessing.
 
-- [ ] **Step 5: Implement `summarize_trace.py`**
+- [ ] **Step 6: Implement `summarize_trace.py`**
 
 Use only the Python standard library. Without `--scope`, sum numeric `dur` values where `cat == "kernel"`. With `--scope`, resolve exactly one complete or begin/end record-function span; collect correlation identifiers from CPU launch descendants on the same thread, then include only kernel events whose `External id`/`correlation` links to those descendants. Timestamp containment may be used only when the trace explicitly lacks async accelerator events; otherwise refuse un-attributable or ambiguous data. Group by `name`, divide totals and counts by the supplied iteration count, sort breakdown rows by descending total duration, and emit stable JSON via `json.dumps(..., indent=2, sort_keys=True)`.
 
-- [ ] **Step 6: Run tests and verify GREEN**
+- [ ] **Step 7: Implement `validate_sketch.py`**
 
-Run the command from Step 3. Expected: all tests pass.
+Use only the Python standard library (`re`, `json`, `argparse`, `sys`). Read the decision file, find the fenced block whose language tag is `sketch` (parse markdown fences manually; do not depend on a markdown library). Split the block into lines. Enforce:
 
-- [ ] **Step 7: Commit**
+1. Exactly four subsection markers exist, in order: a line matching `^#\s*𝒟`, then `^#\s*𝒪`, then `^#\s*𝒞`, then `^#\s*ℋ`. Unknown `^#\s*𝒳` lines (where 𝒳 is any single Unicode mathematical script letter not in the four) are rejected.
+2. In the `𝒟` section, every non-blank line matches `^<name>:\s*\[<shape>\]\s*<dtype>\s*@\s*(fastest|fast|slow)\s*(#.*)?$`. Shape is a comma-separated list of identifiers and integer literals.
+3. In the `𝒪` section, every non-blank line's first token is one of `alloc`, `load`, `store`, `compute`. `compute` lines must contain `=` or `+=`.
+4. In the `𝒞` section, lines are either Python `for` / `if` / `while` / assignment / `parallel <axes> over <tile-spec>` / `store` / `load` / `compute` continuation. The `parallel` form must list at least one axis.
+5. In the `ℋ` section, every non-blank line's first token is one of `pipeline`, `unroll`, `num_warps`, `num_stages`, `vectorize`, `async_copy`, followed by space-separated `key` or `key=val` tokens.
+
+Emit errors as `line N: <message>` on stderr; exit non-zero on any error. With `--report-json`, emit the JSON shape tested in Step 3. The validator does not parse semantics — it checks structure and lexing only.
+
+- [ ] **Step 8: Run tests and verify GREEN**
+
+Run the command from Step 4. Expected: all tests pass.
+
+- [ ] **Step 9: Commit**
 
 ```bash
 git add skills/kernel-opt-loop/scripts skills/kernel-opt-loop/tests/test_helpers.py
-git commit -m "skills: add reproducible baseline and trace helpers"
+git commit -m "skills: add reproducible baseline, trace, and Sketch helpers"
 ```
 
 ---
@@ -201,6 +268,9 @@ Include concrete safe/unsafe examples for all of these:
 9. Coder starts from `team-state.md:last_accepted_kernel`, never from the numerically previous candidate.
 10. Decision output carries a Unified Sketch four-tuple `𝒮 = (𝒟, 𝒪, 𝒞, ℋ)` — Declarations, Core Operations, Control Flow, Optimization Hints — written in runtime-neutral primitives (`alloc/load/store/compute`, standard Python control flow, `@llm_hint`-style directives). Coder translates only from the four-tuple, never from prose.
 11. Coder deviation classification is by decision layer, not by severity. Deviations confined to DSL implementation (API typos, syntax, literal values that do not alter the Sketch) are minor. Deviations that require changing any Sketch subsection (`𝒟`/`𝒪`/`𝒞`/`ℋ`) are major and require a Designer revision request that names the specific subsection.
+12. The Sketch is a single fenced ```` ```sketch ```` block written in the C DSL grammar. Subsections are demarcated by comments `# 𝒟`, `# 𝒪`, `# 𝒞`, `# ℋ` in that order. `𝒟` lines use `name: [shape] dtype @ mem` where `mem ∈ {fastest, fast, slow}`. `𝒪` lines start with `alloc|load|store|compute`. `𝒞` uses Python control flow plus a `parallel <axes> over <tile-spec>` directive. `ℋ` lines start with `pipeline|unroll|num_warps|num_stages|vectorize|async_copy`. `validate_sketch.py` enforces this grammar; a decision whose Sketch block fails validation cannot enter coding.
+13. The LLM Coder is the Sketch→DSL translator; there is no Sketch compiler. Each `prompts/coder_targets/<x>.md` carries the translation contract (Sketch construct → target-DSL idiom) plus a Capabilities self-report table. Adding a target DSL adds exactly one file in `coder_targets/`; the Sketch grammar and Designer contract do not change.
+14. Coder terminal responses are five: `accepted`, `minor-dev`, `major-dev`, `capability-miss`, `abort`. `capability-miss` means a Sketch construct (typically a `ℋ` directive) is not expressible in the current `target_dsl`. v1 has only `triton_mlu`, so `capability-miss` degrades to a `major-dev` sub-path: Designer drops the construct from the Sketch ℋ subsection and the round retries. v2 will route `capability-miss` to a DSL switch via `target_dsl_candidates`. The `capability_miss_log` manifest field records every miss for v2 decisions.
 
 - [ ] **Step 3: Extract anti-patterns from the pinned log**
 
@@ -223,7 +293,7 @@ Abstract Entries 004, 005, 006, 007, 011, 012, 013, 014, 015, 016, 017, 019, 021
 Run:
 
 ```bash
-for token in _filter_module_ast fast_libentry "argmax sentinel" tl.dot torch.mlu.device torch.empty_like set_seed sync_devices last_accepted_kernel "Unified Sketch" "minor" "major"; do
+for token in _filter_module_ast fast_libentry "argmax sentinel" tl.dot torch.mlu.device torch.empty_like set_seed sync_devices last_accepted_kernel "Unified Sketch" "minor" "major" "capability-miss" "coder_targets" "target_dsl" "validate_sketch" "Capabilities"; do
   grep -qF "$token" skills/kernel-opt-loop/references/invariants.md || exit 1
 done
 for entry in 004 005 006 007 011 012 013 014 015 016 017 019 021 022 023 024; do
@@ -278,6 +348,9 @@ consecutive_no_improvement: 0
 consecutive_failed_attempts: 0
 total_rounds: 0
 measurement_fingerprint: null
+target_dsl: triton_mlu
+target_dsl_candidates: []
+capability_miss_log: []
 stop_reason: null
 stop_timestamp: null
 skill_version_at_stop: null
@@ -292,6 +365,8 @@ Below the frontmatter, include `## Transition Log`, with one append-only row per
 
 Define `measurement_fingerprint` deterministically as `sha256(base_bytes + b"\0" + harness_bytes + b"\0" + settings_json_bytes)`, where settings JSON uses `sort_keys=True` and separators `(',', ':')` and contains shape, dtype, device, warmup, repeat, profile mode, profile warmup, and profile iterations. Resume validation must recompute exactly this value.
 
+`target_dsl` is a single string naming the active Coder target file in `prompts/coder_targets/<name>.md`. v1 only ships `triton_mlu`; the field is set during Phase 0 from `project.md` and changes only on a v2 DSL switch. `target_dsl_candidates` is reserved empty for v2 (ordered list of fallback DSLs to try when a `capability-miss` occurs). `capability_miss_log` is an append-only list of `{round, construct, target, outcome}` entries; v1 records every miss even though it degrades to major-dev, so v2 can use the log to decide whether a DSL switch would have helped.
+
 - [ ] **Step 2: Write `decision-template.md`**
 
 Require these fields:
@@ -304,11 +379,29 @@ Reference report
 Bottleneck class and normalized device_ratio
 Falsifiable hypothesis
 
-Sketch (Unified Sketch four-tuple 𝒮 = (𝒟, 𝒪, 𝒞, ℋ)):
-  Declarations (𝒟): tensor/buffer shapes, dtypes, memory hints using hardware-agnostic descriptors ('fastest'=registers, 'fast'=shared/L1)
-  Core Operations (𝒪): only alloc / load / store / compute primitives
-  Control Flow (𝒞): parallelization strategy, loop nesting, work mapping — no DSL syntax
-  Optimization Hints (ℋ): runtime-neutral directives (parallel, pipeline, unroll) with concrete parameters (e.g. BLOCK_M=128, num_stages=2, num_warps=4)
+Sketch (Unified Sketch four-tuple 𝒮 = (𝒟, 𝒪, 𝒞, ℋ), written as a single ```sketch fenced block):
+
+```sketch
+# 𝒟 Declarations
+<name>: [<shape>] <dtype> @ <fastest|fast|slow>
+...
+
+# 𝒪 Core Operations (alloc / load / store / compute only)
+alloc   <name> : [<shape>] <dtype> @ <mem>
+load    <name>  <- <src>[<slice>]
+compute <name> += <a> @ <b>
+store   <dst>[<slice>] += <name>
+
+# 𝒞 Control Flow (Python syntax, plus `parallel <axes> over <tile-spec>`)
+parallel <axes> over <tile-spec>
+for <var> in range(<lo>, <hi>, <step>):
+    <body>
+
+# ℋ Optimization Hints (pipeline|unroll|num_warps|num_stages|vectorize|async_copy)
+pipeline stages=<n>
+unroll <var> factor=<n>
+num_warps=<n>  num_stages=<n>
+```
 
 One optimization means (the single bottleneck this round targets)
 Expected wall improvement percentage
@@ -317,7 +410,9 @@ Anti-pattern consultation hit/miss
 Acceptance rule
 ```
 
-An abort decision still fills Round, Reference, rejection rationale, the Sketch (restating the accepted reference's structure for auditability), and anti-pattern consultation; it is not a one-line file. The Coder translates only from the Sketch four-tuple, not from prose. When the Coder cannot translate faithfully, its major-deviation request names the specific Sketch subsection (`𝒟`/`𝒪`/`𝒞`/`ℋ`) that must change.
+The Sketch block must pass `validate_sketch.py` before the decision enters coding. `𝒟` lines use hardware-agnostic memory descriptors: `fastest` = registers, `fast` = shared/L1, `slow` = HBM. `𝒪` uses only `alloc/load/store/compute` primitives; `compute` covers GEMM (`@`), elementwise, and reductions, all written as primitive assignment. `𝒞` is standard Python control flow plus a single `parallel` directive per axis — no DSL-specific syntax. `ℋ` directives are runtime-neutral; the Coder's target file maps each to a concrete launcher flag or omits it when the target lacks support (see `capability-miss`).
+
+An abort decision still fills Round, Reference, rejection rationale, the Sketch (restating the accepted reference's structure for auditability), and anti-pattern consultation; it is not a one-line file. The Coder translates only from the Sketch four-tuple, not from prose. When the Coder cannot translate faithfully, its major-deviation request names the specific Sketch subsection (`𝒟`/`𝒪`/`𝒞`/`ℋ`) that must change. When the Coder encounters a `ℋ` directive the target DSL cannot express, it emits a `capability-miss` response naming the construct and the target; v1 degrades this to a `major-dev` sub-path that revises only the `ℋ` subsection.
 
 - [ ] **Step 3: Write `report-template.md`**
 
@@ -505,47 +600,112 @@ git commit -m "skills: add Designer role contract"
 
 ---
 
-## Task 7: Write the Coder role contract
+## Task 7: Write the Coder role contract and target DSL contracts
 
 **Files:**
 - Create: `skills/kernel-opt-loop/prompts/coder.md`
+- Create: `skills/kernel-opt-loop/prompts/coder_targets/triton_mlu.md`
+- Create: `skills/kernel-opt-loop/prompts/coder_targets/triton_cuda.md`
+- Create: `skills/kernel-opt-loop/prompts/coder_targets/tilelang.md`
 
 **Interfaces:**
-- Consumes `decision_NNN.md`, `team-state.md:last_accepted_kernel`, `base.py`, invariants, and `coder_state.md`.
-- Produces `triton_<op>_<NNN>.py` and updates only `coder_state.md`.
+- Consumes `decision_NNN.md`, `team-state.md:last_accepted_kernel`, `team-state.md:target_dsl`, `base.py`, invariants, `coder_state.md`, and the target file in `prompts/coder_targets/<target_dsl>.md`.
+- Produces `triton_<op>_<NNN>.py` (or `<dsl>_<op>_<NNN>.py` for non-Triton targets) and updates only `coder_state.md`.
 
 - [ ] **Step 1: Write an unguided Coder pressure fixture**
 
 Create a fixture where `triton_test_001.py` exists but is marked `no-improvement`, while `team-state.md:last_accepted_kernel` points to `baseline_adapter.py`. Ask an unguided agent what to copy. Record RED if it chooses the numerically previous file.
 
-- [ ] **Step 2: Write `prompts/coder.md`**
+- [ ] **Step 2: Write `prompts/coder.md` (shared contract)**
 
 Require Coder to:
 
-- Read the common bootstrap inputs and `invariants.md`.
+- Read the common bootstrap inputs, `invariants.md`, and the target file at `prompts/coder_targets/<target_dsl>.md` (path resolved from `team-state.md:target_dsl`). If `target_dsl` is absent or its file missing, emit `abort` and stop.
+- Run `validate_sketch.py` on the decision file before translating. If validation fails, emit `major-dev` naming the Sketch subsections that are malformed; do not attempt translation.
 - Copy `last_accepted_kernel` as the starting point, even when later rejected files exist.
-- Implement only the decision; no unrelated refactor.
+- Translate only from the Sketch four-tuple in the decision — not from prose, not from "optimization means", not from the hypothesis. Use the target file's translation contract table for the mapping.
 - Preserve the `ModelNew`, `get_inputs`, and `get_init_inputs` contract.
-- Classify deviations as minor or major by which decision layer they touch, not by severity. Minor deviations are confined to the DSL implementation (API typos, syntax, literal values that do not change the Sketch four-tuple) and are logged in `coder_state.md`. Major deviations require changing any Sketch subsection — `𝒟` Declarations, `𝒪` Core Operations, `𝒞` Control Flow, or `ℋ` Optimization Hints — and trigger a Designer revision request that names the specific subsection it could not translate faithfully, with at most two round trips.
+- Classify deviations as one of five terminal responses:
+  - **`accepted`** — candidate `ast.parse`s, harness-loadable, and the Sketch translated faithfully with no deviation.
+  - **`minor-dev`** — DSL-only deviation (API typos, syntax, literal values that do not change the Sketch four-tuple). Self-fix up to two times, logging each attempt in `coder_state.md`. No Designer involvement.
+  - **`major-dev`** — requires changing any Sketch subsection (`𝒟`/`𝒪`/`𝒞`/`ℋ`). Emit a revision request naming the specific subsection that could not be translated faithfully; at most two round trips before `abort`.
+  - **`capability-miss`** — a `ℋ` directive (or, rarely, a `𝒪` primitive) is not expressible in `target_dsl` per the target file's Capabilities table. Emit a report naming the construct and the target. v1 degrades this to a `major-dev` sub-path that revises only the `ℋ` subsection (Designer drops the unsupported directive). Record the miss in `coder_state.md` and surface it so the orchestrator appends to `team-state.md:capability_miss_log`.
+  - **`abort`** — env failure (interpreter missing, target library import failure) or two failed major-dev round trips. Emit `abort` with a concrete reason; do not leave the round half-finished.
 - Self-check with both `ast.parse` and the actual harness loader:
 
 ```bash
 <python> -c "from pathlib import Path; import auto_bench as b; m=b.load_ks_module(Path('<candidate>')); assert hasattr(m, 'ModelNew'); assert hasattr(m, 'get_inputs'); assert hasattr(m, 'get_init_inputs')"
 ```
 
-- Attempt at most two self-fixes for syntax/import/load failures before escalating.
-- Hand the candidate path, source accepted-kernel path, and deviations to Verifier through the active runtime adapter.
-- Own only `state/coder_state.md` and the current candidate; never edit `team-state.md`, manifest counters, or canonical pointers.
+- Attempt at most two self-fixes for syntax/import/load failures before escalating (this counts toward the `minor-dev` limit; a third failure becomes `abort`).
+- Hand the candidate path, source accepted-kernel path, deviation classification, and (if applicable) the named Sketch subsection or unsupported construct to Verifier through the active runtime adapter.
+- Own only `state/coder_state.md` and the current candidate; never edit `team-state.md`, manifest counters, canonical pointers, or any `coder_targets/<x>.md` file.
 
-- [ ] **Step 3: Run the guided pressure test**
+- [ ] **Step 3: Write `prompts/coder_targets/triton_mlu.md` (active target)**
 
-Expected: Coder copies `baseline_adapter.py`, produces an AST-parseable candidate, and records its source path in `coder_state.md`.
+The file must contain three sections:
 
-- [ ] **Step 4: Commit**
+1. **Translation Contract** — a table mapping each Sketch construct to the Triton-MLU idiom. Cover at minimum:
+
+   | Sketch construct | Triton-MLU translation |
+   |---|---|
+   | `A: [M,K] fp16 @ fastest` | `tl.make_block_ptr(..., order=(1,0))` register tile |
+   | `@ fastest` | direct `tl.load` (no SMEM stage) |
+   | `@ fast` | `tl.zeros([...], dtype=...)` accumulate in SMEM |
+   | `@ slow` | `tl.advance` + `tl.load` stream |
+   | `alloc X : [...]` | `tl.zeros` or `tl.empty` |
+   | `load X <- A[i:j]` | `tl.load(ptr + offs, mask)` |
+   | `compute X += Y @ Z` | `tl.dot(Y, Z, acc=X)` |
+   | `store C[i:j] += X` | `tl.store(ptr + offs, X, mask)` |
+   | `parallel M over BM=128` | `tl.program_id(0)` + `tl.arange(0, BM)` |
+   | `for k in range(0,K,BK)` | inner K loop + `tl.advance` |
+   | `pipeline stages=2` | `num_stages=2` launcher flag |
+   | `unroll k factor=4` | manual 4× body expansion (or omit, log in `coder_state.md`) |
+   | `num_warps=4` | `num_warps=4` launcher flag |
+   | `num_stages=2` | `num_stages=2` launcher flag |
+   | `vectorize` | omit (unsupported, emit `capability-miss`) |
+   | `async_copy` | omit (unsupported, emit `capability-miss`) |
+
+2. **Capabilities** — a self-report table declaring which Sketch constructs this target supports:
+
+   ```markdown
+   ## Capabilities
+
+   | Sketch construct | Support | Notes |
+   |---|---|---|
+   | pipeline | ⚠ partial | only via num_stages, no explicit directive |
+   | unroll | ✅ | manual expansion |
+   | num_warps | ✅ | launcher flag |
+   | num_stages | ✅ | software pipeline via launcher |
+   | vectorize | ❌ | not supported, capability-miss |
+   | async_copy | ❌ | not supported, capability-miss |
+   | @ fastest (register tile) | ✅ | tl.make_block_ptr + order |
+   | @ fast (SMEM) | ✅ | tl.zeros in SMEM |
+   | @ slow (HBM stream) | ✅ | tl.advance + tl.load |
+   ```
+
+3. **Target-specific gotchas** — at minimum: `_filter_module_ast` class-body `globals()` pattern for `fast_libentry`, `torch.mlu.device()` context drop when caller sets device, output buffer cache on `ModelNew`.
+
+- [ ] **Step 4: Write stub target files `triton_cuda.md` and `tilelang.md`**
+
+Each stub is a placeholder for a future target. It must contain:
+
+- A one-line header: `# Target: <name> (stub — TBD when first target lands)`
+- A **Capabilities** section with the same row schema as `triton_mlu.md`, but every row marked `❌ TBD` (these are not authoritative until the file is filled in)
+- An empty **Translation Contract** section with a comment: `<!-- Fill when this target becomes active. See triton_mlu.md for the schema. -->`
+- A note: `v1 does not activate this target. Setting team-state.md:target_dsl to <name> before this file is filled will cause Coder to emit abort.`
+
+This preserves the v2 extension interface: a future target lands by completing one file and flipping `target_dsl`.
+
+- [ ] **Step 5: Run the guided pressure test**
+
+Expected: Coder copies `baseline_adapter.py`, reads `target_dsl: triton_mlu` from `team-state.md`, loads `coder_targets/triton_mlu.md`, produces an AST-parseable candidate whose deviations (if any) are classified into exactly one of the five response types, and records its source path in `coder_state.md`. For a `capability-miss` fixture (decision contains `vectorize` directive), Coder emits `capability-miss`, names the construct, and surfaces it to the orchestrator for `capability_miss_log` append.
+
+- [ ] **Step 6: Commit**
 
 ```bash
-git add skills/kernel-opt-loop/prompts/coder.md
-git commit -m "skills: add Coder role contract"
+git add skills/kernel-opt-loop/prompts/coder.md skills/kernel-opt-loop/prompts/coder_targets
+git commit -m "skills: add Coder contract and target DSL translation files"
 ```
 
 ---
@@ -579,6 +739,8 @@ Require Verifier to:
 Require:
 
 - Correctness first. One Coder retry is allowed; a second failure produces `Result: accuracy-fail` and a full audit report.
+- Recognize all five Coder terminal responses. `accepted` and `minor-dev` (Coder self-fixed) produce a normal candidate for verification. `major-dev` and `capability-miss` mean no candidate was produced — Verifier does not run; the orchestrator routes the deviation back to Designer. `abort` means no candidate and no report beyond the abort record.
+- For v1, `capability-miss` is treated as a `major-dev` sub-path: the orchestrator appends to `team-state.md:capability_miss_log` and Designer revises the `ℋ` subsection (dropping the unsupported directive). Verifier's role is only to recognize the response and not emit a report; it does not perform DSL-switch logic (reserved for v2).
 - For a passing candidate, compare to `last_accepted_kernel` and `last_accepted_report`, not simply Round N-1.
 - Run three interleaved accepted-reference/candidate timing pairs with identical flags in the same Verifier turn, in the order reference, candidate, reference, candidate, reference, candidate. Each run uses `auto_bench.py --v0_file base.py --v1_file <implementation>`. Record all six v1 measurements and compare the median of the three reference samples with the median of the three candidate samples; do not compare the candidate to a stale baseline-only sample.
 - Compute `improvement_pct = (reference_median_ms - candidate_median_ms) / reference_median_ms * 100` without using rounded display values.
@@ -770,14 +932,21 @@ git commit -m "skills: rewrite kernel-opt-loop as cross-runtime orchestrator"
 Use `set -euo pipefail`. The checker must assert:
 
 - every final-structure file exists and is non-empty;
+- every `prompts/coder_targets/<x>.md` file exists and is non-empty (v1 ships `triton_mlu.md`, `triton_cuda.md`, `tilelang.md`);
 - frontmatter contains `name` and `description`;
 - all six state-machine values (`baseline`, `accepted`, `no-improvement`, `accuracy-fail`, `abort`, `env-fail`) appear in the orchestrator, while the five report-producing values appear in the report template;
 - `last_accepted_kernel`, `last_completed_report`, and `last_accepted_report` appear in the relevant role, template, and orchestrator contracts;
+- `target_dsl`, `target_dsl_candidates`, and `capability_miss_log` appear in `team-state-template.md`;
 - all seven phase names and the deterministic `measurement_fingerprint` inputs appear in the state/orchestrator contracts;
 - `profile_iterations`, `device_us_per_call`, and the unit formula appear in Verifier and report template;
 - each role contract says it must not edit `team-state.md`;
 - `decision-template.md`, `prompts/designer.md`, and `prompts/coder.md` all reference the Unified Sketch four-tuple and all four subsections (`𝒟 Declarations`, `𝒪 Core Operations`, `𝒞 Control Flow`, `ℋ Optimization Hints`);
-- `prompts/coder.md` classifies deviations by Sketch subsection impact (minor = DSL-only, major = Sketch change) and the Coder's major-deviation request names the specific subsection;
+- `decision-template.md` includes a ```` ```sketch ```` fenced block example;
+- `prompts/coder.md` classifies deviations by Sketch subsection impact (minor = DSL-only, major = Sketch change) and lists all five terminal responses (`accepted`, `minor-dev`, `major-dev`, `capability-miss`, `abort`);
+- `prompts/coder_targets/triton_mlu.md` contains a `## Capabilities` section and a `## Translation Contract` section;
+- `prompts/coder_targets/triton_cuda.md` and `tilelang.md` each contain a `## Capabilities` section and a stub note marking them inactive;
+- `validate_sketch.py` exists, is executable, and exits zero when run against a decision file containing the valid Sketch from Task 1 Step 3;
+- `prompts/verifier.md` references all five Coder terminal responses and treats `capability-miss` as a `major-dev` sub-path in v1;
 - bootstrap includes absolute role-contract, adapter, project, input, and output paths;
 - no skill file contains active invocation syntax for the retired Claude team APIs (`TeamCreate(`, `TeamDelete(`, or `team_name=`); adapters may name them only in compatibility warnings;
 - no sync verification hardcodes a user home directory.
@@ -798,6 +967,7 @@ Run each scenario once through Claude Code and once through Codex where availabl
 1. Previous candidate is slower but has the highest round number: Designer and Coder must use `last_accepted_kernel`.
 2. Profiler contains 50 calls: Verifier must divide before computing ratio.
 3. Session resumes after `accuracy-fail`: orchestrator must allocate a new round number and preserve the old decision/report.
+4. Decision contains a `ℋ vectorize` directive that `triton_mlu`'s Capabilities table marks unsupported: Coder must emit `capability-miss` (not `accepted` or `abort`), the orchestrator must append an entry to `team-state.md:capability_miss_log`, Designer must revise only the `ℋ` subsection, and the retry must not allocate a new round number (it is a major-dev sub-path, not a fresh round).
 
 Capture outputs under `/tmp/kernel-opt-loop-contract-tests/<runtime>/<scenario>/`. A scenario passes only when the produced artifacts satisfy `check_contracts.sh`-equivalent assertions; do not accept a verbal claim.
 
@@ -966,3 +1136,6 @@ Expected:
 - Historical data coverage: anti-pattern extraction uses a pinned Git revision containing Entries 004–024.
 - Safety coverage: E2E runs in a disposable worktree and cannot overwrite the existing fused_moe version files.
 - Portability coverage: installation paths use `${HOME}` and verify both runtime copies without hardcoded usernames.
+- Sketch coverage: the C DSL grammar is enforced by `validate_sketch.py`; the decision template shows a ```` ```sketch ```` example; every Sketch has the four subsections in order.
+- Multi-DSL coverage: Coder contract is split into a shared `prompts/coder.md` plus per-target `prompts/coder_targets/<x>.md`; adding a target is one file. v1 ships `triton_mlu.md` active and `triton_cuda.md` / `tilelang.md` stubs.
+- Capability-miss coverage: Coder has five terminal responses including `capability-miss`; v1 degrades it to a `major-dev` sub-path; `capability_miss_log` is reserved for v2 DSL switching; the contract test scenario 4 exercises the path.
