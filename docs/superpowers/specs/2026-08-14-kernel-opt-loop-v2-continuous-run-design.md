@@ -2,7 +2,7 @@
 
 **Created**: 2026-08-14
 
-**Status**: Draft
+**Status**: Approved
 
 **Scope**: A delta specification for continuous, bounded optimization runs on top
 of the approved v1 `kernel-opt-loop` contracts. It does not replace the v1

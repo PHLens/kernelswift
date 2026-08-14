@@ -5,6 +5,7 @@ from pathlib import Path
 
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = SKILL_ROOT.parents[1]
 REFERENCES = SKILL_ROOT / "references"
 ADAPTERS = SKILL_ROOT / "adapters"
 PROMPTS = SKILL_ROOT / "prompts"
@@ -263,6 +264,58 @@ resume_constraints: []
 
     def test_legacy_log_template_is_deleted(self):
         self.assertFalse((REFERENCES / "log-template.md").exists())
+
+    def test_v2_contracts_share_terminal_and_future_scope_boundaries(self):
+        report = read_reference("report-template.md")
+        verifier = (PROMPTS / "verifier.md").read_text(encoding="utf-8")
+        orchestrator = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+        for result in (
+            "accepted",
+            "no-improvement",
+            "screened-out",
+            "design-rejected",
+            "candidate-failed",
+            "aborted",
+        ):
+            for owner_text in (report, verifier, orchestrator):
+                with self.subTest(result=result):
+                    self.assertIn(result, owner_text)
+
+        reference_text = "\n".join(
+            path.read_text(encoding="utf-8") for path in REFERENCES.glob("*.md")
+        )
+        for future_only in ("KernelWiki API", "token-accounting telemetry", "daemon"):
+            with self.subTest(future_only=future_only):
+                self.assertNotIn(future_only, reference_text)
+
+    def test_raw_profiler_traces_are_gitignored_and_markdown_is_complete(self):
+        gitignore = (REPO_ROOT / ".gitignore").read_text(encoding="utf-8")
+        self.assertIn("*.pt.trace.json", gitignore)
+        self.assertIn("**/log/", gitignore)
+
+        tracked_evidence = "\n".join(
+            read_reference(name)
+            for name in (
+                "project-template.md",
+                "report-template.md",
+                "team-state-template.md",
+            )
+        )
+        self.assertNotIn("*.pt.trace.json", tracked_evidence)
+
+        required_markdown = (
+            SKILL_ROOT / "SKILL.md",
+            REFERENCES / "role-context-template.md",
+            PROMPTS / "designer.md",
+            PROMPTS / "coder.md",
+            PROMPTS / "verifier.md",
+            ADAPTERS / "codex.md",
+            ADAPTERS / "claude-code.md",
+        )
+        for path in required_markdown:
+            with self.subTest(path=path.name):
+                self.assertTrue(path.is_file())
+                self.assertEqual(0, path.read_text(encoding="utf-8").count("```") % 2)
 
 
 class RuntimeAdapterContractTests(unittest.TestCase):
