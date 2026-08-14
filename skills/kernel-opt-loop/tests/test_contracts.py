@@ -412,5 +412,110 @@ class VerifierContractTests(unittest.TestCase):
                 self.assertIn(text, verifier)
 
 
+class OrchestratorContractTests(unittest.TestCase):
+    def setUp(self):
+        self.skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+
+    def test_required_runtime_neutral_sections_exist(self):
+        for heading in (
+            "## When to use",
+            "## Required inputs",
+            "## Runtime selection",
+            "## Agent bootstrap contract",
+            "## Phase 0",
+            "## Round N",
+            "## Routing and state transitions",
+            "## Stop criteria",
+            "## Resume",
+            "## Knowledge lift",
+            "## References",
+        ):
+            with self.subTest(heading=heading):
+                self.assertIn(heading, self.skill)
+
+        self.assertNotIn("write the new kernel file", self.skill.lower())
+        self.assertNotIn("log.md", self.skill)
+
+    def test_runtime_selection_and_bootstrap_are_portable(self):
+        self.assertTrue(self.skill.startswith("---\nname: kernel-opt-loop\n"))
+        normalized_skill = " ".join(self.skill.split())
+        selection = (
+            "Codex collaboration when exposed, Claude Code agent teams when "
+            "enabled, then sequential fallback"
+        )
+        self.assertIn(selection, self.skill)
+        self.assertIn("Load exactly one runtime adapter", self.skill)
+
+        for text in (
+            "You are the <role> for kernel-opt-loop.",
+            "Before taking any action, read these files completely and follow them:",
+            "Role contract: <absolute-skill-root>/prompts/<role>.md",
+            "Runtime adapter: <absolute-skill-root>/adapters/<runtime>.md",
+            "Do not rely on parent conversation history.",
+            "Do not write files outside your declared ownership.",
+            "Report completion through the runtime adapter.",
+        ):
+            with self.subTest(text=text):
+                self.assertIn(" ".join(text.split()), normalized_skill)
+
+    def test_phase_zero_and_round_state_machine_are_deterministic(self):
+        for text in (
+            "baseline_adapter.py",
+            "base bytes, NUL, harness bytes, NUL",
+            "sort_keys=True",
+            "separators=(',', ':')",
+            'last_completed_round: "000"',
+            'last_accepted_round: "000"',
+            "last_accepted_kernel: baseline_adapter.py",
+            "last_accepted_report: rounds/report_000.md",
+            "Round number is `total_rounds + 1`",
+            "last_accepted_kernel",
+            "last_accepted_report",
+            "commit, then and only then dispatch the next round",
+        ):
+            with self.subTest(text=text):
+                self.assertIn(text, self.skill)
+
+        for key in (
+            '"shape"',
+            '"dtype"',
+            '"device"',
+            '"warmup"',
+            '"repeat"',
+            '"profile_mode"',
+            '"profile_warmup"',
+            '"profile_iterations"',
+        ):
+            with self.subTest(key=key):
+                self.assertIn(key, self.skill)
+
+    def test_routing_counters_stop_and_resume_are_explicit(self):
+        for text in (
+            "candidate-ready",
+            "major-deviation",
+            "capability-miss",
+            "implementation-failed",
+            "environment-blocked",
+            "implementation-repair-required",
+            "measurement-incomplete",
+            "accepted",
+            "no-improvement",
+            "design-rejected",
+            "candidate-failed",
+            "aborted",
+            "performance_miss_streak",
+            "failed_attempt_streak",
+            "Environment incidents update neither counter nor `total_rounds`",
+            "measurement-bound",
+            "diminishing returns",
+            "upbound reached",
+            "resource exhausted",
+            "user intervention",
+            "never reopen a completed decision",
+            "explicit user approval",
+        ):
+            with self.subTest(text=text):
+                self.assertIn(text, self.skill)
+
 if __name__ == "__main__":
     unittest.main()
