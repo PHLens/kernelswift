@@ -539,10 +539,13 @@ class OrchestratorContractTests(unittest.TestCase):
             "## Phase 0",
             "## Round N",
             "## Routing and state transitions",
-            "## Stop criteria",
-            "## Resume",
             "## Knowledge lift",
             "## References",
+            "## Continuous run controller",
+            "## Global termination policy",
+            "## Measurement-exclusive phases",
+            "## Run epochs and recovery",
+            "## Git evidence ledger",
         ):
             with self.subTest(heading=heading):
                 self.assertIn(heading, self.skill)
@@ -620,16 +623,55 @@ class OrchestratorContractTests(unittest.TestCase):
             "performance_miss_streak",
             "failed_attempt_streak",
             "Environment incidents update neither counter nor `total_rounds`",
-            "measurement-bound",
-            "diminishing returns",
-            "upbound reached",
-            "resource exhausted",
-            "user intervention",
+            "screened-out",
+            "target-reached",
+            "valid-no-improvement-limit",
+            "round-budget-exhausted",
+            "user-intervention",
             "never reopen a completed decision",
             "explicit user approval",
         ):
             with self.subTest(text=text):
                 self.assertIn(text, self.skill)
+
+    def test_v2_continuous_controller_contract_is_complete(self):
+        for text in (
+            "evaluate_run_policy.py",
+            "max_rounds: 20",
+            "valid_no_improvement_limit: 3",
+            "round_result is not workflow termination",
+            "last_checkpoint_round",
+            "kernel-opt/<operator>-<run-epoch-or-timestamp>",
+            "terminal artifact gate -> terminal commit -> evaluate_run_policy.py",
+            "workflow_status=running -> optional checkpoint -> continue idle Designer",
+            "workflow_status=stopped -> final summary commit -> end_workflow",
+            "workflow_status=blocked -> incident commit -> blocking report -> end live run",
+        ):
+            with self.subTest(text=text):
+                self.assertIn(text, self.skill)
+
+        self.assertNotIn("Designer may reject another non-user stop", self.skill)
+        self.assertNotIn("normalized device ratio is below 5%", self.skill)
+
+    def test_v2_terminal_contract_and_evaluator_are_present(self):
+        report = read_reference("report-template.md")
+        verifier = (PROMPTS / "verifier.md").read_text(encoding="utf-8")
+        for text in (report, verifier, self.skill):
+            for result in (
+                "accepted",
+                "no-improvement",
+                "screened-out",
+                "design-rejected",
+                "candidate-failed",
+                "aborted",
+            ):
+                with self.subTest(result=result, source=id(text)):
+                    self.assertIn(result, text)
+
+        evaluator = SKILL_ROOT / "scripts" / "evaluate_run_policy.py"
+        self.assertTrue(evaluator.is_file())
+        self.assertGreater(evaluator.stat().st_size, 0)
+        self.assertTrue(os.access(evaluator, os.X_OK))
 
 
 class CrossFileContractTests(unittest.TestCase):
