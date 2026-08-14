@@ -342,5 +342,75 @@ class RoleContractTests(unittest.TestCase):
         self.assertNotRegex(profile.lower(), r"tl\.zeros.*smem")
 
 
+class VerifierContractTests(unittest.TestCase):
+    def test_verifier_owns_runtime_evidence_and_preserves_other_artifacts(self):
+        verifier = (PROMPTS / "verifier.md").read_text(encoding="utf-8")
+
+        for text in (
+            "sole authoritative runtime owner",
+            "last_accepted_kernel",
+            "correctness before timing",
+            "exactly one same-round Coder repair",
+            "implementation-repair-required",
+            "measurement-incomplete",
+            "Evaluation Contract",
+            "normalize",
+            "reference_baseline_adapter",
+            "candidate_triton_operator_001",
+            "evidence_for_next_round",
+        ):
+            with self.subTest(text=text):
+                self.assertIn(text, verifier)
+
+        for path in (
+            "candidate source",
+            "decision_NNN.md",
+            "team-state.md",
+            "project overview",
+        ):
+            with self.subTest(path=path):
+                self.assertIn(f"must not edit {path}", verifier)
+
+    def test_verifier_timing_and_result_rules_are_exact(self):
+        verifier = (PROMPTS / "verifier.md").read_text(encoding="utf-8")
+
+        for text in (
+            "accepted reference, candidate",
+            "unrounded median",
+            "improvement_pct >= 5.0",
+            "accepted",
+            "no-improvement",
+            "candidate-failed",
+            "design-rejected",
+            "accepted|no-improvement|candidate-failed|design-rejected",
+            "Level 0",
+            "Level 1",
+            "Level 2",
+            "Level 3",
+            "device_us_per_call",
+            "kernel_count_per_call",
+            "device_ratio",
+        ):
+            with self.subTest(text=text):
+                self.assertIn(text, verifier)
+
+    def test_environment_incidents_are_nonterminal_and_counter_neutral(self):
+        verifier = (PROMPTS / "verifier.md").read_text(encoding="utf-8")
+
+        for text in (
+            "incident_NNN_<UTC-timestamp>.md",
+            "does not write a terminal result",
+            "does not change total_rounds",
+            "does not change either progress streak",
+            "measurement-bound",
+            "diminishing returns",
+            "upbound reached",
+            "resource exhausted",
+            "user intervention",
+        ):
+            with self.subTest(text=text):
+                self.assertIn(text, verifier)
+
+
 if __name__ == "__main__":
     unittest.main()
