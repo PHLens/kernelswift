@@ -57,8 +57,15 @@ class ValidateDecisionTests(unittest.TestCase):
         result = validate_decision(FIXTURES / "mixed-valid.md")
 
         self.assertEqual(result["metadata"]["change_scope"], "mixed")
+        self.assertEqual(
+            result["metadata"]["change_family"], "mixed-routing-fusion"
+        )
         self.assertEqual(result["host_plan"]["applicability"], "required")
         self.assertEqual(result["sketch"]["H"][0], "target=triton_mlu")
+
+    def test_host_change_family_is_normalized(self):
+        result = validate_decision(FIXTURES / "host-valid.md")
+        self.assertEqual(result["metadata"]["change_family"], "allocation-reuse")
 
     def test_host_plan_is_required_for_mixed_change(self):
         text = (FIXTURES / "mixed-valid.md").read_text(encoding="utf-8")
@@ -148,11 +155,19 @@ class ValidateDecisionTests(unittest.TestCase):
             for report in ("report_000.md", "report_001.md", "report_003.md"):
                 (project / "rounds" / report).touch()
 
-            for index, example in enumerate(examples, start=1):
+            expected_families = (
+                "kernel-fusion",
+                "allocation-reuse",
+                "no-change",
+            )
+            for index, (example, expected_family) in enumerate(
+                zip(examples, expected_families), start=1
+            ):
                 path = project / "rounds" / f"decision_example_{index}.md"
                 path.write_text(example + "\n", encoding="utf-8")
                 result = validate_decision(path, expected_profile="triton_mlu")
                 self.assertTrue(result["valid"])
+                self.assertEqual(result["metadata"]["change_family"], expected_family)
 
 
 if __name__ == "__main__":

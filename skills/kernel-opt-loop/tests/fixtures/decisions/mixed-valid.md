@@ -3,7 +3,7 @@
 ## Metadata
 
 ```json
-{"schema_version":1,"decision":"proceed","round":"003","reference_implementation":"triton_example_002.py","reference_report":"rounds/report_002.md","language":"triton","backend":"mlu","target_profile":"triton_mlu","runtime_fingerprint_ref":"project.md#runtime-fingerprint","change_scope":"mixed","change_family":"mixed-fusion-allocation-reuse"}
+{"schema_version":1,"decision":"proceed","round":"003","reference_implementation":"triton_example_002.py","reference_report":"rounds/report_002.md","language":"triton","backend":"mlu","target_profile":"triton_mlu","runtime_fingerprint_ref":"project.md#runtime-fingerprint","change_scope":"mixed","change_family":"mixed-routing-fusion"}
 ```
 
 ## Optimization Intent
