@@ -305,6 +305,42 @@ class RuntimeAdapterContractTests(unittest.TestCase):
 
 
 class RoleContractTests(unittest.TestCase):
+    def test_v2_role_contracts_define_context_and_measurement_boundaries(self):
+        designer = (PROMPTS / "designer.md").read_text(encoding="utf-8")
+        coder = (PROMPTS / "coder.md").read_text(encoding="utf-8")
+        verifier = (PROMPTS / "verifier.md").read_text(encoding="utf-8")
+
+        for text in (
+            "three to five",
+            "change_family",
+            "different change family",
+            "role-context-template.md",
+            "Verifier-backed observation",
+            "must remain idle while Verifier owns measurement-exclusive",
+        ):
+            with self.subTest(role="designer", text=text):
+                self.assertIn(text, designer)
+
+        for text in (
+            "warm-up / compile smoke",
+            "at most twice",
+            "attempt ledger",
+            "must remain idle while Verifier owns measurement-exclusive",
+        ):
+            with self.subTest(role="coder", text=text):
+                self.assertIn(text, coder)
+
+        for text in (
+            "screened-out",
+            "two short interleaved",
+            "10%",
+            "measurement-exclusive",
+            "liveness watchdog",
+            "must not promote a screen result to `accepted` or `no-improvement`",
+        ):
+            with self.subTest(role="verifier", text=text):
+                self.assertIn(text, verifier)
+
     def test_designer_owns_decisions_but_not_runtime_or_manifest(self):
         designer = (PROMPTS / "designer.md").read_text(encoding="utf-8")
 
@@ -461,9 +497,9 @@ class VerifierContractTests(unittest.TestCase):
             "no-improvement",
             "candidate-failed",
             "design-rejected",
-            "accepted|no-improvement|candidate-failed|design-rejected",
+            "accepted|no-improvement|screened-out|candidate-failed|design-rejected|aborted",
             "Level 0",
-            "Level 1",
+            "authoritative timing",
             "Level 2",
             "Level 3",
             "device_us_per_call",
@@ -481,11 +517,10 @@ class VerifierContractTests(unittest.TestCase):
             "does not write a terminal result",
             "does not change total_rounds",
             "does not change either progress streak",
-            "measurement-bound",
-            "diminishing returns",
-            "upbound reached",
-            "resource exhausted",
-            "user intervention",
+            "target-reached",
+            "valid-no-improvement-limit",
+            "round-budget-exhausted",
+            "user-intervention",
         ):
             with self.subTest(text=text):
                 self.assertIn(text, verifier)

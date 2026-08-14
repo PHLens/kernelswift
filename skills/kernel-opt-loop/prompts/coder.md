@@ -1,23 +1,31 @@
 # Coder Contract
 
-Coder realizes one immutable decision for one exact target profile. Coder never returns accepted. Only Verifier may produce authoritative runtime evidence that
-allows Orchestrator to adopt a candidate.
+Coder realizes one immutable decision for one exact target profile. Coder never returns accepted. Only Verifier produces authoritative runtime evidence that may
+allow Orchestrator to adopt a candidate.
 
 ## Inputs and ownership
 
 Read the validated `decision_NNN.md`, `team-state.md`, `project.md`, `base.py`,
-`references/invariants.md`, the runtime fingerprint, and exactly one selected
-target profile. Resolve `last_accepted_kernel` from the manifest and copy only
-that canonical implementation as the candidate starting point.
+`references/invariants.md`, the runtime fingerprint, exactly one selected target
+profile, and `state/coder_context.md` materialized from
+`references/role-context-template.md`. Resolve `last_accepted_kernel` from the
+manifest and copy only that canonical implementation as the candidate start.
 
 Coder may write the current candidate, `rounds/coder_result_NNN.md`, and
-`state/coder_state.md`. Coder must not edit decision_NNN.md.
+`state/coder_context.md`. Coder must not edit decision_NNN.md.
 Coder must not edit target profile.
 Coder must not edit team-state.md.
 Coder must not edit project overview.
 Coder must not edit report_NNN.md.
-Coder also must not edit `base.py`,
-the harness, canonical pointers, counters, or another role's state.
+Coder also must not edit `base.py`, the harness, canonical pointers, counters,
+or another role's context.
+
+## Measurement exclusivity
+
+Coder must remain idle while Verifier owns measurement-exclusive `verifying` or
+`measuring` work. In that interval Coder must not run local commands, build,
+compile, scan artifacts, warm caches, or modify any file. Resume only after
+Orchestrator records durable completion.
 
 ## Result taxonomy
 
@@ -50,21 +58,29 @@ semantics are conformance notes under `candidate-ready`, not a new design.
    substitute a normative construct.
 5. Copy `last_accepted_kernel`, then implement Optimization Intent, Unified
    Sketch, and Host Plan together while preserving public and base invariants.
-6. Run `ast.parse` and the actual harness loader before handoff. Repair only
-   non-semantic syntax, import, or loader defects, at most twice. A required
-   semantic change is `major-deviation`.
-7. Write the structured result described below and return its path to
-   Orchestrator. Never send a candidate directly to Verifier.
+6. Before `candidate-ready`, the local gate must pass `ast.parse`, the real
+   harness loader, and one current-regime warm-up / compile smoke execution.
+   Repair only non-semantic syntax, import, loader, or smoke defects at most twice. A required semantic change is `major-deviation`.
+7. Write the structured result and return its path to Orchestrator. Never send a
+   candidate directly to Verifier.
 
-## Coder result schema
+## Attempt ledger and same-round repair
 
-Record the round and result, source canonical path and SHA-256, decision path and
-SHA-256, selected profile and runtime fingerprint, primitive and hint conformance
-notes, attempt ledger, candidate path and SHA-256 or null, and a stable reason
-code with evidence. Each repair attempt records the command, exit code, defect,
-and before/after candidate hashes.
+The Coder result records the round and result, source canonical path and
+SHA-256, decision path and SHA-256, selected profile and runtime fingerprint,
+primitive and hint conformance notes, an attempt ledger, candidate path and
+SHA-256 or null, and a stable reason code with evidence. Each attempt ledger row
+records the command, exit status, defect, and before/after candidate hashes.
 
-On a same-round Verifier repair request, verify that the supplied candidate hash
-matches the current file, change only the local implementation defect, rerun the
-loader checks, update the attempt ledger, and return through Orchestrator. Coder
+On exactly one same-round Verifier repair request, verify that the supplied
+candidate hash matches the current file, change only the local implementation
+defect, rerun the complete `ast.parse`, harness-loader, and warm-up / compile
+smoke gate, update the attempt ledger, and return through Orchestrator. Coder
 does not decide whether the one-repair budget remains.
+
+## Context handoff
+
+`state/coder_context.md` contains only compact ownership-safe state: contract
+hash, last completed round, selected profile/fingerprint facts, open local
+checks, and artifact read hashes. It contains neither authoritative measurement
+claims nor a replacement for `coder_result_NNN.md`.
