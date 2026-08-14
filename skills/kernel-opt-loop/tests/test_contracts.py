@@ -1,4 +1,6 @@
 import unittest
+import os
+import re
 from pathlib import Path
 
 
@@ -516,6 +518,199 @@ class OrchestratorContractTests(unittest.TestCase):
         ):
             with self.subTest(text=text):
                 self.assertIn(text, self.skill)
+
+
+class CrossFileContractTests(unittest.TestCase):
+    def test_final_structure_exists_and_is_nonempty(self):
+        expected = (
+            "SKILL.md",
+            "adapters/claude-code.md",
+            "adapters/codex.md",
+            "prompts/designer.md",
+            "prompts/coder.md",
+            "prompts/verifier.md",
+            "prompts/coder_targets/triton_mlu.md",
+            "references/anti-patterns.md",
+            "references/bottleneck-judgment.md",
+            "references/decision-template.md",
+            "references/invariants.md",
+            "references/project-template.md",
+            "references/report-template.md",
+            "references/team-state-template.md",
+            "scripts/make_baseline_adapter.py",
+            "scripts/summarize_trace.py",
+            "scripts/validate_decision.py",
+            "tests/test_validate_decision.py",
+            "tests/test_helpers.py",
+            "tests/test_contracts.py",
+        )
+        for relative in expected:
+            with self.subTest(relative=relative):
+                path = SKILL_ROOT / relative
+                self.assertTrue(path.is_file())
+                self.assertGreater(path.stat().st_size, 0)
+
+    def test_decision_headings_and_result_enums_are_consistent(self):
+        decision_files = (
+            REFERENCES / "decision-template.md",
+            SKILL_ROOT / "tests/fixtures/decisions/kernel-valid.md",
+            SKILL_ROOT / "tests/fixtures/decisions/host-valid.md",
+            SKILL_ROOT / "tests/fixtures/decisions/mixed-valid.md",
+        )
+        headings = (
+            "Metadata",
+            "Optimization Intent",
+            "Unified Sketch",
+            "Host Plan",
+            "Evaluation Contract",
+            "Pitfalls and Anti-pattern Consultation",
+            "Rationale and Evidence",
+        )
+        for path in decision_files:
+            text = path.read_text(encoding="utf-8")
+            for heading in headings:
+                with self.subTest(path=path.name, heading=heading):
+                    self.assertIn(f"## {heading}", text)
+
+        coder = (PROMPTS / "coder.md").read_text(encoding="utf-8")
+        for result in (
+            "candidate-ready",
+            "design-revision-required",
+            "implementation-failed",
+            "environment-blocked",
+        ):
+            self.assertIn(result, coder)
+
+        verifier = (PROMPTS / "verifier.md").read_text(encoding="utf-8")
+        orchestrator = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+        report = read_reference("report-template.md")
+        for result in (
+            "accepted",
+            "no-improvement",
+            "design-rejected",
+            "candidate-failed",
+        ):
+            for owner_text in (verifier, orchestrator, report):
+                with self.subTest(result=result):
+                    self.assertIn(result, owner_text)
+
+        self.assertIn("Coder never returns accepted", coder)
+        self.assertNotRegex(coder, r"(?m)^Result:\s*accepted\b")
+
+    def test_manifest_phases_counters_and_ownership_match(self):
+        manifest = read_reference("team-state-template.md")
+        orchestrator = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+        phases = (
+            "initializing",
+            "ready",
+            "designing",
+            "coding",
+            "verifying",
+            "repairing",
+            "measuring",
+            "blocked",
+            "stopped",
+        )
+        for phase in phases:
+            self.assertIn(phase, manifest)
+            self.assertIn(phase, orchestrator)
+
+        for counter in (
+            "total_rounds",
+            "performance_miss_streak",
+            "failed_attempt_streak",
+        ):
+            self.assertIn(counter, manifest)
+            self.assertIn(counter, orchestrator)
+
+        ownership = {
+            "designer.md": ("team-state.md", "report_NNN.md"),
+            "coder.md": ("decision_NNN.md", "team-state.md", "report_NNN.md"),
+            "verifier.md": ("candidate source", "decision_NNN.md", "team-state.md"),
+        }
+        for name, forbidden in ownership.items():
+            text = (PROMPTS / name).read_text(encoding="utf-8")
+            self.assertIn("must not edit", text)
+            for target in forbidden:
+                with self.subTest(role=name, target=target):
+                    self.assertIn(target, text)
+
+    def test_profiler_and_evaluation_contract_are_mirrored(self):
+        verifier = (PROMPTS / "verifier.md").read_text(encoding="utf-8")
+        report = read_reference("report-template.md")
+        for text in (
+            "Observable",
+            "Expectation",
+            "Observation",
+            "Verdict",
+            "device_us_per_call",
+            "kernel_count_per_call",
+            "device_ratio",
+            "evidence_for_next_round",
+        ):
+            self.assertIn(text.lower(), verifier.lower())
+            self.assertIn(text.lower(), report.lower())
+
+        self.assertIn(
+            "improvement_pct = (reference_median_ms - candidate_median_ms) / reference_median_ms * 100",
+            report,
+        )
+        self.assertIn(
+            "device_ratio = device_us_per_call / (candidate_median_ms * 1000)",
+            report,
+        )
+        self.assertIn("unrounded median", verifier)
+
+    def test_runtime_syntax_is_adapter_local_and_future_scope_is_absent(self):
+        runtime_neutral = [SKILL_ROOT / "SKILL.md"]
+        runtime_neutral.extend(PROMPTS.rglob("*.md"))
+        runtime_neutral.extend(REFERENCES.rglob("*.md"))
+        neutral_text = "\n".join(
+            path.read_text(encoding="utf-8") for path in runtime_neutral
+        )
+        for syntax in (
+            "spawn_agent",
+            "followup_task",
+            "send_message",
+            "wait_agent",
+            "list_agents",
+            "interrupt_agent",
+            "TeamCreate(",
+            "TeamDelete(",
+            "team_name=",
+        ):
+            with self.subTest(syntax=syntax):
+                self.assertNotIn(syntax, neutral_text)
+
+        all_skill_text = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in SKILL_ROOT.rglob("*.md")
+        )
+        for forbidden in (
+            "target_dsl_candidates",
+            "capability_miss_log",
+            "KernelWiki API",
+            "deterministic lowering implementation",
+            "deep-profiler implementation",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, all_skill_text)
+
+        for name in (
+            "triton_cuda.md",
+            "triton_hip.md",
+            "triton_ascend.md",
+            "tilelang.md",
+        ):
+            self.assertFalse((PROMPTS / "coder_targets" / name).exists())
+
+    def test_markdown_fences_close_and_validator_is_executable(self):
+        for path in SKILL_ROOT.rglob("*.md"):
+            with self.subTest(path=path.relative_to(SKILL_ROOT)):
+                self.assertEqual(0, path.read_text(encoding="utf-8").count("```") % 2)
+
+        validator = SKILL_ROOT / "scripts/validate_decision.py"
+        self.assertTrue(os.access(validator, os.X_OK))
 
 if __name__ == "__main__":
     unittest.main()
