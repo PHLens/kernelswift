@@ -2,7 +2,7 @@
 schema_version: 1
 skill_version: 2.0.0
 runtime: claude-code
-phase: coding
+phase: verifying
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-14T13:30:00Z
@@ -30,7 +30,7 @@ last_checkpoint_round: null
 base_branch: dev
 base_commit: 92c8f7f
 run_branch: kernel-opt/sparse_pooler-2
-measurement_exclusive: false
+measurement_exclusive: true
 implementation_language: triton
 implementation_backend: mlu
 target_profile: triton_mlu
@@ -75,7 +75,8 @@ change, incident, or commit yet.
 | 2026-08-14T15:40:00Z | ready | 002 | no-improvement | - | - | 12ed76c |
 | 2026-08-14T18:10:00Z | ready | 002 | - | - | - | 92c8f7f |
 | 2026-08-14T18:15:00Z | designing | 003 | - | - | - | - |
-| 2026-08-14T19:00:00Z | coding | 003 | - | - | - | - |
+| 2026-08-14T19:00:00Z | coding | 003 | - | - | - | 0145570 |
+| 2026-08-14T19:15:00Z | verifying | 003 | - | - | - | - |
 
 ## Policy Revisions
 
