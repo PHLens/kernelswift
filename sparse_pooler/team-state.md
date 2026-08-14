@@ -43,5 +43,5 @@ change, incident, or commit yet.
 | Timestamp | Phase | Round | Result | Canonical | Incident | Commit |
 |---|---|---:|---|---|---|---|
 | 2026-08-14T13:30:00Z | initializing | 000 | - | - | - | - |
-| 2026-08-14T13:40:00Z | ready | 000 | baseline | baseline_adapter.py | - | (pending commit) |
+| 2026-08-14T13:40:00Z | ready | 000 | baseline | baseline_adapter.py | - | aee5b7d |
 
