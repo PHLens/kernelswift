@@ -5,6 +5,7 @@ from pathlib import Path
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 REFERENCES = SKILL_ROOT / "references"
 ADAPTERS = SKILL_ROOT / "adapters"
+PROMPTS = SKILL_ROOT / "prompts"
 
 
 def read_reference(name: str) -> str:
@@ -222,6 +223,123 @@ class RuntimeAdapterContractTests(unittest.TestCase):
                 self.assertIn(tool, adapter)
 
         self.assertNotIn("codex exec", adapter.lower())
+
+
+class RoleContractTests(unittest.TestCase):
+    def test_designer_owns_decisions_but_not_runtime_or_manifest(self):
+        designer = (PROMPTS / "designer.md").read_text(encoding="utf-8")
+
+        for text in (
+            "last_accepted_kernel",
+            "last_accepted_report",
+            "Optimization Intent",
+            "Unified Sketch",
+            "Host Plan",
+            "Evaluation Contract",
+            "Pitfalls and Anti-pattern Consultation",
+            "Rationale and Evidence",
+            "validate_decision.py --expected-profile triton_mlu",
+            "never revise",
+        ):
+            with self.subTest(text=text):
+                self.assertIn(text, designer)
+
+        self.assertIn("must not invent or write runtime measurements", designer)
+        self.assertIn("must not edit `team-state.md`", designer)
+
+    def test_coder_taxonomy_and_ownership_are_explicit(self):
+        coder = (PROMPTS / "coder.md").read_text(encoding="utf-8")
+
+        for text in (
+            "candidate-ready",
+            "design-revision-required",
+            "implementation-failed",
+            "environment-blocked",
+            "major-deviation",
+            "capability-miss",
+            "Coder never returns accepted",
+            "last_accepted_kernel",
+            "validate_decision.py",
+            "coder_result_NNN.md",
+        ):
+            with self.subTest(text=text):
+                self.assertIn(text, coder)
+
+        for forbidden_write in (
+            "decision_NNN.md",
+            "target profile",
+            "team-state.md",
+            "project overview",
+            "report_NNN.md",
+        ):
+            with self.subTest(forbidden_write=forbidden_write):
+                self.assertIn(f"must not edit {forbidden_write}", coder)
+
+    def test_triton_mlu_profile_is_complete_and_evidence_backed(self):
+        profile = (PROMPTS / "coder_targets" / "triton_mlu.md").read_text(
+            encoding="utf-8"
+        )
+
+        for heading in (
+            "# Target Profile: triton_mlu",
+            "## Identity and Match",
+            "## Runtime and Launcher Conventions",
+            "## Supported Primitives",
+            "## Constrained Primitives",
+            "## Unsupported Primitives",
+            "## Unknown Primitives",
+            "## Allowed Fallbacks",
+            "## Target-specific Pitfalls",
+            "## Evidence Ledger",
+        ):
+            with self.subTest(heading=heading):
+                self.assertIn(heading, profile)
+
+        for column in (
+            "Primitive",
+            "Status",
+            "Constraint",
+            "Evidence",
+            "Failure classification",
+        ):
+            with self.subTest(column=column):
+                self.assertIn(column, profile)
+
+        for primitive in (
+            "`tl.load`",
+            "`tl.store`",
+            "`tl.arange`",
+            "`tl.program_id`",
+            "`tl.dot`",
+            "`tl.argmax`",
+            "`tl.reshape`",
+            "`tl.zeros`",
+            "`tl.make_block_ptr`",
+            "`vectorize`",
+            "`async_copy`",
+        ):
+            with self.subTest(primitive=primitive):
+                self.assertIn(primitive, profile)
+
+        self.assertIn("num_warps=1", profile)
+        self.assertIn("num_warps=2", profile)
+        self.assertIn("num_stages=2", profile)
+        self.assertIn("runtime introspection", profile)
+
+    def test_no_inactive_target_stubs_or_fake_lowering_claims(self):
+        targets = PROMPTS / "coder_targets"
+        for name in (
+            "triton_cuda.md",
+            "triton_hip.md",
+            "triton_ascend.md",
+            "tilelang.md",
+        ):
+            with self.subTest(name=name):
+                self.assertFalse((targets / name).exists())
+
+        profile = (targets / "triton_mlu.md").read_text(encoding="utf-8")
+        self.assertNotRegex(profile.lower(), r"tl\.make_block_ptr.*register tile")
+        self.assertNotRegex(profile.lower(), r"tl\.zeros.*smem")
 
 
 if __name__ == "__main__":
