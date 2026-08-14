@@ -206,6 +206,23 @@ class RuntimeAdapterContractTests(unittest.TestCase):
             with self.subTest(removed_syntax=removed_syntax):
                 self.assertNotIn(removed_syntax, adapter)
 
+    def test_codex_adapter_maps_collaboration_tools(self):
+        adapter = read_adapter("codex.md")
+
+        for tool in (
+            "spawn_agent",
+            "followup_task",
+            "send_message",
+            "wait_agent",
+            "list_agents",
+            "interrupt_agent",
+            'fork_turns="none"',
+        ):
+            with self.subTest(tool=tool):
+                self.assertIn(tool, adapter)
+
+        self.assertNotIn("codex exec", adapter.lower())
+
 
 if __name__ == "__main__":
     unittest.main()
