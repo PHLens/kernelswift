@@ -5,6 +5,13 @@ Claude Code agent-team behavior. `SKILL.md` owns workflow semantics and resolves
 the complete role bootstrap before any operation here runs. Do not paste role
 contracts into this adapter or add role-specific behavior here.
 
+```yaml
+runtime_capabilities:
+  persistent_role_session: true
+  effective_context_mode: continuation
+  autonomous_scope: one-live-orchestrator-session
+```
+
 Compatibility evidence:
 
 - [Agent teams](https://code.claude.com/docs/en/agent-teams)
@@ -25,6 +32,39 @@ and artifact gates. The fallback never starts a nested Claude CLI process.
 
 Agent teams are session-local. Durable project artifacts remain authoritative
 for restart and resume.
+
+## Continuation and Cold Rehydrate
+
+The initial prompt carries the full resolved bootstrap. A continuing teammate
+receives a compact bootstrap delta: its section from
+`role-context-template.md`, the phase and new inputs, changed canonical
+pointers, and the terminal evidence that caused the next transition. The same
+teammate identity is reused while the lead session lives, but durable artifacts
+remain the only authority.
+
+Perform a cold rehydrate if the teammate is absent, reports lost context, has a
+canonical pointer or run-fingerprint mismatch, or if a policy/run-epoch change
+invalidates its bootstrap. Spawn a replacement from the durable role context and
+changed artifacts only, then put it through the ordinary artifact gate.
+
+During three-round reconciliation, the lead compares each role's compact state
+with `team-state.md` and the terminal artifact chain. A mismatch requires a
+cold rehydrate before new work is sent.
+
+## Sequential Fallback
+
+When agent teams are not available, use this effective runtime profile:
+
+```yaml
+runtime_capabilities:
+  persistent_role_session: false
+  effective_context_mode: rehydrate
+  autonomous_scope: one-live-orchestrator-session
+```
+
+The main session rebuilds the relevant role from `role-context-template.md` and
+changed artifacts at every dispatch, while retaining the same ownership,
+artifact gates, terminal routing, and global-stop evaluation.
 
 ## Operation Mapping
 

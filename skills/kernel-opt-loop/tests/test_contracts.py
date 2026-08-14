@@ -266,6 +266,26 @@ resume_constraints: []
 
 
 class RuntimeAdapterContractTests(unittest.TestCase):
+    def test_adapters_declare_v2_continuation_and_rehydrate_behavior(self):
+        for adapter_name in ("codex.md", "claude-code.md"):
+            adapter = read_adapter(adapter_name)
+            for text in (
+                "runtime_capabilities:",
+                "persistent_role_session:",
+                "effective_context_mode:",
+                "autonomous_scope: one-live-orchestrator-session",
+                "role-context-template.md",
+                "compact bootstrap delta",
+                "cold rehydrate",
+                "three-round reconciliation",
+                "persistent_role_session: false",
+                "effective_context_mode: rehydrate",
+            ):
+                with self.subTest(adapter=adapter_name, text=text):
+                    self.assertIn(text, adapter)
+            self.assertNotIn("daemon", adapter.lower())
+            self.assertNotIn("autonomous continuation across sessions", adapter)
+
     def test_claude_code_adapter_maps_common_operations(self):
         adapter = read_adapter("claude-code.md")
 

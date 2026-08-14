@@ -5,6 +5,13 @@ Codex collaboration tools. `SKILL.md` owns workflow semantics and supplies a
 fully resolved bootstrap. The bootstrap defines the role; an optional Codex
 agent type never changes the role contract, ownership, inputs, or outputs.
 
+```yaml
+runtime_capabilities:
+  persistent_role_session: true
+  effective_context_mode: continuation
+  autonomous_scope: one-live-orchestrator-session
+```
+
 ## Availability and Identity
 
 At workflow start, confirm that Codex collaboration tools are exposed. When
@@ -17,6 +24,40 @@ each role: `designer`, `coder`, and `verifier`. Keep the returned agent target i
 session-local orchestration state and reuse it for later rounds. Durable project
 artifacts, not agent identity or conversation memory, remain authoritative for
 resume in a new session.
+
+## Continuation and Cold Rehydrate
+
+The first dispatch uses the complete resolved bootstrap. For a continuing role,
+Orchestrator sends a compact bootstrap delta: the role's section from
+`role-context-template.md`, the new phase and inputs, changed canonical
+pointers, and the terminal evidence that caused the transition. This preserves
+the role's persistent identity without treating its context as the source of
+truth.
+
+A cold rehydrate is required when the target is unavailable, the role reports
+lost context, a canonical pointer or run fingerprint no longer matches, or a
+policy/run-epoch change invalidates the prior bootstrap. Recreate the role from
+the durable role context and changed artifacts only, then resume through the
+same artifact gate as a normal continuation.
+
+At each three-round reconciliation, Orchestrator compares the role's compact
+state against `team-state.md` and the terminal artifact chain. A mismatch
+requires a cold rehydrate before the role receives more work.
+
+## Sequential Fallback
+
+When collaboration tools are unavailable, use this effective runtime profile:
+
+```yaml
+runtime_capabilities:
+  persistent_role_session: false
+  effective_context_mode: rehydrate
+  autonomous_scope: one-live-orchestrator-session
+```
+
+The main session rehydrates the relevant role from `role-context-template.md`
+and changed artifacts at each dispatch. It preserves the same ownership,
+artifact gates, terminal routing, and global-stop evaluation.
 
 ## Operation Mapping
 
