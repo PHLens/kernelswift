@@ -40,6 +40,7 @@ METADATA_FIELDS = {
     "target_profile": str,
     "runtime_fingerprint_ref": str,
     "change_scope": str,
+    "change_family": str,
 }
 
 INTENT_FIELDS = {
@@ -373,6 +374,12 @@ def _validate_metadata(
         raise DecisionValidationError(
             "change-scope-enum-invalid",
             "change_scope must be kernel, host, mixed, or none",
+            section.line,
+        )
+    if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", metadata["change_family"]):
+        raise DecisionValidationError(
+            "metadata-change-family-invalid",
+            "change_family must be a lowercase hyphen-separated slug",
             section.line,
         )
     if not re.fullmatch(r"[0-9]{3}", metadata["round"]):
