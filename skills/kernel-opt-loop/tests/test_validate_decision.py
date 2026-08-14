@@ -30,6 +30,7 @@ class ValidateDecisionTests(unittest.TestCase):
         result = validate_decision(FIXTURES / "kernel-valid.md")
 
         self.assertEqual(result["metadata"]["change_scope"], "kernel")
+        self.assertEqual(result["metadata"]["change_family"], "kernel-fusion")
         self.assertEqual(result["metadata"]["target_profile"], "triton_mlu")
         self.assertEqual(
             list(result["sketch"]),
@@ -75,6 +76,17 @@ class ValidateDecisionTests(unittest.TestCase):
                 expected_profile="triton_cuda",
             )
         self.assertEqual(caught.exception.code, "target-profile-mismatch")
+
+    def test_change_family_is_required_and_slug_shaped(self):
+        text = (FIXTURES / "kernel-valid.md").read_text(encoding="utf-8")
+        self.assertValidationError(
+            text.replace(',"change_family":"kernel-fusion"', "", 1),
+            "metadata-field-required",
+        )
+        self.assertValidationError(
+            text.replace("kernel-fusion", "Kernel fusion", 1),
+            "metadata-change-family-invalid",
+        )
 
     def test_cli_error_has_path_line_code_and_message(self):
         path = FIXTURES / "kernel-valid.md"

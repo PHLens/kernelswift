@@ -38,6 +38,7 @@ Metadata is one fenced JSON object with these fields:
 | `target_profile` | Discovered profile, `triton_mlu` in v1 |
 | `runtime_fingerprint_ref` | Relative project reference with an anchor |
 | `change_scope` | `kernel`, `host`, `mixed`, or `none` |
+| `change_family` | Nonempty lowercase hyphen-separated slug for backlog routing |
 
 Optimization Intent is one fenced JSON object with `bottleneck_class`, one
 falsifiable `intervention`, `allowed_changes`, `invariants`, and numeric
@@ -130,7 +131,7 @@ materialized in the project before use.
 ## Metadata
 
 ```json
-{"schema_version":1,"decision":"proceed","round":"001","reference_implementation":"baseline_adapter.py","reference_report":"rounds/report_000.md","language":"triton","backend":"mlu","target_profile":"triton_mlu","runtime_fingerprint_ref":"project.md#runtime-fingerprint","change_scope":"kernel"}
+{"schema_version":1,"decision":"proceed","round":"001","reference_implementation":"baseline_adapter.py","reference_report":"rounds/report_000.md","language":"triton","backend":"mlu","target_profile":"triton_mlu","runtime_fingerprint_ref":"project.md#runtime-fingerprint","change_scope":"kernel","change_family":"kernel-fusion"}
 ```
 
 ## Optimization Intent
@@ -190,7 +191,7 @@ The accepted trace contains separate routing kernels that are inside the candida
 ## Metadata
 
 ```json
-{"schema_version":1,"decision":"proceed","round":"002","reference_implementation":"triton_example_001.py","reference_report":"rounds/report_001.md","language":"triton","backend":"mlu","target_profile":"triton_mlu","runtime_fingerprint_ref":"project.md#runtime-fingerprint","change_scope":"host"}
+{"schema_version":1,"decision":"proceed","round":"002","reference_implementation":"triton_example_001.py","reference_report":"rounds/report_001.md","language":"triton","backend":"mlu","target_profile":"triton_mlu","runtime_fingerprint_ref":"project.md#runtime-fingerprint","change_scope":"host","change_family":"host-allocation-reuse"}
 ```
 
 ## Optimization Intent
@@ -232,7 +233,7 @@ Repeated forwards use compatible output shapes, dtypes, and devices while alloca
 ## Metadata
 
 ```json
-{"schema_version":1,"decision":"abort","round":"004","reference_implementation":"triton_example_003.py","reference_report":"rounds/report_003.md","language":"triton","backend":"mlu","target_profile":"triton_mlu","runtime_fingerprint_ref":"project.md#runtime-fingerprint","change_scope":"none"}
+{"schema_version":1,"decision":"abort","round":"004","reference_implementation":"triton_example_003.py","reference_report":"rounds/report_003.md","language":"triton","backend":"mlu","target_profile":"triton_mlu","runtime_fingerprint_ref":"project.md#runtime-fingerprint","change_scope":"none","change_family":"no-change"}
 ```
 
 ## Optimization Intent
