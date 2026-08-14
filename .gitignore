@@ -1,6 +1,7 @@
 __pycache__/
 .worktrees/
 *.py[cod]
+*.pt.trace.json
 TORCH_PROFILER_RAW_DATA/
 **/log/
 **/build/
