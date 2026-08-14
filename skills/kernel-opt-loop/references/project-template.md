@@ -81,14 +81,27 @@ evidence and is normalized per forward call.
 A fingerprint change requires a new comparable baseline before optimization can
 continue.
 
-## Upbound
+## Optional Target
 
-- kind: `measured | estimated`
-- source: `<implementation, trace, or calculation>`
-- regime_match: `<why it is comparable>`
-- wall_time_ms: `<value-or-null>`
-- device_us_per_call: `<value-or-null>`
-- limitations: `<what this bound does not establish>`
+- target_mode: `absolute_latency_ms | speedup_vs_baseline | null`
+- target_value: `<user-provided value-or-null>`
+- target_metric: `wall_time_ms`
+- source: user
+- target_measurement_fingerprint: `<baseline measurement_fingerprint-or-null>`
+
+An optional target is comparable only when it uses `wall_time_ms` under the
+baseline measurement fingerprint. It is not an estimated bound, device-time
+goal, or inferred target. Orchestrator records later target amendments in the
+append-only team-state policy-revision table at a safe terminal boundary.
+
+## Git Run Identity
+
+- base_branch: `<branch used for Phase 0>`
+- base_commit: `<Phase 0 commit>`
+- run_branch: `kernel-opt/<operator>-<run-epoch-or-timestamp>`
+
+These fields mirror `team-state.md` and identify the dedicated optimization
+branch. The run branch is never `main`, `master`, or `dev`.
 
 ## Round Overview
 
