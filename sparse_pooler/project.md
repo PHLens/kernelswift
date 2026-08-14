@@ -133,6 +133,7 @@ continue.
 | Round | Decision | Candidate | Result | Compared against | Wall ms | Device us/call | Improvement | Hypothesis verdict | Canonical after round |
 |---:|---|---|---|---|---:|---:|---:|---|---|
 | 000 | Phase 0 | `baseline_adapter.py` | baseline | `base.py` | 0.909974 | 180.05 | - | not-applicable | `baseline_adapter.py` |
+| 001 | `rounds/decision_001.md` | `triton_sparse_pooler_001.py` | accepted | `baseline_adapter.py` | 0.606758 | 210.12 | 33.39 | partially-confirmed | `triton_sparse_pooler_001.py` |
 
 Orchestrator appends one row only after a terminal round transition is validated
 and committed. Rejected candidates remain listed but never become the comparison
