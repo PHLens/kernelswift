@@ -4,10 +4,15 @@ from pathlib import Path
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 REFERENCES = SKILL_ROOT / "references"
+ADAPTERS = SKILL_ROOT / "adapters"
 
 
 def read_reference(name: str) -> str:
     return (REFERENCES / name).read_text(encoding="utf-8")
+
+
+def read_adapter(name: str) -> str:
+    return (ADAPTERS / name).read_text(encoding="utf-8")
 
 
 class DurableContractTests(unittest.TestCase):
@@ -178,6 +183,28 @@ resume_constraints: []
 
     def test_legacy_log_template_is_deleted(self):
         self.assertFalse((REFERENCES / "log-template.md").exists())
+
+
+class RuntimeAdapterContractTests(unittest.TestCase):
+    def test_claude_code_adapter_maps_common_operations(self):
+        adapter = read_adapter("claude-code.md")
+
+        for operation in (
+            "start_role",
+            "continue_idle_role",
+            "send_advisory",
+            "wait_for_completion",
+            "inspect_roles",
+            "end_workflow",
+        ):
+            with self.subTest(operation=operation):
+                self.assertIn(operation, adapter)
+
+        self.assertIn("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1", adapter)
+        self.assertIn("2.1.178", adapter)
+        for removed_syntax in ("TeamCreate(", "TeamDelete(", "team_name="):
+            with self.subTest(removed_syntax=removed_syntax):
+                self.assertNotIn(removed_syntax, adapter)
 
 
 if __name__ == "__main__":
