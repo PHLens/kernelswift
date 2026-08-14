@@ -1,6 +1,6 @@
 # Report <NNN>
 
-Result: baseline | accepted | no-improvement | design-rejected | candidate-failed
+Result: baseline | accepted | no-improvement | screened-out | design-rejected | candidate-failed | aborted
 
 ## Identity
 
@@ -16,6 +16,8 @@ Result: baseline | accepted | no-improvement | design-rejected | candidate-faile
 - Harness SHA256: `<hash>`
 - Runtime fingerprint: `project.md#runtime-fingerprint`
 - Measurement fingerprint: `<measurement_fingerprint>`
+- verification_tier: baseline | screening | authoritative
+- screening_pairs: `<two ordered pairs-or-not-run>`
 
 ## Correctness and Guardrails
 
@@ -25,6 +27,18 @@ Result: baseline | accepted | no-improvement | design-rejected | candidate-faile
 | `<guardrail name>` | `<requirement>` | `<observation>` | `<pass, fail, or not-run>` | `<evidence>` |
 
 Conformance, correctness, and every declared guardrail must pass before adoption.
+
+## Screening Evidence
+
+Screening follows correctness and uses exactly two ordered short interleaved
+accepted-reference/candidate pairs. A correct candidate is `screened-out` only
+when both pairs are at least 10% slower than the accepted reference. Any other
+correct candidate proceeds to authoritative timing.
+
+| Pair | Reference short wall ms | Candidate short wall ms | Candidate slower pct | Evidence |
+|---:|---:|---:|---:|---|
+| 1 | `<unrounded>` | `<unrounded>` | `<unrounded>` | `<command or artifact>` |
+| 2 | `<unrounded>` | `<unrounded>` | `<unrounded>` | `<command or artifact>` |
 
 ## Interleaved Wall Timing
 
@@ -42,7 +56,7 @@ improvement_pct = (reference_median_ms - candidate_median_ms) / reference_median
 ```
 
 The unrounded improvement controls the 5% adoption threshold. Profiler time does
-not replace this benchmark result.
+not replace this benchmark result. Only authoritative timing can yield `accepted` or `no-improvement`.
 
 ## Evaluation Contract Mirror
 
@@ -65,6 +79,7 @@ silently converted to `accepted` or `no-improvement`.
 
 ## Profiler Evidence
 
+- profiler_applicability: `required | not-run: screened-out | not-run: not-needed`
 - profiler_level: `summary | targeted | deep-on-demand`
 - iterations: `<forward call count>`
 - normalized_fields: `device_total_us`, `device_us_per_call`,
@@ -72,6 +87,8 @@ silently converted to `accepted` or `no-improvement`.
 
 Reference and candidate scopes are collected and summarized independently. All
 totals below are normalized by `iterations` before they are compared.
+Profiler evidence is required for baseline and accepted candidates, and is not
+run for `screened-out` candidates.
 
 | Scope | Device total us | Device us/call | Kernel count total | Kernel count/call | Wall ms | Device ratio |
 |---|---:|---:|---:|---:|---:|---:|
@@ -102,14 +119,6 @@ device_ratio = device_us_per_call / (candidate_median_ms * 1000)
 
 At most one Verifier-to-Coder repair is allowed in the same round.
 
-## Upbound Gap
-
-- upbound_source: `<project.md reference>`
-- comparable_metric: `<wall or device metric>`
-- absolute_gap: `<value>`
-- ratio_to_upbound: `<value>`
-- interpretation: `<bounded statement>`
-
 ## evidence_for_next_round
 
 - `<observation supported by this report>`
@@ -119,7 +128,7 @@ Record evidence only; do not select the next optimization.
 
 ## Stop Recommendation
 
-- recommendation: `continue | measurement-bound | diminishing-returns | upbound-reached | resource-exhausted`
+- recommendation: `continue | target-reached | valid-no-improvement-limit | round-budget-exhausted | user-intervention`
 - evidence: `<specific measurements>`
 
 Orchestrator owns the stop transition.

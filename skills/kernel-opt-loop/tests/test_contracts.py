@@ -27,6 +27,8 @@ schema_version: 1
 skill_version: 2.0.0
 runtime: unset
 phase: initializing
+workflow_status: running
+run_epoch: 1
 project_started_at: null
 current_round: "000"
 last_completed_round: null
@@ -40,7 +42,19 @@ last_result: null
 performance_miss_streak: 0
 failed_attempt_streak: 0
 total_rounds: 0
+max_rounds: 20
+valid_no_improvement_limit: 3
+adoption_threshold_pct: 5
 measurement_fingerprint: null
+target_mode: null
+target_value: null
+target_measurement_fingerprint: null
+target_source: null
+last_checkpoint_round: null
+base_branch: null
+base_commit: null
+run_branch: null
+measurement_exclusive: false
 implementation_language: triton
 implementation_backend: mlu
 target_profile: triton_mlu
@@ -106,6 +120,20 @@ resume_constraints: []
             template,
         )
 
+        for field in (
+            "## Optional Target",
+            "absolute_latency_ms",
+            "speedup_vs_baseline",
+            "wall_time_ms",
+            "source: user",
+            "## Git Run Identity",
+            "base_branch",
+            "base_commit",
+            "run_branch",
+        ):
+            with self.subTest(field=field):
+                self.assertIn(field, template)
+
     def test_report_template_mirrors_evaluation_contract(self):
         template = read_reference("report-template.md")
 
@@ -122,6 +150,55 @@ resume_constraints: []
         for column in ("Observable", "Expectation", "Observation", "Verdict"):
             with self.subTest(column=column):
                 self.assertIn(column, template)
+
+        for text in (
+            "screened-out",
+            "verification_tier: baseline | screening | authoritative",
+            "## Screening Evidence",
+            "screening_pairs",
+            "both pairs are at least 10% slower",
+            "required | not-run: screened-out | not-run: not-needed",
+            "valid-no-improvement-limit",
+            "round-budget-exhausted",
+            "Only authoritative timing can yield `accepted` or `no-improvement`",
+        ):
+            with self.subTest(text=text):
+                self.assertIn(text, template)
+
+    def test_team_state_contains_v2_workflow_policy(self):
+        template = read_reference("team-state-template.md")
+        for field in (
+            "workflow_status: running",
+            "run_epoch: 1",
+            "max_rounds: 20",
+            "valid_no_improvement_limit: 3",
+            "adoption_threshold_pct: 5",
+            "target_mode: null",
+            "target_measurement_fingerprint: null",
+            "last_checkpoint_round: null",
+            "base_branch: null",
+            "run_branch: null",
+            "measurement_exclusive: false",
+            "## Policy Revisions",
+        ):
+            with self.subTest(field=field):
+                self.assertIn(field, template)
+
+        self.assertIn("workflow_status", template)
+        self.assertIn("screened-out", template)
+
+    def test_role_context_template_has_rehydrate_fields(self):
+        template = read_reference("role-context-template.md")
+        for field in (
+            "role_contract_sha256",
+            "context_epoch",
+            "last_completed_round",
+            "recent_three_round_evidence",
+            "open_hypotheses",
+            "artifact_read_hashes",
+        ):
+            with self.subTest(field=field):
+                self.assertIn(field, template)
 
     def test_templates_do_not_add_future_routing_state(self):
         combined_templates = "\n".join(
