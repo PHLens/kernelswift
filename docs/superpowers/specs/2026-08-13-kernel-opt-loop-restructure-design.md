@@ -4,7 +4,7 @@
 
 **Last updated**: 2026-08-14
 
-**Status**: Approved design, written spec pending user review
+**Status**: Approved
 
 **Scope**: Architectural restructure of `skills/kernel-opt-loop/`
 
