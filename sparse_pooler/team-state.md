@@ -81,7 +81,7 @@ change, incident, or commit yet.
 | 2026-08-17T10:00:00Z | designing | 004 | - | - | - | 9a2532f |
 | 2026-08-17T10:15:00Z | coding | 004 | - | - | - | 9c01dd4 |
 | 2026-08-17T10:30:00Z | verifying | 004 | - | - | - | - |
-| 2026-08-17T11:00:00Z | ready | 004 | accepted | triton_sparse_pooler_004.py | - | - |
+| 2026-08-17T11:00:00Z | ready | 004 | accepted | triton_sparse_pooler_004.py | - | 2163d8d |
 
 ## Policy Revisions
 
