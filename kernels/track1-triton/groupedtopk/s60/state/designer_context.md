@@ -2,64 +2,56 @@
 
 - role_contract_sha256: `d32060e9953982eca29c19d6ed7469c2fb5c06ea686385be5da10219981addef`
 - context_epoch: `2`
-- last_completed_round: `001`
-- current_design_round: `002`
-- accepted_kernel: `triton_grouped_topk_001.py`
-- accepted_report: `rounds/report_001.md`
-- recent_three_round_evidence: `Round 001 accepted; wall median 0.449626 ms -> 0.273881 ms; runtime launches 12.0 -> 1.0 per call; GCU device duration unavailable.`
-- selected_hypothesis: `H-002 allocation-reuse; replace two per-forward output allocations with a concurrency-safe, device-and-stream-keyed per-instance lease pool.`
-- evidence_boundary: `The source and accepted report prove two allocations remain; they do not prove a host/device ratio or measured allocation cost.`
-- reference_adapter: `reference_triton_grouped_topk_001.py`, SHA-256 `800ec0080e66589f6dfcf3a71ee79f08e01be68f145b4cb3c6c6b50dd7c03027`; verified identical to canonical except `ModelNew` renamed to `Model` for the harness v0 entry.
+- last_completed_round: `002`
+- current_design_round: `003`
+- accepted_kernel: `triton_grouped_topk_002.py`
+- accepted_report: `rounds/report_002.md`
+- recent_three_round_evidence: `Round 002 accepted; reference median 0.301983 ms -> candidate median 0.274740 ms; wall improvement 9.02136875254568%; runtime launches remained 1.0/call; GCU device duration unavailable. Round 001 accepted; wall improvement 39.08693002628853%; runtime launches 12.0 -> 1.0/call; GCU device duration unavailable.`
+- selected_hypothesis: `H-003 host-metadata-specialization; cache exact-shape/device/stream-compatible block_e, epg, and launch configuration in ModelNew host metadata state without changing the Triton kernel body, grid, constexprs, num_warps, public contract, or device/stream semantics.`
+- evidence_boundary: `Round 002 report and accepted source identify repeated host computation of triton.next_power_of_2(experts), expert/group arithmetic, and launch argument construction; no host-time attribution exists. The intervention remains a falsifiable host-bound hypothesis and requires targeted same-process decomposition plus authoritative paired wall timing.`
+- reference_adapter: `reference_triton_grouped_topk_001.py`, SHA-256 `800ec0080e66589f6dfcf3a71ee79f08e01be68f145b4cb3c6c6b50dd7c03027`; this is the Round 002 accepted-reference adapter, not the Round 003 canonical source. Round 003 reference is `triton_grouped_topk_002.py`.
 
 ## Current Bottleneck
 
-- Verifier-backed facts: the accepted fused candidate has one GCU runtime launch
-  per call, a `0.273881 ms` wall median, and no available GCU device duration.
-- Source-backed fact: `ModelNew.forward` executes two `torch.empty` output
-  allocations per call.
-- Round 002 classification: output allocation is a host-bound hypothesis, not a
-  measured host-time claim. Adoption still requires at least 5% unrounded median
-  wall improvement and every lifecycle guardrail.
+- Verifier-backed facts: the accepted Round 002 candidate has a `0.274740 ms` median wall time against a `0.301983 ms` accepted-reference median, with `9.02136875254568%` improvement; both scopes emit `1.0` GCU runtime launch per call and device duration is unavailable.
+- Source-backed fact: `triton_grouped_topk_002.py:192-209` computes `block_e`, derives `epg`, and constructs the launch argument bundle on every forward. The output pool is already instance-owned and lifecycle-guarded; it is outside this round's change boundary.
+- Round 003 classification: host metadata specialization is a host-bound hypothesis, not a measured host-time claim. Adoption still requires at least 5% unrounded median wall improvement, correctness, targeted metadata evidence, and every cache/lifecycle/device/stream guardrail.
 
 ## Recent Three-round Evidence
 
-- Round 001, accepted, `rounds/report_001.md`, change family `kernel-fusion`:
-  wall improvement `39.08693002628853%`; runtime launches `12.0 -> 1.0` per call;
-  GCU device duration unavailable; output allocation explicitly left untested.
+- Round 002, accepted, `rounds/report_002.md`, change family `allocation-reuse`: wall improvement `9.02136875254568%`; sequential compatible forwards reused output storage; retained-output, alias, concurrent-forward, correctness, and stream/device guardrails passed; runtime launch count stayed `1.0/call`; device duration unavailable.
+- Round 001, accepted, `rounds/report_001.md`, change family `kernel-fusion`: wall improvement `39.08693002628853%`; runtime launches fell from `12.0` to `1.0` per call; device duration unavailable; output allocation was explicitly left untested.
 
 ## Ranked Backlog
 
 | Rank | Hypothesis | Verifier-backed bottleneck or check | Expected wall gain | Risk | Evidence pointer | Validation cost | change_family |
 |---:|---|---|---:|---|---|---|---|
-| 1 | Lease and reuse compatible output pairs without reusing live storage. Selected for Round 002. | Two output allocations remain in canonical source; Round 001 names lifecycle as untested. | 6% | High: lifetime, alias, stream, and concurrent-forward safety must be proven. | `triton_grouped_topk_001.py:120-125`; `rounds/report_001.md#evidence_for_next_round` | Targeted allocation count plus retained-output, alias, concurrent-forward, correctness, and paired wall tests. | `allocation-reuse` |
-| 2 | Cache invariant host launch metadata such as block size and validated static configuration per model/key. | Canonical source recomputes shape-derived host metadata; no Verifier timing attribution exists. | 5% hypothesis only | Medium: likely too small and must not hide incompatible shapes. | `triton_grouped_topk_001.py:118-139` | Host decomposition and paired wall tests before selection. | `host-metadata-specialization` |
-| 3 | Revisit expert-selection kernel dataflow only after attributable GCU device evidence or a same-runtime microbenchmark. | Device duration is unavailable; MLU selection anti-patterns are not transferable proof for GCU. | 5% hypothesis only | High: no current device bottleneck attribution and several MLU shapes regressed. | `rounds/report_001.md#profiler-evidence`; `references/anti-patterns.md` | New matched profiler exporter or isolated same-runtime microbench, then full verification. | `kernel-selection-dataflow` |
+| 1 | Cache exact-shape/device/stream-compatible `block_e`, `epg`, and launch metadata in private ModelNew state. Selected for Round 003. | Accepted source recomputes shape-derived metadata and launch arguments each forward; no host-time attribution yet. | 5% hypothesis only | Medium: exact invalidation, stream identity, concurrency, and attribution must be proven. | `triton_grouped_topk_002.py:192-209`; `rounds/report_002.md#evidence_for_next_round` | Targeted metadata hit/miss and host decomposition, correctness, stream/device, concurrency, and paired wall tests. | `host-metadata-specialization` |
+| 2 | Specialize launcher/context handling only if targeted decomposition identifies a compressible component separate from metadata setup. | Runtime launch count is already `1.0/call`; remaining host time is not attributed. | 5% hypothesis only | High: may be harness-fixed or runtime-dependent; no context semantics may change. | `rounds/report_002.md#profiler-evidence`; `project.md#measurement-regime` | Same-process host decomposition before selection, then full guardrails. | `launcher-context-specialization` |
+| 3 | Revisit expert-selection dataflow only after attributable GCU device evidence or a matched same-runtime microbenchmark. | GCU device duration is unavailable; MLU selection anti-patterns are not transferable proof for GCU. | 5% hypothesis only | High: no current device bottleneck attribution and kernel changes are forbidden for Round 003. | `rounds/report_002.md#profiler-evidence`; `references/anti-patterns.md` | Matched exporter or isolated GCU microbenchmark, then full verification. | `kernel-selection-dataflow` |
 
-## Round 002 Host Constraints
+## Round 003 Host Constraints
 
-- State is private to one `ModelNew` instance and lives no longer than that model.
-- Cache compatibility includes output shape, both output dtypes, contiguous layout,
-  selected GCU device, and current stream identity.
-- One distinct lease is required per live or in-flight forward. A miss allocates;
-  it does not serialize kernels or overwrite storage still observable by callers.
-- Separate model instances never share state. No global cache is allowed.
-- Current device and stream are preserved; no explicit synchronize, stream switch,
-  device-context switch, cross-stream wait, or new device operation is allowed.
-- Inability to prove storage/alias lifetime or stream identity is a
-  `capability-miss`, never permission for unsafe single-buffer reuse.
+- State is private to one `ModelNew` instance and contains immutable metadata only; no output or device-buffer ownership is added.
+- Cache compatibility includes exact gating shape, relevant dtype and routing configuration, selected GCU device, current stream identity, `block_e`, `epg`, grid, constexpr values, and `num_warps=1`.
+- A key miss creates a separate metadata entry; it never mutates or reuses an incompatible entry. Existing output-pool lease and storage-lifetime behavior remains unchanged.
+- Lookup and insertion are synchronized per model instance. Separate instances never share metadata state; concurrent forwards cannot race entry initialization.
+- The kernel body, grid, constexprs, `num_warps`, public contract, output semantics, device placement, and stream ownership are unchanged.
+- No synchronize, stream switch, device switch, cross-stream wait, or altered device-context operation is allowed. An unprovable compatibility or concurrency property is a capability miss.
 
 ## Artifact Read Hashes
 
 | Artifact | SHA-256 | Last read round |
 |---|---|---:|
-| `skills/kernel-opt-loop/prompts/designer.md` | `d32060e9953982eca29c19d6ed7469c2fb5c06ea686385be5da10219981addef` | 002 |
-| `skills/kernel-opt-loop/prompts/coder_targets/triton_gcu.md` | `cbc4e4706dfecbab807aaa857dedb374c71629943bbdb549487286cbb6b6eb38` | 002 |
-| `skills/kernel-opt-loop/references/decision-template.md` | `e25ac46fedb7af63457acdabb92104d6ff2512b9734c309c321dc2a0e1979c50` | 002 |
-| `skills/kernel-opt-loop/references/invariants.md` | `22b53f5f900c8062c445f35be52414b4abba99f8e4893a4dfab996eb1cd8d29c` | 002 |
-| `skills/kernel-opt-loop/references/bottleneck-judgment.md` | `664d1e622333559a08419bb39b0b19b04054507a8adb58e3e347ab308c69eae7` | 002 |
-| `skills/kernel-opt-loop/references/anti-patterns.md` | `aebcdee623024594ad6a19905d626dd7c7ba099d68eba203315229608a40d0c4` | 002 |
-| `team-state.md` | `339642c282b3bca5cef4bce8adeb5ff28dfc232b1f009fd3b4c1f3e426a331e8` | 002 |
-| `project.md` | `c56e64d02ac49c8833687f49d0a311c567d99a22b91e7f939aa4b485afb57dab` | 002 |
-| `triton_grouped_topk_001.py` | `f42ff6b47b28996199bbe9b8df0a181db2834be99473453f3eea35df51df693e` | 002 |
-| `reference_triton_grouped_topk_001.py` | `800ec0080e66589f6dfcf3a71ee79f08e01be68f145b4cb3c6c6b50dd7c03027` | 002 |
-| `rounds/report_001.md` | `efe1670ec48f5920b593c06267081c565a156bd88796969361a2c68243a6a610` | 002 |
+| `skills/kernel-opt-loop/prompts/designer.md` | `d32060e9953982eca29c19d6ed7469c2fb5c06ea686385be5da10219981addef` | 003 |
+| `skills/kernel-opt-loop/prompts/coder_targets/triton_gcu.md` | `cbc4e4706dfecbab807aaa857dedb374c71629943bbdb549487286cbb6b6eb38` | 003 |
+| `skills/kernel-opt-loop/references/decision-template.md` | `e25ac46fedb7af63457acdabb92104d6ff2512b9734c309c321dc2a0e1979c50` | 003 |
+| `skills/kernel-opt-loop/references/invariants.md` | `22b53f5f900c8062c445f35be52414b4abba99f8e4893a4dfab996eb1cd8d29c` | 003 |
+| `skills/kernel-opt-loop/references/bottleneck-judgment.md` | `664d1e622333559a08419bb39b0b19b04054507a8adb58e3e347ab308c69eae7` | 003 |
+| `skills/kernel-opt-loop/references/anti-patterns.md` | `aebcdee623024594ad6a19905d626dd7c7ba099d68eba203315229608a40d0c4` | 003 |
+| `skills/kernel-opt-loop/scripts/validate_decision.py` | `not part of requested role context` | 003 |
+| `s60/groupedtopk/team-state.md` | `6834142d17a8f163151daac9cd7d315c7bd76cf5e846e3fb8e09e55084eb5f40` | 003 |
+| `s60/groupedtopk/project.md` | `ba83cd2d48bb460b193a6d14ebccdd29623bf45692d0438909e77cbf68d4a5a8` | 003 |
+| `s60/groupedtopk/rounds/report_002.md` | `0e07b45c93b470b344b93463474708dbbc51c4f6bcd16d75b00b68182a30cbd1` | 003 |
+| `s60/groupedtopk/triton_grouped_topk_002.py` | `90d7b09569d1d155c8e44e1626f2c0f3b3f41e0919a8a9e5b76719e874b17ce3` | 003 |
+| `s60/groupedtopk/rounds/decision_003.md` | `2f90569b0cbf786f217cd45fac38c51990d7b5c041dc1f9a5ac6e5ac38129594` | 003 |

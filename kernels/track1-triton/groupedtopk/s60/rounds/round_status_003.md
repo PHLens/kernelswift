@@ -1,0 +1,32 @@
+# Round Status 003
+
+- phase: `verification-complete`
+- result: `accepted`
+- measurement_exclusive: `false`
+- decision_sha256: `2f90569b0cbf786f217cd45fac38c51990d7b5c041dc1f9a5ac6e5ac38129594`
+- source_canonical_sha256: `90d7b09569d1d155c8e44e1626f2c0f3b3f41e0919a8a9e5b76719e874b17ce3`
+- reference_adapter_sha256: `9d3a368e93afc557d18eba6241df83757ec4c7478686809e90c7b8f1945fa8cd`
+- candidate_sha256: `3aad6be6422ff08aeb0c6e6be0c92d0645588c7b93429809c525f55c6a6b3e37`
+- completed_commands:
+  - local candidate/reference `py_compile`: PASS
+  - S60 metadata cache hit/miss/invalidation checks: PASS
+  - S60 output lifetime/concurrency guardrails: PASS
+  - three S60 formal paired benchmark runs: PASS
+  - S60 paired forward profile: exported
+  - local `scripts/summarize_trace.py` reference/candidate summaries: PASS
+- correctness: `PASS`
+- lifecycle_guardrails: `PASS`
+- metadata_guardrails: `PASS`
+- raw_samples:
+  - reference 002: `[0.292588, 0.294687, 0.267353] ms`
+  - candidate 003: `[0.271637, 0.273673, 0.273697] ms`
+- medians:
+  - reference: `0.292588 ms`
+  - candidate: `0.273673 ms`
+  - improvement: `6.464721724746064%`
+  - speedup: `1.0691153310702919x`
+- profile:
+  - reference runtime launches: `1.0/call`, `11.284130859375 us/call`
+  - candidate runtime launches: `1.0/call`, `11.1054296875 us/call`
+  - device duration: unavailable in recorded GCU exporter
+- next_safe_action: `commit Round 003 terminal artifacts, then dispatch Round 004 because no stop threshold is met`
