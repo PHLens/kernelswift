@@ -5,50 +5,42 @@ No canonical-state claims.
 
 ## Current round
 
-- Round: 003
+- Round: 004
 - Phase: coding (complete from Coder's side; awaiting Orchestrator handoff to Verifier)
-- Decision: `rounds/decision_003.md` (SHA-256 `8f78d0425148e387ba82fc827012c63440e8d38edcdf19750a0e79825c8505bb`, `proceed`, change_scope=mixed, change_family=kernel-matmul-fusion)
+- Decision: `rounds/decision_004.md` (SHA-256 `dc33e45ee2c95319608bc08f9ed8a5a3e3ae0882305f52eb07f0a449ea33f111`, `proceed`, change_scope=host, change_family=host-allocation-reuse)
 - Source canonical: `triton_sparse_pooler_001.py` (SHA-256 `182f2ebb32b9762f5f19dae00a30e25618bcdb0b8563f7acbc3d9ea9ca348dcd`)
-- Candidate: `triton_sparse_pooler_003.py` (SHA-256 `3406f7c9a731e1fd7560ab95bf1d903fd4d6f8287c5880d9801e9d41e5ed7860`)
-- Result file: `rounds/coder_result_003.md`
+- Candidate: `triton_sparse_pooler_004.py` (SHA-256 `81cdea2b958c288e1382aef0b30cfc6dffb544c55a0e44825fab51b53cac7842`)
+- Result file: `rounds/coder_result_004.md`
 - Classification: `candidate-ready`
 
 ## Candidate facts
 
-- New kernel `_sparse_pooler_fused_matmul_max_kernel` replaces `_sparse_pooler_max_kernel`. Fuses decoder matmul (via `tl.dot` with K-dimension tiling), bias addition, relu, log1p, and per-segment max reduction into one kernel.
-- `ModelNew.forward` on the max-pooling path now computes `x = self.layer_norm(self.act(self.dense(hidden_states)))` and passes `x`, `self.decoder.weight`, `self.decoder.bias`, `seq_lens`, `out` to the fused kernel. The library `self.decoder(...)` call is removed from the max path.
-- `pooling == "sum"` fallback retains the library decoder call (`logits = self.decoder(x)`) and the Python sum loop. Off the measured hot path.
-- Grid: `(num_seq, num_vocab_tiles)` = `(4, triton.cdiv(30522, 512))` = `(4, 60)`.
-- `BLOCK_M=32` (>= max seq_len 25; rows >= seq_len masked to 0 in the dot and -inf in the max).
-- `BLOCK_K=64` (K-dimension tiling over hidden_size=768; 12 K-tiles).
-- `BLOCK_V=512` (last vocab tile covers 30208..30719; 314 in-bounds, 198 masked).
-- `num_warps=1` (Constrained, proven, normative). `num_warps=2` not used.
-- `tl.dot` with `input_precision="ieee"`: local probe established that the default `tf32` precision exceeds the project's 1e-2 tolerance for this shape; `ieee` matches the library fp32 matmul within ~2e-5. `tf32x3` is Unsupported on this runtime.
-- Weight layout: `decoder.weight` is `[vocab_size, hidden_size] = [30522, 768]` (nn.Linear convention). Kernel loads `weight_tile = decoder_weight[v_offs[:, None], k_offs[None, :]]` with strides `(weight.stride(0), weight.stride(1))` producing `[BLOCK_V, BLOCK_K]`; `tl.trans(weight_tile)` presents it as `[BLOCK_K, BLOCK_V]` to `tl.dot`. No init-time transpose; `load_state_dict` compatibility preserved.
-- Bias add: `bias_tile = tl.load(decoder_bias_ptr + v_offs, mask=v_mask, other=0.0)` is `[BLOCK_V]`, broadcast via `logits + bias_tile[None, :]`.
-- Relu + log1p: `tl.where(logits > 0.0, logits, 0.0)` then `tl.log(1.0 + logits)`.
-- Per-segment max: `tl.where(m_mask[:, None], logits, -inf)` then `tl.max(logits, axis=0)`.
-- On-device `seq_len` load and `seq_offset = sum(seq_lens[0:pid_s])` via bounded `for i in range(pid_s)`; preserved from the accepted Round 001 kernel.
-- `dense`, `GELU`, `LayerNorm`, `decoder` remain `nn.Module` attributes; the four parameters are unchanged, so `load_state_dict(model.state_dict())` accepts the reference state dict.
-- `get_inputs` and `get_init_inputs` preserved byte-for-byte.
-- No explicit `torch.mlu.device()` context; caller-selected device and current stream preserved.
-- `kernel_count_per_call` decreases from 5 to 4 by construction: library decoder matmul (`MLUFusedMatMulGepm`) and existing fused reduction kernel are replaced by one fused kernel; dense matmul, LayerNorm, GELU unchanged.
-- Intermediate logits tensor `[83, 30522]` fp32 (10.16 MB) no longer materialized in global memory.
+- Host-only change. The fused `_sparse_pooler_max_kernel` body, `BLOCK_V=1024`, `num_warps=1`, grid `(num_seq, cdiv(vocab_size, BLOCK_V))`, on-device `seq_offset` prefix scan, and the library MLM head pipeline (`self.decoder(self.layer_norm(self.act(self.dense(hidden_states))))`) are byte-identical to the accepted Round 001 reference. Verified by SHA-256 of the extracted kernel body: `f3ebee376d9e7732b622c41acd5ff175932943166068c3b70adf22e9ae1c4bb6` for both.
+- Two host-side changes:
+  1. `from triton.runtime import fast_libentry` added (first-choice import form; probed to succeed on this runtime). The class-body `globals()` trick populates `globals()["_sparse_pooler_max_fast"] = fast_libentry()(_sparse_pooler_max_kernel)` inside the `ModelNew` class body. This survives the harness AST loader (`_filter_module_ast` retains `ClassDef` nodes; the class body executes at import time and injects the wrapped kernel into module globals). Proven in `flexattention/triton_flexattention_003.py`. In `forward`, the wrapped kernel is retrieved via `globals()["_sparse_pooler_max_fast"]` and launched with the same grid, args, and `num_warps=1`.
+  2. `ModelNew.__init__` initializes `self._out_cache: torch.Tensor | None = None` (plain Python attribute, NOT `register_buffer`/`register_parameter`, so it is not in `state_dict()` and does not affect `load_state_dict`). On every forward, `_out_cache` is checked against `(num_seq, vocab_size, dtype, device)`: if `None` or any component mismatches, a fresh `[num_seq, vocab_size]` fp32 tensor is allocated with `torch.empty` and stored; otherwise the existing buffer is reused. The cached/fresh buffer is passed to the fused kernel; the returned list is `[out[i] for i in range(num_seq)]`.
+- Cache key: `(num_seq, vocab_size, dtype, device)`. All four components must match for reuse; any mismatch triggers reallocation and replaces the cache.
+- `kernel_count_per_call` remains 5 by construction: no kernel added, removed, or modified; the library MLM head (dense matmul, GELU, LayerNorm, decoder matmul) and the fused reduction kernel are unchanged. The `fast_libentry` wrapper changes the launcher path, not the kernel count.
+- `load_state_dict` compatibility maintained: `state_dict` keys and shapes match `base.py Model` exactly; `_out_cache` is not in the state_dict.
+- No `torch.mlu.device()` context introduced or removed; caller-selected device and current stream preserved.
+- `num_warps=1` passed through to the wrapped kernel unchanged. `num_warps=2` not used.
+- `pooling == "sum"` fallback, `get_inputs`, `get_init_inputs`, and `__main__` block unchanged from the accepted reference.
 
 ## Probe outcomes (resume reference)
 
-- `tl.dot` capability probe: compiles and runs for `[BLOCK_M=32, BLOCK_K] x [BLOCK_K, BLOCK_V]` fp32 on this runtime. `BLOCK_K=256` with `BLOCK_V >= 512` and `BLOCK_K=128` with `BLOCK_V=1024` exceed NRAM limit (524288 bytes) at `num_warps=1`.
-- `tl.dot` precision probe: `input_precision="ieee"` required (max_diff ~1.9e-5, passes 1e-2 and 1e-3). `tf32` fails 1e-2 (max_diff ~0.08). `tf32x3` Unsupported (compile error).
-- `ast.parse` ok; harness `load_ks_module` exposes ModelNew/get_inputs/get_init_inputs.
-- Correctness smoke vs `base.py`: 4/4 outputs `allclose(atol=1e-2, rtol=1e-2, equal_nan=True)`, max_abs_diff in [2.38e-07, 2.98e-07].
-- Harness end-to-end smoke (warmup=5, repeat=5): `PASS accuracy; v0=0.891860 ms, v1=0.823640 ms, speedup=1.083x` (smoke only; Verifier owns the 50/100 measurement).
-- All throwaway probe and smoke scripts deleted before handoff.
+- `fast_libentry` import probe: `python3 -c "from triton.runtime import fast_libentry"` succeeds on this runtime (first-choice form). No fallback to `from triton.runtime.fast_libentry import fast_libentry` or to the default launcher was needed.
+- Harness loader probe (`load_ks_module` with `pathlib.Path`): after load, `_sparse_pooler_max_fast` is in `mod.__dict__` (class-body `globals()` trick succeeded). `ModelNew`, `get_inputs`, `get_init_inputs` all present.
+- Correctness smoke vs `base.py`: `load_state_dict` ok; `state_dict` keys/shapes match; `_out_cache` not in state_dict; 4/4 outputs `allclose(atol=1e-2, rtol=1e-2, equal_nan=True)`, `max_abs_diff=1.788139e-07`.
+- Cache reuse probe: first forward allocates (`_out_cache=None` -> `[4,30522]` fp32 mlu:0); second forward reuses same buffer (same `data_ptr`); forward with `num_seq=3` reallocates (`[3,30522]`); return to `num_seq=4` reallocates again (cache was replaced). Returned slices share storage with the cached buffer.
+- Harness end-to-end smoke (warmup=5, repeat=5): `PASS accuracy; v0=0.899668 ms, v1=0.569278 ms, speedup=1.580x` (smoke only; Verifier owns the 50/100 measurement).
+- Kernel body identity: extracted kernel body SHA-256 matches between `triton_sparse_pooler_001.py` and `triton_sparse_pooler_004.py` (`f3ebee37...`).
+- All throwaway probe and smoke scripts were run inline via `python3 -c "..."`; no files written to the project root; no `__pycache__` left.
 
 ## Repair budget
 
-- Repairs used this round: 1 of 2. Repair #1 was a non-semantic tile-size accommodation: `BLOCK_K=128 -> 64` and `BLOCK_V=1024 -> 512` (within the decision's allowed probe space) to resolve the NRAM out-of-resource compile defect.
+- Repairs used this round: 0 of 2. No non-semantic syntax, import, or loader defect was encountered. No semantic change was required.
 
 ## Ownership
 
-- Coder owns: `triton_sparse_pooler_003.py`, `rounds/coder_result_003.md`, `state/coder_state.md`.
+- Coder owns: `triton_sparse_pooler_004.py`, `rounds/coder_result_004.md`, `state/coder_state.md`.
 - Coder must not edit: decision, team-state, project.md, base.py, harness, target profile, Verifier-owned files.
