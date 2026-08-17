@@ -4,8 +4,8 @@ skill_version: 2.0.0
 runtime: codex
 phase: ready
 workflow_status: running
-run_epoch: 1
-project_started_at: 2026-08-17T08:52:03Z
+run_epoch: 2
+project_started_at: 2026-08-17T09:22:11Z
 current_round: "001"
 last_completed_round: "001"
 last_accepted_round: "001"
@@ -28,8 +28,8 @@ target_measurement_fingerprint: null
 target_source: null
 last_checkpoint_round: null
 base_branch: dev
-base_commit: 50c7212
-run_branch: kernel-opt/groupedtopk-s60
+base_commit: 6a970c9
+run_branch: kernel-opt/groupedtopk-s60-continue
 measurement_exclusive: false
 implementation_language: triton
 implementation_backend: gcu
@@ -60,8 +60,10 @@ Terminal results are `accepted|no-improvement|screened-out|design-rejected|candi
 | 2026-08-17T08:52:03Z | coding | 001 | - | baseline_adapter.py | - | 9225fb0 |
 | 2026-08-17T08:52:03Z | verifying | 001 | - | baseline_adapter.py | - | 9225fb0 |
 | 2026-08-17T08:52:03Z | ready | 001 | accepted | triton_grouped_topk_001.py | - | 9225fb0 |
+| 2026-08-17T09:22:11Z | ready | 001 | - | triton_grouped_topk_001.py | new continuation branch from dev@6a970c9 | pending |
 
 ## Policy Revisions
 
 | Timestamp | Run epoch | Field | Old value | New value | Reason | Commit |
 |---|---:|---|---|---|---|---|
+| 2026-08-17T09:22:11Z | 2 | run_epoch | 1 | 2 | Continue optimization from accepted Round 001 on a fresh branch based on dev@6a970c9. | pending |

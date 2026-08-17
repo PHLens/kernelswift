@@ -92,8 +92,8 @@ total_memory: 41846MB
 ## Git Run Identity
 
 - base_branch: `dev`
-- base_commit: `50c7212`
-- run_branch: `kernel-opt/groupedtopk-s60`
+- base_commit: `6a970c9`
+- run_branch: `kernel-opt/groupedtopk-s60-continue`
 
 ## Round Overview
 
