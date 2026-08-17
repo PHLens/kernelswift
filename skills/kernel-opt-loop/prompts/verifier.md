@@ -92,7 +92,10 @@ Use these evidence levels:
 - Level 0: correctness, guardrails, screening, and authoritative timing.
 - Profile baseline and accepted candidates with separately scoped reference and
   candidate `device_us_per_call`, `kernel_count_per_call`, device totals,
-  `device_ratio`, and top kernels via `scripts/summarize_trace.py`.
+  `device_ratio`, and top kernels via `scripts/summarize_trace.py`. When the
+  selected target profile explicitly records `device_time_available: false`,
+  preserve that limitation and record its normalized `runtime_launch_*` evidence
+  instead; never relabel runtime launch time as device kernel time.
 - Level 2: profile a boundary case or insufficient bottleneck evidence named by
   the Evaluation Contract, such as host decomposition or external kernel count.
 - Level 3: use a deeper trace only when evidence conflicts, remains

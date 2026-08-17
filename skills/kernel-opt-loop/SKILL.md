@@ -33,8 +33,9 @@ Resolve these before mutation:
    profiling warmup, and profiling iteration settings.
 5. An optional user target only when supplied as `absolute_latency_ms` or
    `speedup_vs_baseline`; otherwise leave it null.
-6. Absolute skill root containing this file, one target profile, role contracts,
-   templates, validators, helpers, evaluator, and one runtime adapter.
+6. Absolute skill root containing this file, the target-profile registry, one
+   matching complete profile, role contracts, templates, validators, helpers,
+   evaluator, and one runtime adapter.
 
 Ask only for undiscoverable user-owned values. Never infer a device,
 interpreter, concurrency promise, target, or semantic tolerance from a
@@ -94,8 +95,9 @@ Perform initialization in this order:
    writes the manifest and project overview.
 4. Discover implementation language, backend, target profile, Triton
    distribution/version, active backend target/version when available, and
-   device architecture. Load only the matching complete profile. A missing
-   runtime or mismatch is an environment block.
+   device architecture. Select exactly one matching complete profile from
+   `prompts/coder_targets/`; never fall back across backends. A missing runtime,
+   missing profile, or identity mismatch is an environment block.
 5. Dispatch Designer for Phase 0 semantic analysis. Request only unknown
    user-owned values and validate its writable-file boundary before continuing.
 6. Run `scripts/make_baseline_adapter.py` to create `baseline_adapter.py` by
@@ -286,7 +288,9 @@ commit. Do not rewrite existing project histories.
 - `adapters/claude-code.md` and `adapters/codex.md`: runtime lifecycle mappings.
 - `prompts/designer.md`, `prompts/coder.md`, and `prompts/verifier.md`: role
   behavior and ownership.
-- `prompts/coder_targets/triton_mlu.md`: sole complete profile.
+- `prompts/coder_targets/<target_profile>.md`: the one complete profile selected
+  by the current runtime; this repository currently includes `triton_mlu` and
+  `triton_gcu`.
 - `references/decision-template.md`: normative decision schema.
 - `references/project-template.md`, `references/report-template.md`,
   `references/team-state-template.md`, and `references/role-context-template.md`:

@@ -67,8 +67,9 @@ Perform these steps in order:
 7. Write every decision section: Metadata, Optimization Intent, Unified Sketch,
    Host Plan, Evaluation Contract, Pitfalls and Anti-pattern Consultation, and
    Rationale and Evidence. Metadata must contain the selected `change_family`.
-8. Run `validate_decision.py --expected-profile triton_mlu` against the complete
-   artifact.
+8. Run `validate_decision.py --expected-profile <manifest target_profile>`
+   against the complete artifact. The selected profile is target-bound; do not
+   switch backend/profile while writing a decision.
 9. Update the compact context and return the decision path to Orchestrator. Do
    not contact Coder directly.
 

@@ -32,6 +32,9 @@ falsifiable intervention; it never replaces the round's Evaluation Contract.
   interleaved paired wall samples for the accepted reference and candidate.
 - **Level 1, after correctness passes:** separately scoped device time per call,
   kernel count per call, and top-k kernel breakdown for both implementations.
+  If the selected target profile explicitly marks device duration unavailable,
+  record its normalized backend-specific runtime-launch evidence and preserve
+  the unavailable device fields; never substitute launch time for device time.
 - **Level 2, intent-driven:** targeted kernel, host, launcher, allocation,
   synchronization, or backend probe requested by the Evaluation Contract.
 - **Level 3, deep on demand:** complete trace work only when conflicting results,
@@ -69,8 +72,10 @@ The ratio says where time is observed, not whether that time is compressible.
 Run the unchanged benchmark in interleaved order and retain every raw wall
 sample. Profile the accepted reference under a scope such as
 `accepted_reference` and the candidate under a separate `candidate` scope. Use
-the same positive iteration count for both. Reject a trace whose scopes overlap,
-are missing, or contain no kernel events.
+the same positive iteration count for both. Reject a trace whose scopes overlap or
+are missing. A target profile may define an explicit runtime-launch-only trace;
+in that case require its declared runtime event class and do not call the trace
+an attributable device-kernel profile.
 
 For a 50-call candidate scope with 1,000 us of device work and 50 kernel events:
 

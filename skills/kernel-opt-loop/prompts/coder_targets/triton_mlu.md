@@ -1,7 +1,8 @@
 # Target Profile: triton_mlu
 
-This is the sole v1 target profile. It records capabilities observed in this
-repository and the checks required before using them. Absence from Supported is
+This is the MLU target profile. It records capabilities observed in this
+repository and the checks required before using them. A run selects exactly one
+matching profile; this profile is not a fallback for other backends. Absence from Supported is
 not evidence of support.
 
 ## Identity and Match
@@ -32,21 +33,21 @@ not replace a match against the current project's runtime fingerprint.
 
 | Primitive | Status | Constraint | Evidence | Failure classification |
 |---|---|---|---|---|
-| `tl.load` | Supported | Validate mask, bounds, dtype, and alignment for the project shape. | `groupedtopk/triton_grouped_topk_004.py`; `fused_moe/triton_fused_moe_005.py`; `flexattention/triton_flexattention_003.py` | Local misuse is implementation repair; runtime absence is environment-blocked. |
+| `tl.load` | Supported | Validate mask, bounds, dtype, and alignment for the project shape. | `mlu/groupedtopk/triton_grouped_topk_004.py`; `mlu/fused_moe/triton_fused_moe_005.py`; `mlu/flexattention/triton_flexattention_003.py` | Local misuse is implementation repair; runtime absence is environment-blocked. |
 | `tl.store` | Supported | Preserve output shape, dtype, bounds, and aliasing contract. | Same three kernel files and their `log.md` files | Local misuse is implementation repair. |
 | `tl.arange` | Supported | Extent and masking remain shape-specific. | Same three kernel files | Unsupported extent discovered locally is capability-miss. |
 | `tl.program_id` | Supported | Grid mapping must preserve the decision's control structure. | Same three kernel files | Incorrect mapping is implementation repair. |
-| `tl.dot` | Supported | Inputs are 2-D with matching inner dimensions; dtype and shape restrictions must be probed for the current runtime. | `fused_moe/triton_fused_moe_005.py`; `flexattention/triton_flexattention_003.py`; `flexattention/log.md` Entry 002 | Unavailable required shape/dtype is capability-miss. |
-| `tl.argmax` | Supported | Tie behavior and masking must preserve project semantics. | `groupedtopk/triton_grouped_topk_004.py`; `groupedtopk/log.md` Entry 003 | Semantic mismatch is major-deviation or implementation repair according to design impact. |
+| `tl.dot` | Supported | Inputs are 2-D with matching inner dimensions; dtype and shape restrictions must be probed for the current runtime. | `mlu/fused_moe/triton_fused_moe_005.py`; `mlu/flexattention/triton_flexattention_003.py`; `mlu/flexattention/log.md` Entry 002 | Unavailable required shape/dtype is capability-miss. |
+| `tl.argmax` | Supported | Tie behavior and masking must preserve project semantics. | `mlu/groupedtopk/triton_grouped_topk_004.py`; `mlu/groupedtopk/log.md` Entry 003 | Semantic mismatch is major-deviation or implementation repair according to design impact. |
 | `tl.reshape` | Supported | Logical element count must be unchanged; this is not a storage-placement claim. | All three evidence kernels | Invalid shape is implementation repair. |
-| `tl.zeros` | Supported | A value-producing tensor operation only; dtype and shape remain constrained by the current compiler. | `groupedtopk/triton_grouped_topk_004.py`; `fused_moe/triton_fused_moe_005.py` | Unsupported required shape/dtype is capability-miss. |
+| `tl.zeros` | Supported | A value-producing tensor operation only; dtype and shape remain constrained by the current compiler. | `mlu/groupedtopk/triton_grouped_topk_004.py`; `mlu/fused_moe/triton_fused_moe_005.py` | Unsupported required shape/dtype is capability-miss. |
 
 ## Constrained Primitives
 
 | Primitive | Status | Constraint | Evidence | Failure classification |
 |---|---|---|---|---|
-| `num_warps` | Constrained | `num_warps=1` is locally used. `num_warps=2` failed in the flexattention experiment. Every other value is Unknown until probed on the matched runtime and architecture. | `groupedtopk/triton_grouped_topk_004.py`; `fused_moe/triton_fused_moe_005.py`; `flexattention/log.md` Entry 004 | A required unavailable value is capability-miss; optional tuning falls back to a proven value. |
-| `num_stages` | Constrained | `num_stages=2` compiled and ran in the recorded experiment but produced less than 5% wall improvement; legality and value are architecture-specific. | `flexattention/triton_flexattention_004.py`; `flexattention/log.md` Entry 004 | Compile failure is capability-miss; poor performance is Verifier evidence. |
+| `num_warps` | Constrained | `num_warps=1` is locally used. `num_warps=2` failed in the flexattention experiment. Every other value is Unknown until probed on the matched runtime and architecture. | `mlu/groupedtopk/triton_grouped_topk_004.py`; `mlu/fused_moe/triton_fused_moe_005.py`; `mlu/flexattention/log.md` Entry 004 | A required unavailable value is capability-miss; optional tuning falls back to a proven value. |
+| `num_stages` | Constrained | `num_stages=2` compiled and ran in the recorded experiment but produced less than 5% wall improvement; legality and value are architecture-specific. | `mlu/flexattention/triton_flexattention_004.py`; `mlu/flexattention/log.md` Entry 004 | Compile failure is capability-miss; poor performance is Verifier evidence. |
 
 ## Unsupported Primitives
 
@@ -93,7 +94,7 @@ lifecycle, or observable change is `major-deviation`, not a fallback.
 
 | Claim | Repository evidence | Scope |
 |---|---|---|
-| Basic loads, stores, indexing, reshape, argmax, and fast launcher execute on the recorded MLU setup. | `groupedtopk/triton_grouped_topk_004.py`; `groupedtopk/log.md` | Recorded grouped-top-k shapes and runtime only. |
-| Dot, zeros, loads, stores, and one-warp launch execute on the recorded MLU setup. | `fused_moe/triton_fused_moe_005.py`; `fused_moe/log.md` | Recorded fused-MoE shapes and runtime only. |
-| Dot attention and host-side launcher/cache patterns execute on the recorded MLU setup. | `flexattention/triton_flexattention_003.py`; `flexattention/log.md` | Recorded flexattention shapes and runtime only. |
-| Two stages ran but did not clear adoption threshold; two warps failed. | `flexattention/triton_flexattention_004.py`; `flexattention/log.md` Entry 004 | Evidence for the recorded runtime; other architectures remain Unknown. |
+| Basic loads, stores, indexing, reshape, argmax, and fast launcher execute on the recorded MLU setup. | `mlu/groupedtopk/triton_grouped_topk_004.py`; `mlu/groupedtopk/log.md` | Recorded grouped-top-k shapes and runtime only. |
+| Dot, zeros, loads, stores, and one-warp launch execute on the recorded MLU setup. | `mlu/fused_moe/triton_fused_moe_005.py`; `mlu/fused_moe/log.md` | Recorded fused-MoE shapes and runtime only. |
+| Dot attention and host-side launcher/cache patterns execute on the recorded MLU setup. | `mlu/flexattention/triton_flexattention_003.py`; `mlu/flexattention/log.md` | Recorded flexattention shapes and runtime only. |
+| Two stages ran but did not clear adoption threshold; two warps failed. | `mlu/flexattention/triton_flexattention_004.py`; `mlu/flexattention/log.md` Entry 004 | Evidence for the recorded runtime; other architectures remain Unknown. |

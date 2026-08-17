@@ -173,6 +173,26 @@ class TraceSummaryTests(unittest.TestCase):
             ):
                 summarize_trace(path, 1, "candidate", None)
 
+    def test_gcu_runtime_launches_are_reported_without_fake_device_time(self):
+        trace = {
+            "traceEvents": [
+                {"name": "candidate", "cat": "user_annotation", "ph": "X", "ts": 0, "dur": 20},
+                {"name": "topsModuleLaunchKernel", "cat": "gcu_runtime", "ph": "X", "ts": 2, "dur": 3},
+                {"name": "topsLaunchCooperativeKernel", "cat": "gcu_runtime", "ph": "X", "ts": 8, "dur": 4},
+                {"name": "outside", "cat": "gcu_runtime", "ph": "X", "ts": 30, "dur": 10},
+            ]
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "gcu.json"
+            path.write_text(json.dumps(trace), encoding="utf-8")
+            summary = summarize_trace(path, 1, "candidate", 0.02)
+        self.assertFalse(summary["device_time_available"])
+        self.assertIsNone(summary["device_us_per_call"])
+        self.assertEqual(summary["runtime_launch_count_total"], 2)
+        self.assertEqual(summary["runtime_launch_us_per_call"], 7.0)
+        self.assertNotIn("device_ratio", summary)
+        self.assertIn("runtime_launch_ratio", summary)
+
     def test_scope_without_kernel_events_is_rejected(self):
         trace = {
             "traceEvents": [

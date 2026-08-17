@@ -57,8 +57,8 @@ base_commit: null
 run_branch: null
 measurement_exclusive: false
 implementation_language: triton
-implementation_backend: mlu
-target_profile: triton_mlu
+implementation_backend: unset
+target_profile: unset
 runtime_fingerprint_ref: project.md#runtime-fingerprint
 blocked_incident: null
 stop_reason: null
@@ -426,7 +426,7 @@ class RoleContractTests(unittest.TestCase):
             "Evaluation Contract",
             "Pitfalls and Anti-pattern Consultation",
             "Rationale and Evidence",
-            "validate_decision.py --expected-profile triton_mlu",
+            "validate_decision.py --expected-profile <manifest target_profile>",
             "never revise",
         ):
             with self.subTest(text=text):
@@ -513,6 +513,56 @@ class RoleContractTests(unittest.TestCase):
         self.assertIn("num_warps=2", profile)
         self.assertIn("num_stages=2", profile)
         self.assertIn("runtime introspection", profile)
+
+    def test_triton_gcu_profile_is_complete_and_evidence_scoped(self):
+        profile = (PROMPTS / "coder_targets" / "triton_gcu.md").read_text(
+            encoding="utf-8"
+        )
+
+        for heading in (
+            "# Target Profile: triton_gcu",
+            "## Identity and Match",
+            "## Runtime and Launcher Conventions",
+            "## Supported Primitives",
+            "## Constrained Primitives",
+            "## Unsupported Primitives",
+            "## Unknown Primitives",
+            "## Allowed Fallbacks",
+            "## Target-specific Pitfalls",
+            "## Evidence Ledger",
+        ):
+            with self.subTest(heading=heading):
+                self.assertIn(heading, profile)
+
+        for primitive in (
+            "`tl.load`",
+            "`tl.store`",
+            "`tl.arange`",
+            "`tl.program_id`",
+            "`tl.zeros`",
+            "`tl.reshape`",
+            "`tl.max`",
+            "`tl.argmax`",
+            "`tl.dot`",
+            "`tl.make_block_ptr`",
+            "`fast_libentry`",
+        ):
+            with self.subTest(primitive=primitive):
+                self.assertIn(primitive, profile)
+
+        for evidence in (
+            "backend: gcu",
+            "target_profile: triton_gcu",
+            "s60/triton_gcu_probe.py",
+            "major=3, minor=0",
+            "device=\"gcu\"",
+            "torch.gcu.synchronize()",
+        ):
+            with self.subTest(evidence=evidence):
+                self.assertIn(evidence, profile)
+
+        self.assertIn("`tl.dot` | Unknown", profile)
+        self.assertIn("`fast_libentry` | Unknown", profile)
 
     def test_no_inactive_target_stubs_or_fake_lowering_claims(self):
         targets = PROMPTS / "coder_targets"
@@ -757,6 +807,7 @@ class CrossFileContractTests(unittest.TestCase):
             "prompts/coder.md",
             "prompts/verifier.md",
             "prompts/coder_targets/triton_mlu.md",
+            "prompts/coder_targets/triton_gcu.md",
             "references/anti-patterns.md",
             "references/bottleneck-judgment.md",
             "references/decision-template.md",
