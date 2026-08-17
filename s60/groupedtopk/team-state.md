@@ -54,12 +54,12 @@ Terminal results are `accepted|no-improvement|screened-out|design-rejected|candi
 
 | Timestamp | Phase | Round | Result | Canonical | Incident | Commit |
 |---|---|---:|---|---|---|---|
-| 2026-08-17T08:52:03Z | initializing | 000 | - | - | - | pending Phase 0 commit |
-| 2026-08-17T08:52:03Z | ready | 000 | baseline | baseline_adapter.py | - | pending Phase 0 commit |
-| 2026-08-17T08:52:03Z | designing | 001 | - | baseline_adapter.py | - | pending Round 001 commit |
-| 2026-08-17T08:52:03Z | coding | 001 | - | baseline_adapter.py | - | pending Round 001 commit |
-| 2026-08-17T08:52:03Z | verifying | 001 | - | baseline_adapter.py | - | pending Round 001 commit |
-| 2026-08-17T08:52:03Z | ready | 001 | accepted | triton_grouped_topk_001.py | - | pending Round 001 commit |
+| 2026-08-17T08:52:03Z | initializing | 000 | - | - | - | 9225fb0 |
+| 2026-08-17T08:52:03Z | ready | 000 | baseline | baseline_adapter.py | - | 9225fb0 |
+| 2026-08-17T08:52:03Z | designing | 001 | - | baseline_adapter.py | - | 9225fb0 |
+| 2026-08-17T08:52:03Z | coding | 001 | - | baseline_adapter.py | - | 9225fb0 |
+| 2026-08-17T08:52:03Z | verifying | 001 | - | baseline_adapter.py | - | 9225fb0 |
+| 2026-08-17T08:52:03Z | ready | 001 | accepted | triton_grouped_topk_001.py | - | 9225fb0 |
 
 ## Policy Revisions
 
