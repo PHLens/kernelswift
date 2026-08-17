@@ -81,9 +81,13 @@ silently converted to `accepted` or `no-improvement`.
 
 - profiler_applicability: `required | not-run: screened-out | not-run: not-needed`
 - profiler_level: `summary | targeted | deep-on-demand`
+- profiler_device_time: `available | unavailable: <target-profile reason>`
 - iterations: `<forward call count>`
 - normalized_fields: `device_total_us`, `device_us_per_call`,
   `kernel_count_total`, `kernel_count_per_call`, `device_ratio`, `kernels`
+- backend_runtime_fields: `runtime_launch_total_us`,
+  `runtime_launch_us_per_call`, `runtime_launch_count_total`,
+  `runtime_launch_count_per_call`, `runtime_launches` when applicable
 
 Reference and candidate scopes are collected and summarized independently. All
 totals below are normalized by `iterations` before they are compared.

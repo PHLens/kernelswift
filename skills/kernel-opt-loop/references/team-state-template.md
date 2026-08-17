@@ -32,8 +32,8 @@ base_commit: null
 run_branch: null
 measurement_exclusive: false
 implementation_language: triton
-implementation_backend: mlu
-target_profile: triton_mlu
+implementation_backend: unset
+target_profile: unset
 runtime_fingerprint_ref: project.md#runtime-fingerprint
 blocked_incident: null
 stop_reason: null

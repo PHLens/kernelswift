@@ -46,9 +46,11 @@ semantics are conformance notes under `candidate-ready`, not a new design.
 
 ## Required sequence
 
-1. Run `validate_decision.py` with the manifest's expected profile. Compare the
-   project's language, backend, target profile, distribution, backend target,
-   and device architecture to the profile's Identity and Match rules.
+1. Run `validate_decision.py` with the manifest's selected target profile.
+   Compare the project's language, backend, target profile, distribution,
+   backend target, and device architecture to that profile's Identity and Match
+   rules. Never infer a backend from candidate code or switch profiles during a
+   round.
 2. Return `environment-blocked` for a missing runtime or profile/fingerprint
    mismatch. Do not treat it as an optimization failure.
 3. Check every Sketch primitive and target hint against the profile's Supported,

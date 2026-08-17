@@ -11,8 +11,8 @@
 - interpreter: `<absolute-interpreter-path>`
 - device: `<device>`
 - implementation_language: `triton`
-- implementation_backend: `mlu`
-- target_profile: `triton_mlu`
+- implementation_backend: `<selected runtime backend>`
+- target_profile: `<selected complete target profile>`
 
 ## Semantics
 

@@ -72,6 +72,93 @@ def _scope_intervals(
     return intervals
 
 
+_GCU_RUNTIME_LAUNCHES = frozenset(
+    {
+        "topsLaunchKernel",
+        "topsLaunchCooperativeKernel",
+        "topsLaunchKernelEx",
+        "topsModuleLaunchKernel",
+    }
+)
+
+
+def _event_is_in_scope(
+    event: dict[str, Any], intervals: list[tuple[float, float]] | None
+) -> bool:
+    if intervals is None:
+        return True
+    start, end = _event_interval(event, f"event {event.get('name')!r}")
+    return any(
+        start >= scope_start and end <= scope_end
+        for scope_start, scope_end in intervals
+    )
+
+
+def _summarize_gcu_runtime(
+    events: list[dict[str, Any]],
+    intervals: list[tuple[float, float]] | None,
+    iterations: int,
+    scope: str | None,
+    wall_ms: float | None,
+) -> dict[str, object] | None:
+    launches: list[dict[str, Any]] = []
+    for event in events:
+        if (
+            event.get("cat") == "gcu_runtime"
+            and event.get("ph") == "X"
+            and event.get("name") in _GCU_RUNTIME_LAUNCHES
+            and _event_is_in_scope(event, intervals)
+        ):
+            start, end = _event_interval(event, f"GCU runtime event {event.get('name')!r}")
+            launches.append({"name": event["name"], "duration": end - start})
+
+    if not launches:
+        return None
+
+    totals: dict[str, dict[str, float | int]] = defaultdict(
+        lambda: {"count": 0, "duration": 0.0}
+    )
+    for launch in launches:
+        aggregate = totals[launch["name"]]
+        aggregate["count"] += 1
+        aggregate["duration"] += launch["duration"]
+
+    launch_summaries = [
+        {
+            "name": name,
+            "count_total": aggregate["count"],
+            "count_per_call": aggregate["count"] / iterations,
+            "total_us": aggregate["duration"],
+            "us_per_call": aggregate["duration"] / iterations,
+        }
+        for name, aggregate in totals.items()
+    ]
+    launch_summaries.sort(key=lambda item: (-item["total_us"], item["name"]))
+    runtime_total_us = sum(launch["duration"] for launch in launches)
+    runtime_us_per_call = runtime_total_us / iterations
+    summary: dict[str, object] = {
+        "scope": scope,
+        "iterations": iterations,
+        "device_time_available": False,
+        "device_time_reason": (
+            "GCU trace exposes runtime launch events but no cat=kernel device durations"
+        ),
+        "device_total_us": None,
+        "device_us_per_call": None,
+        "kernel_count_total": None,
+        "kernel_count_per_call": None,
+        "kernels": [],
+        "runtime_launch_total_us": runtime_total_us,
+        "runtime_launch_us_per_call": runtime_us_per_call,
+        "runtime_launch_count_total": len(launches),
+        "runtime_launch_count_per_call": len(launches) / iterations,
+        "runtime_launches": launch_summaries,
+    }
+    if wall_ms is not None:
+        summary["runtime_launch_ratio"] = runtime_us_per_call / (float(wall_ms) * 1000.0)
+    return summary
+
+
 def summarize_trace(
     path: Path,
     iterations: int,
@@ -111,6 +198,11 @@ def summarize_trace(
             kernels.append({"name": name, "duration": end - start})
 
     if not kernels:
+        runtime_summary = _summarize_gcu_runtime(
+            events, intervals, iterations, scope, wall_ms
+        )
+        if runtime_summary is not None:
+            return runtime_summary
         if scope is None:
             raise TraceSummaryError("trace has no kernel events")
         raise TraceSummaryError(f"scope has no kernel events: {scope}")
@@ -140,6 +232,7 @@ def summarize_trace(
     summary: dict[str, object] = {
         "scope": scope,
         "iterations": iterations,
+        "device_time_available": True,
         "device_total_us": device_total_us,
         "device_us_per_call": device_us_per_call,
         "kernel_count_total": len(kernels),
