@@ -23,4 +23,4 @@
   - reference runtime launches: `12.0/call`, `131.004023 us/call`
   - candidate runtime launches: `1.0/call`, `10.409482 us/call`
   - device duration: unavailable in recorded GCU exporter
-- next_safe_action: `commit terminal artifacts before evaluating next-round policy`
+- next_safe_action: `terminal artifacts committed in `9225fb0`; evaluate next-round policy before dispatch`
