@@ -6,18 +6,18 @@ phase: ready
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-17T09:22:11Z
-current_round: "003"
-last_completed_round: "003"
+current_round: "004"
+last_completed_round: "004"
 last_accepted_round: "003"
 last_accepted_kernel: triton_grouped_topk_003.py
 last_accepted_report: rounds/report_003.md
-last_completed_decision: rounds/decision_003.md
-last_completed_coder_result: rounds/coder_result_003.md
-last_completed_report: rounds/report_003.md
-last_result: accepted
-performance_miss_streak: 0
+last_completed_decision: rounds/decision_004.md
+last_completed_coder_result: rounds/coder_result_004.md
+last_completed_report: rounds/report_004.md
+last_result: no-improvement
+performance_miss_streak: 1
 failed_attempt_streak: 0
-total_rounds: 3
+total_rounds: 4
 max_rounds: 20
 valid_no_improvement_limit: 3
 adoption_threshold_pct: 5
@@ -69,6 +69,10 @@ Terminal results are `accepted|no-improvement|screened-out|design-rejected|candi
 | 2026-08-17T10:00:00Z | coding | 003 | - | triton_grouped_topk_002.py | - | 71861c3 |
 | 2026-08-17T10:10:00Z | verifying | 003 | - | triton_grouped_topk_002.py | - | 71861c3 |
 | 2026-08-17T10:11:23Z | ready | 003 | accepted | triton_grouped_topk_003.py | - | 71861c3 |
+| 2026-08-17T10:15:34Z | designing | 004 | - | triton_grouped_topk_003.py | - | 5ded926 |
+| 2026-08-17T10:20:00Z | coding | 004 | - | triton_grouped_topk_003.py | - | 5ded926 |
+| 2026-08-17T10:24:00Z | verifying | 004 | - | triton_grouped_topk_003.py | backend internal stream lookup observed outside candidate scope | 5ded926 |
+| 2026-08-17T10:26:23Z | ready | 004 | no-improvement | triton_grouped_topk_003.py | below 5% adoption threshold | 5ded926 |
 
 ## Policy Revisions
 
