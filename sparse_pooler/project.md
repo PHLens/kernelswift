@@ -158,6 +158,7 @@ branch. The run branch is never `main`, `master`, or `dev`.
 | 001 | `rounds/decision_001.md` | `triton_sparse_pooler_001.py` | accepted | `baseline_adapter.py` | 0.606758 | 210.12 | 33.39 | partially-confirmed | `triton_sparse_pooler_001.py` |
 | 002 | `rounds/decision_002.md` | `triton_sparse_pooler_002.py` | no-improvement | `triton_sparse_pooler_001.py` | 0.621848 | 213.02 | 0.65 | falsified | `triton_sparse_pooler_001.py` |
 | 003 | `rounds/decision_003.md` | `triton_sparse_pooler_003.py` | no-improvement (screened-out) | `triton_sparse_pooler_001.py` | n/a (screened-out; v2 screening pairs both >=10% slower: +33.90%, +32.16%) | 392.94 | n/a (screened-out) | falsified | `triton_sparse_pooler_001.py` |
+| 004 | `rounds/decision_004.md` | `triton_sparse_pooler_004.py` | accepted | `triton_sparse_pooler_001.py` | 0.567125 | 208.32 | 5.79 | confirmed | `triton_sparse_pooler_004.py` |
 
 Orchestrator appends one row only after a terminal round transition is validated
 and committed. Rejected candidates remain listed but never become the comparison

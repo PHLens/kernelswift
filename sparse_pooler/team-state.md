@@ -2,22 +2,22 @@
 schema_version: 1
 skill_version: 2.0.0
 runtime: claude-code
-phase: verifying
+phase: ready
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-14T13:30:00Z
 current_round: "004"
-last_completed_round: "003"
-last_accepted_round: "001"
-last_accepted_kernel: triton_sparse_pooler_001.py
-last_accepted_report: rounds/report_001.md
-last_completed_decision: rounds/decision_003.md
-last_completed_coder_result: rounds/coder_result_003.md
-last_completed_report: rounds/report_003.md
-last_result: no-improvement
-performance_miss_streak: 2
+last_completed_round: "004"
+last_accepted_round: "004"
+last_accepted_kernel: triton_sparse_pooler_004.py
+last_accepted_report: rounds/report_004.md
+last_completed_decision: rounds/decision_004.md
+last_completed_coder_result: rounds/coder_result_004.md
+last_completed_report: rounds/report_004.md
+last_result: accepted
+performance_miss_streak: 0
 failed_attempt_streak: 0
-total_rounds: 3
+total_rounds: 4
 max_rounds: 20
 valid_no_improvement_limit: 3
 adoption_threshold_pct: 5
@@ -30,7 +30,7 @@ last_checkpoint_round: null
 base_branch: dev
 base_commit: 92c8f7f
 run_branch: kernel-opt/sparse_pooler-2
-measurement_exclusive: true
+measurement_exclusive: false
 implementation_language: triton
 implementation_backend: mlu
 target_profile: triton_mlu
@@ -81,6 +81,7 @@ change, incident, or commit yet.
 | 2026-08-17T10:00:00Z | designing | 004 | - | - | - | 9a2532f |
 | 2026-08-17T10:15:00Z | coding | 004 | - | - | - | 9c01dd4 |
 | 2026-08-17T10:30:00Z | verifying | 004 | - | - | - | - |
+| 2026-08-17T11:00:00Z | ready | 004 | accepted | triton_sparse_pooler_004.py | - | - |
 
 ## Policy Revisions
 
