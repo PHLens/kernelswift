@@ -45,14 +45,14 @@ TOPS/TOPSPTI exporter may establish device duration and revise this limitation.
 
 | Primitive | Status | Constraint | Evidence | Failure classification |
 |---|---|---|---|---|
-| `tl.load` | Supported | Masked contiguous load in the recorded 16-element float32 probe only. | `s60/triton_gcu_probe.py` | Local misuse is implementation repair; runtime mismatch is environment-blocked. |
-| `tl.store` | Supported | Contiguous stores with the recorded output shapes and dtypes only. | `s60/triton_gcu_probe.py` | Local misuse is implementation repair; runtime mismatch is environment-blocked. |
-| `tl.arange` | Supported | Extent 16 and extent 4 in the recorded probe; other extents remain Unknown. | `s60/triton_gcu_probe.py` | Unsupported required extent is capability-miss. |
-| `tl.program_id` | Supported | Axis 0 in a one-program launch. | `s60/triton_gcu_probe.py` | Incorrect mapping is implementation repair. |
-| `tl.zeros` | Supported | Shape `(16,)`, float32, in the recorded probe. | `s60/triton_gcu_probe.py` | Unsupported required shape or dtype is capability-miss. |
-| `tl.reshape` | Supported | Element-count-preserving `(16,)` to `(4,4)` reshape in the recorded probe. | `s60/triton_gcu_probe.py` | Invalid shape is implementation repair. |
-| `tl.max` | Supported | Axis-1 reduction over a `(4,4)` float32 matrix in the recorded probe. | `s60/triton_gcu_probe.py` | Unsupported required reduction is capability-miss. |
-| `tl.argmax` | Supported | Axis-0 reduction over the recorded float32 vector; tie behavior was not characterized. | `s60/triton_gcu_probe.py` | Semantic mismatch is implementation repair or capability-miss according to the decision. |
+| `tl.load` | Supported | Masked contiguous load in the recorded 16-element float32 probe only. | `s60/groupedtopk/triton_grouped_topk_001.py` | Local misuse is implementation repair; runtime mismatch is environment-blocked. |
+| `tl.store` | Supported | Contiguous stores with the recorded output shapes and dtypes only. | `s60/groupedtopk/triton_grouped_topk_001.py` | Local misuse is implementation repair; runtime mismatch is environment-blocked. |
+| `tl.arange` | Supported | Extent 16 and extent 4 in the recorded probe; other extents remain Unknown. | `s60/groupedtopk/triton_grouped_topk_001.py` | Unsupported required extent is capability-miss. |
+| `tl.program_id` | Supported | Axis 0 in a one-program launch. | `s60/groupedtopk/triton_grouped_topk_001.py` | Incorrect mapping is implementation repair. |
+| `tl.zeros` | Supported | Shape `(16,)`, float32, in the recorded probe. | `s60/groupedtopk/triton_grouped_topk_001.py` | Unsupported required shape or dtype is capability-miss. |
+| `tl.reshape` | Supported | Element-count-preserving `(16,)` to `(4,4)` reshape in the recorded probe. | `s60/groupedtopk/triton_grouped_topk_001.py` | Invalid shape is implementation repair. |
+| `tl.max` | Supported | Axis-1 reduction over a `(4,4)` float32 matrix in the recorded probe. | `s60/groupedtopk/triton_grouped_topk_001.py` | Unsupported required reduction is capability-miss. |
+| `tl.argmax` | Supported | Axis-0 reduction over the recorded float32 vector; tie behavior was not characterized. | `s60/groupedtopk/triton_grouped_topk_001.py` | Semantic mismatch is implementation repair or capability-miss according to the decision. |
 | `tl.sum` | Supported | Scalar reductions in the recorded group-topk candidate; other shapes remain target-specific. | `s60/groupedtopk/triton_grouped_topk_001.py` | Unsupported required reduction is capability-miss. |
 | `tl.exp` | Supported | Elementwise float32 exponential in the recorded group-topk candidate. | `s60/groupedtopk/triton_grouped_topk_001.py` | Unsupported required math is capability-miss. |
 | `tl.where` | Supported | Masked selection in the recorded group-topk candidate. | `s60/groupedtopk/triton_grouped_topk_001.py` | Incorrect masking is implementation repair. |
@@ -64,9 +64,9 @@ TOPS/TOPSPTI exporter may establish device duration and revise this limitation.
 
 | Primitive | Status | Constraint | Evidence | Failure classification |
 |---|---|---|---|---|
-| `num_warps` | Constrained | `num_warps=1` compiled and ran in the probe. Other values are Unknown on this architecture. | `s60/triton_gcu_probe.py` | A required unavailable value is capability-miss; optional tuning falls back to 1. |
-| `tl.argmax` tie behavior | Constrained | The probe uses unique values only; equal-value ordering is not established. | `s60/triton_gcu_probe.py` | A semantic tie mismatch is implementation repair or design rejection. |
-| reduction shapes and dtypes | Constrained | Only the recorded float32 vector/matrix reductions are proven. | `s60/triton_gcu_probe.py` | An unproven normative shape or dtype is capability-miss. |
+| `num_warps` | Constrained | `num_warps=1` compiled and ran in the probe. Other values are Unknown on this architecture. | `s60/groupedtopk/triton_grouped_topk_001.py` | A required unavailable value is capability-miss; optional tuning falls back to 1. |
+| `tl.argmax` tie behavior | Constrained | The probe uses unique values only; equal-value ordering is not established. | `s60/groupedtopk/triton_grouped_topk_001.py` | A semantic tie mismatch is implementation repair or design rejection. |
+| reduction shapes and dtypes | Constrained | Only the recorded float32 vector/matrix reductions are proven. | `s60/groupedtopk/triton_grouped_topk_001.py` | An unproven normative shape or dtype is capability-miss. |
 
 ## Unsupported Primitives
 
@@ -90,7 +90,7 @@ Unsupported result for a future profile revision.
 | `num_stages` | Unknown | No GCU architecture-specific legality or performance probe is recorded. | No qualifying GCU probe | An unprovable normative use is capability-miss. |
 | `fast_libentry` | Unknown | Both observed import paths failed on the recorded runtime; no alternate path is established. | S60 import probe output; direct launch candidate | A normative fast launcher requirement is capability-miss. |
 | stream and context semantics | Unknown | The probe does not establish current-stream preservation or context ownership. | No qualifying GCU probe | A normative unproven lifecycle requirement is capability-miss. |
-| non-contiguous and mixed-precision behavior | Unknown | The probe uses contiguous float32 buffers only. | `s60/triton_gcu_probe.py` | An unprovable normative use is capability-miss. |
+| non-contiguous and mixed-precision behavior | Unknown | The probe uses contiguous float32 buffers only. | `s60/groupedtopk/triton_grouped_topk_001.py` | An unprovable normative use is capability-miss. |
 
 ## Allowed Fallbacks
 
@@ -121,8 +121,8 @@ fallbacks; they require a new decision or are a major deviation.
 
 | Claim | Repository evidence | Scope |
 |---|---|---|
-| GCU tensors, synchronization, direct Triton launch, loads, stores, indexing, zeros, reshape, max, and argmax executed with checked results. | `s60/triton_gcu_probe.py` | One S60/GCU runtime, GCU architecture `major=3, minor=0`, fixed float32 buffers, one program. |
+| GCU tensors, synchronization, direct Triton launch, loads, stores, indexing, zeros, reshape, max, and argmax executed with checked results. | `s60/groupedtopk/triton_grouped_topk_001.py` | One S60/GCU runtime, GCU architecture `major=3, minor=0`, fixed float32 buffers, one program. |
 | Group-topk candidate compiled and ran with softmax math, reductions, masking, compile-time loops, and one direct module launch per token. | `s60/groupedtopk/triton_grouped_topk_001.py` and Round 001 harness smoke output. | Same S60/GCU runtime and exact `T=83,E=256,K=8` regime; not a general-shape guarantee. |
-| `num_warps=1` compiled and executed. | `s60/triton_gcu_probe.py` | One launch configuration on the recorded runtime only. |
-| `torch_gcu` and `triton_gcu` are required imports in the recorded setup. | `s60/triton_gcu_probe.py` | Package behavior and versions must be rediscovered in each project fingerprint. |
+| `num_warps=1` compiled and executed. | `s60/groupedtopk/triton_grouped_topk_001.py` | One launch configuration on the recorded runtime only. |
+| `torch_gcu` and `triton_gcu` are required imports in the recorded setup. | `s60/groupedtopk/triton_grouped_topk_001.py` | Package behavior and versions must be rediscovered in each project fingerprint. |
 | GCU support for dot, block pointers, async copy, fast launcher, stages, streams, and mixed precision remains unproven. | This profile and absence of a qualifying probe. | Unknown is not treated as Unsupported or Supported. |

@@ -4,7 +4,7 @@
 - result: `baseline`
 - measurement_exclusive: `false`
 - completed_commands:
-  - `python3 s60/triton_gcu_probe.py` on S60: PASS
+  - S60 GCU runtime discovery and baseline harness smoke: PASS
   - `auto_bench.py` baseline smoke: PASS
   - `auto_bench.py` baseline formal benchmark: PASS
   - `auto_bench.py` baseline forward profile: exported

@@ -25,7 +25,7 @@ Result: baseline
 |---|---|---|---|---|
 | correctness | pass | `base.py` and `baseline_adapter.py` outputs matched at `atol=1e-2, rtol=1e-2`; shapes and dtypes matched. | pass | S60 auto_bench smoke and formal profile command |
 | immutable base | base bytes unchanged by adapter generation | base hash recorded as `a5b37db4...` before and after adapter generation | pass | `make_baseline_adapter.py` and SHA-256 ledger |
-| GCU runtime | selected profile matches runtime | `torch_gcu` and `triton_gcu` imported; `gcu:0` available; architecture `major=3, minor=0` | pass | S60 discovery commands and `s60/triton_gcu_probe.py` |
+| GCU runtime | selected profile matches runtime | `torch_gcu` and `triton_gcu` imported; `gcu:0` available; architecture `major=3, minor=0` | pass | S60 runtime discovery commands and baseline harness run |
 
 ## Screening Evidence
 

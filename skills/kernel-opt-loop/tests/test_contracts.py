@@ -553,7 +553,7 @@ class RoleContractTests(unittest.TestCase):
         for evidence in (
             "backend: gcu",
             "target_profile: triton_gcu",
-            "s60/triton_gcu_probe.py",
+            "s60/groupedtopk/triton_grouped_topk_001.py",
             "major=3, minor=0",
             "device=\"gcu\"",
             "torch.gcu.synchronize()",
