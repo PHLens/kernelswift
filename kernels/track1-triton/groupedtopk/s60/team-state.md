@@ -6,18 +6,18 @@ phase: ready
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-17T09:22:11Z
-current_round: "001"
-last_completed_round: "001"
-last_accepted_round: "001"
-last_accepted_kernel: triton_grouped_topk_001.py
-last_accepted_report: rounds/report_001.md
-last_completed_decision: rounds/decision_001.md
-last_completed_coder_result: rounds/coder_result_001.md
-last_completed_report: rounds/report_001.md
+current_round: "002"
+last_completed_round: "002"
+last_accepted_round: "002"
+last_accepted_kernel: triton_grouped_topk_002.py
+last_accepted_report: rounds/report_002.md
+last_completed_decision: rounds/decision_002.md
+last_completed_coder_result: rounds/coder_result_002.md
+last_completed_report: rounds/report_002.md
 last_result: accepted
 performance_miss_streak: 0
 failed_attempt_streak: 0
-total_rounds: 1
+total_rounds: 2
 max_rounds: 20
 valid_no_improvement_limit: 3
 adoption_threshold_pct: 5
@@ -60,10 +60,14 @@ Terminal results are `accepted|no-improvement|screened-out|design-rejected|candi
 | 2026-08-17T08:52:03Z | coding | 001 | - | baseline_adapter.py | - | 9225fb0 |
 | 2026-08-17T08:52:03Z | verifying | 001 | - | baseline_adapter.py | - | 9225fb0 |
 | 2026-08-17T08:52:03Z | ready | 001 | accepted | triton_grouped_topk_001.py | - | 9225fb0 |
-| 2026-08-17T09:22:11Z | ready | 001 | - | triton_grouped_topk_001.py | new continuation branch from dev@6a970c9 | pending |
+| 2026-08-17T09:22:11Z | ready | 001 | - | triton_grouped_topk_001.py | new continuation branch from dev@6a970c9 | ad97125 |
+| 2026-08-17T09:22:11Z | designing | 002 | - | triton_grouped_topk_001.py | - | 7d694c3 |
+| 2026-08-17T09:30:00Z | coding | 002 | - | triton_grouped_topk_001.py | - | 7d694c3 |
+| 2026-08-17T09:43:00Z | verifying | 002 | - | triton_grouped_topk_001.py | lifecycle threshold repaired after guardrail check | 7d694c3 |
+| 2026-08-17T09:49:22Z | ready | 002 | accepted | triton_grouped_topk_002.py | - | 7d694c3 |
 
 ## Policy Revisions
 
 | Timestamp | Run epoch | Field | Old value | New value | Reason | Commit |
 |---|---:|---|---|---|---|---|
-| 2026-08-17T09:22:11Z | 2 | run_epoch | 1 | 2 | Continue optimization from accepted Round 001 on a fresh branch based on dev@6a970c9. | pending |
+| 2026-08-17T09:22:11Z | 2 | run_epoch | 1 | 2 | Continue optimization from accepted Round 001 on a fresh branch based on dev@6a970c9. | ad97125 |
