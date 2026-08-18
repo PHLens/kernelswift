@@ -103,6 +103,7 @@ total_memory: 43878764544
 | Round | Decision | Candidate | Result | Compared against | Wall ms | Device us/call | Improvement | Hypothesis verdict | Canonical after round |
 |---:|---|---|---|---|---:|---:|---:|---|---|
 | 000 | Phase 0 | `baseline_adapter.py` | baseline | `base.py` | 5.112406 | unavailable: GCU runtime-launch-only | - | not-applicable | `baseline_adapter.py` |
+| 001 | `rounds/decision_001.md` | `triton_fused_moe_001.py` | accepted | `baseline_adapter.py` | 0.498811 | unavailable: GCU runtime-launch-only | +90.52% (10.55x) | confirmed (147→8 launches) | `triton_fused_moe_001.py` |
 
 ## Reproduction
 
