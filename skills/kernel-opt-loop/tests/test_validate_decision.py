@@ -50,6 +50,19 @@ class ValidateDecisionTests(unittest.TestCase):
         self.assertEqual(result["metadata"]["backend"], "gcu")
         self.assertEqual(result["sketch"]["H"][0], "target=triton_gcu")
 
+    def test_cuda_decision_profile_and_target_hint_are_supported(self):
+        text = (FIXTURES / "kernel-valid.md").read_text(encoding="utf-8")
+        text = text.replace('"backend":"mlu"', '"backend":"cuda"', 1)
+        text = text.replace('"target_profile":"triton_mlu"', '"target_profile":"triton_cuda"', 1)
+        text = text.replace("target=triton_mlu", "target=triton_cuda", 1)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "cuda-decision.md"
+            path.write_text(text, encoding="utf-8")
+            result = validate_decision(path, expected_profile="triton_cuda")
+        self.assertTrue(result["valid"])
+        self.assertEqual(result["metadata"]["backend"], "cuda")
+        self.assertEqual(result["sketch"]["H"][0], "target=triton_cuda")
+
     def test_kernel_host_plan_accepts_an_explanatory_reason(self):
         text = (FIXTURES / "kernel-valid.md").read_text(encoding="utf-8")
         text = text.replace("kernel-only change", "no host behavior changes", 1)

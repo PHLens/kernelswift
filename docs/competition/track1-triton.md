@@ -15,7 +15,7 @@
 
 | task | 算子目录 | 语义 |
 |---|---|---|
-| 1 | `groupedtopk` | 分组 top-k 专家路由（已完结：mlu 6.56x、s60 1.68x、maca 3.29x；bi150 运行中） |
+| 1 | `groupedtopk` | 分组 top-k 专家路由（已完结：mlu 6.56x、s60 1.68x、maca 3.29x、bi150 1.71x） |
 | 2 | `flexattention` | 因果 SDPA 融合（已完结：mlu 7.08x） |
 | 3 | `fused_moe` | MoE 路由 + per-expert GEMM（已完结：mlu 50.4x） |
 | 4 | `sparse_pooler` | SPLADE 稀疏池化（已完结：mlu 1.60x） |

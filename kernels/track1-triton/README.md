@@ -6,7 +6,7 @@ task 编号 ↔ 算子目录映射见 [docs/competition/track1-triton.md](../../
 
 | 算子 | `mlu`（寒武纪 MLU590） | `s60`（燧原 GCU） | `maca`（沐曦 C500） | `bi150`（天数智芯） | `ascend910b`（昇腾） |
 |---|---|---|---|---|---|
-| `groupedtopk` | ✅ 完结 · **6.56x**（v4，0.840→0.128 ms） | ✅ 完结 · **1.68x**（r003，0.459→0.274 ms）；r004 +2.06% 未达 5% 阈值 | ✅ 完结 · **3.29x**（r001，0.225→0.068 ms）；r002–004 未达 5% 阈值，stopped | 🔄 运行中 · 分支 `kernel-opt/bi150-prepare-20260818` | — |
+| `groupedtopk` | ✅ 完结 · **6.56x**（v4，0.840→0.128 ms） | ✅ 完结 · **1.68x**（r003，0.459→0.274 ms）；r004 +2.06% 未达 5% 阈值 | ✅ 完结 · **3.29x**（r001，0.225→0.068 ms）；r002–004 未达 5% 阈值，stopped | ✅ 完结 · **1.71x**（r009，0.475→0.277 ms） | — |
 | `flexattention` | ✅ 完结 · **7.08x**（v3，1.006→0.140 ms） | ⛔ 无优化空间 · r000 baseline（0.269 ms）已单 kernel 融合，分支 `kernel-opt/flexattention-s60` | — | — | — |
 | `fused_moe` | ✅ 完结 · **50.4x**（v5，6.94→0.138 ms） | — | — | — | — |
 | `sparse_pooler` | ✅ 完结 · **1.60x**（v4，0.910→0.567 ms） | ⛔ 无优化空间 · r001 融合 -26.79%（手写 Triton 慢于库算子），分支 `kernel-opt/sparse-pooler-s60` | — | — | — |
@@ -34,7 +34,7 @@ S60 campaign 已在 r003 固化 canonical（`0.459285 -> 0.273673 ms`，`1.68x`�
 
 | 算子 | base | campaign 根 | 结论 |
 |---|---|---|---|
-| `groupedtopk` | [base.py](groupedtopk/base.py)（设备无关共享） | [mlu](groupedtopk/mlu/) · [s60](groupedtopk/s60/) · [maca](groupedtopk/maca/) | [mlu outcome](groupedtopk/mlu/outcome.md) · [s60 final summary](groupedtopk/s60/final_summary.md) · [maca final summary](groupedtopk/maca/final_summary.md) |
+| `groupedtopk` | [base.py](groupedtopk/base.py)（设备无关共享） | [mlu](groupedtopk/mlu/) · [s60](groupedtopk/s60/) · [maca](groupedtopk/maca/) · [bi150](../../bi150/groupedtopk/) | [mlu outcome](groupedtopk/mlu/outcome.md) · [s60 final summary](groupedtopk/s60/final_summary.md) · [maca final summary](groupedtopk/maca/final_summary.md) · [bi150 r009 report](../../bi150/groupedtopk/rounds/report_009.md) |
 | `flexattention` | [base.py](flexattention/base.py)（设备无关共享） | [mlu](flexattention/mlu/) · [s60](flexattention/s60/) | [mlu outcome](flexattention/mlu/outcome.md) · [s60 project](flexattention/s60/project.md) |
 | `fused_moe` | [base.py](fused_moe/base.py) | [mlu](fused_moe/mlu/) | [outcome](fused_moe/mlu/outcome.md)（bangc 探针见 track2） |
 | `sparse_pooler` | [base.py](sparse_pooler/base.py)（设备无关共享） | [mlu](sparse_pooler/mlu/) · [s60](sparse_pooler/s60/) | [mlu project](sparse_pooler/mlu/project.md) · [s60 project](sparse_pooler/s60/project.md) |
