@@ -8,7 +8,7 @@ task 编号 ↔ 算子目录映射见 [docs/competition/track1-triton.md](../../
 |---|---|---|---|---|---|
 | `groupedtopk` | ✅ 完结 · **6.56x**（v4，0.840→0.128 ms） | ✅ 完结 · **1.68x**（r003，0.459→0.274 ms）；r004 +2.06% 未达 5% 阈值 | ✅ 完结 · **3.29x**（r001，0.225→0.068 ms）；r002–004 未达 5% 阈值，stopped | 🔄 运行中 · 分支 `kernel-opt/bi150-prepare-20260818` | — |
 | `flexattention` | ✅ 完结 · **7.08x**（v3，1.006→0.140 ms） | ⛔ 无优化空间 · r000 baseline（0.269 ms）已单 kernel 融合，分支 `kernel-opt/flexattention-s60` | — | — | — |
-| `fused_moe` | ✅ 完结 · **50.4x**（v5，6.94→0.138 ms） | 🔄 运行中 · r001 **10.55x**（5.26→0.499 ms，147→8 launches），分支 `kernel-opt/fused-moe-s60` | — | — | — |
+| `fused_moe` | ✅ 完结 · **50.4x**（v5，6.94→0.138 ms） | 🔄 运行中 · r002 **~14.3x**（147→3 launches），分支 `kernel-opt/fused-moe-s60` | — | — | — |
 | `sparse_pooler` | ✅ 完结 · **1.60x**（v4，0.910→0.567 ms） | — | — | — | — |
 | `music_flamingo_rotary_embedding` | 📦 base.py 就绪（待 Phase 0） | — | — | — | — |
 | `mm_encoder_attention` | 📦 base.py 就绪（待 Phase 0） | — | — | — | — |

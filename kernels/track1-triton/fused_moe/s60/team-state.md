@@ -62,6 +62,10 @@ are `accepted|no-improvement|screened-out|design-rejected|candidate-failed|abort
 | 2026-08-18T10:48:00Z | repairing | 001 | candidate-failed | baseline_adapter.py | slice-index compile error | 1ce7c86 |
 | 2026-08-18T10:50:00Z | verifying | 001 | - | baseline_adapter.py | - | 1ce7c86 |
 | 2026-08-18T10:52:00Z | ready | 001 | accepted | triton_fused_moe_001.py | - | 1ce7c86 |
+| 2026-08-18T11:00:00Z | designing | 002 | - | triton_fused_moe_001.py | - | - |
+| 2026-08-18T11:05:00Z | coding | 002 | - | triton_fused_moe_001.py | - | - |
+| 2026-08-18T11:10:00Z | verifying | 002 | - | triton_fused_moe_001.py | - | - |
+| 2026-08-18T11:15:00Z | ready | 002 | accepted | triton_fused_moe_002.py | - | - |
 
 ## Policy Revisions
 
