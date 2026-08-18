@@ -112,6 +112,7 @@ total_memory: 43878764544
 | 000 | Phase 0 | `baseline_adapter.py` | baseline | `base.py` | 0.465926 | unavailable: GCU runtime-launch-only | - | not-applicable | `baseline_adapter.py` |
 | 001 | `rounds/decision_001.md` | `triton_rotary_001.py` | no-improvement | `baseline_adapter.py` | 5.162427 | unavailable: GCU runtime-launch-only | -1010.99% (0.09x) | falsified (launch 13→1 but single-program device serial) | `baseline_adapter.py` |
 | 002 | `rounds/decision_002.md` | `triton_rotary_002.py` | no-improvement | `baseline_adapter.py` | 0.525050 | unavailable: GCU runtime-launch-only | -13.00% (0.91x) | partially-confirmed (grid fixed, device 5.15→0.53ms, still +13% vs eager) | `baseline_adapter.py` |
+| 003 | `rounds/decision_003.md` | not-created | aborted | `baseline_adapter.py` | - | - | - | not-applicable (measurement-bound) | `baseline_adapter.py` |
 
 ## Reproduction
 

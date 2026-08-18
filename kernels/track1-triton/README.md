@@ -10,7 +10,7 @@ task 编号 ↔ 算子目录映射见 [docs/competition/track1-triton.md](../../
 | `flexattention` | ✅ 完结 · **7.08x**（v3，1.006→0.140 ms） | ⛔ 无优化空间 · r000 baseline（0.269 ms）已单 kernel 融合，分支 `kernel-opt/flexattention-s60` | — | — | — |
 | `fused_moe` | ✅ 完结 · **50.4x**（v5，6.94→0.138 ms） | — | — | — | — |
 | `sparse_pooler` | ✅ 完结 · **1.60x**（v4，0.910→0.567 ms） | — | — | — | — |
-| `music_flamingo_rotary_embedding` | 📦 base.py 就绪（待 Phase 0） | — | — | — | — |
+| `music_flamingo_rotary_embedding` | 📦 base.py 就绪（待 Phase 0） | ⛔ 无优化空间 · r002 融合 -13%（手写 Triton 慢于库 cos/sin），分支 `kernel-opt/rotary-embedding-s60` | — | — | — |
 | `mm_encoder_attention` | 📦 base.py 就绪（待 Phase 0） | — | — | — | — |
 | `mhc_post_layer_mix` | 📦 base.py 就绪（待 Phase 0） | — | — | — | — |
 | `mhc_head_compute_mix` | 📦 base.py 就绪（待 Phase 0） | — | — | — | — |
