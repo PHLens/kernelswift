@@ -5,18 +5,18 @@ phase: ready
 workflow_status: running
 run_epoch: 1
 project_started_at: 2026-08-18T05:02:14Z
-current_round: "008"
-last_completed_round: "008"
-last_accepted_round: "008"
-last_accepted_kernel: triton_grouped_topk_008.py
-last_accepted_report: rounds/report_008.md
-last_completed_decision: rounds/decision_008.md
-last_completed_coder_result: rounds/coder_result_008.md
-last_completed_report: rounds/report_008.md
+current_round: "009"
+last_completed_round: "009"
+last_accepted_round: "009"
+last_accepted_kernel: triton_grouped_topk_009.py
+last_accepted_report: rounds/report_009.md
+last_completed_decision: rounds/decision_009.md
+last_completed_coder_result: rounds/coder_result_009.md
+last_completed_report: rounds/report_009.md
 last_result: accepted
 performance_miss_streak: 0
 failed_attempt_streak: 0
-total_rounds: 8
+total_rounds: 9
 max_rounds: 20
 valid_no_improvement_limit: 3
 adoption_threshold_pct: 5
@@ -25,7 +25,7 @@ target_mode: null
 target_value: null
 target_measurement_fingerprint: null
 target_source: null
-last_checkpoint_round: 6
+last_checkpoint_round: 9
 base_branch: dev
 base_commit: 6a970c921dfb0c031b885190122ce1335d8d4cd7
 run_branch: kernel-opt/bi150-prepare-20260818
@@ -73,6 +73,11 @@ Only Orchestrator updates this manifest. `workflow_status` expresses the campaig
 | 2026-08-18T07:56:10Z | coding | 008 | - | triton_grouped_topk_004.py | - | - |
 | 2026-08-18T08:00:34Z | verifying | 008 | - | triton_grouped_topk_004.py | - | - |
 | 2026-08-18T08:26:51Z | ready | 008 | accepted | triton_grouped_topk_008.py | - | - |
+| 2026-08-18T08:40:12Z | designing | 009 | - | triton_grouped_topk_008.py | - | - |
+| 2026-08-18T10:38:51Z | coding | 009 | - | triton_grouped_topk_008.py | - | - |
+| 2026-08-18T10:39:24Z | coding | 009 | paused-by-user | triton_grouped_topk_008.py | user-pause-device-handoff | - |
+| 2026-08-18T11:02:00Z | verifying | 009 | - | triton_grouped_topk_008.py | - | - |
+| 2026-08-18T11:20:00Z | ready | 009 | accepted | triton_grouped_topk_009.py | - | - |
 
 ## Policy Revisions
 

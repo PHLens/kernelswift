@@ -6,7 +6,7 @@
 - accepted_kernel: `triton_grouped_topk_008.py`
 - accepted_report: `rounds/report_008.md`
 - recent_three_round_evidence: `Rounds 005 to 007 established that direct modifications cannot clear a five-percent wall gain while exact library top-k selection remains mandatory. Round 008 found a new host mechanism: constrained torch.compile dispatch preserved the accepted two-stage Triton algorithm and exact tie behavior, then achieved 19.987917795% paired median wall improvement with device time 111.120595703125 us/call.`
-- open_hypotheses: `The compiled two-stage candidate is canonical. Future designs must start from triton_grouped_topk_008.py and preserve exact torch.topk ties, constructor-owned compiled-callable lifecycle, current stream/device behavior, per-forward buffer ownership, and eager fallback behavior.`
+- open_hypotheses: `The compiled two-stage candidate is canonical. H-009 (compile-mode-reduce-overhead) is validated and in flight: compile the accepted fixed-shape forward with torch.compile mode reduce-overhead, preserving exact torch.topk ties, compiled-callable lifecycle, current stream/device behavior, per-forward buffer ownership, and eager fallback. Resume Round 009 by gating triton_grouped_topk_009.py on BI150, then verify.`
 - artifact_read_hashes: `project.md, team-state.md, designer_context.md, triton_grouped_topk_004.py, report_004.md, decisions_001_to_004.md, coder_results_002_to_004.md, triton_cuda.md, decision-template.md, invariants.md, bottleneck-judgment.md, and anti-patterns.md read for Round 005.`
 
 ## Current Bottleneck
@@ -54,3 +54,4 @@
 | `triton_grouped_topk_008.py` | `d1fb6b03d3be92cdd6423f1f44f33ea81d13f0e4df18227fe2d5f7dceb582535` | 008 |
 | `rounds/coder_result_008.md` | `255ac5a2a36a162e17701f91233d258895790b144d711fd8c9540ed3bd4dae94` | 008 |
 | `rounds/report_008.md` | `f1fa38cef46804c96be6c4eb3f5eddeaa7ec509830dae6f2bea58f8be0e2b3b7` | 008 |
+| `rounds/decision_009.md` | `066045e737fa1aedcc283c4058d2eceb28b8630013c7b93342abdb516af908b8` | 009 |
