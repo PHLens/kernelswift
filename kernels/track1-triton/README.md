@@ -11,7 +11,7 @@ task 编号 ↔ 算子目录映射见 [docs/competition/track1-triton.md](../../
 | `fused_moe` | ✅ 完结 · **50.4x**（v5，6.94→0.138 ms） | — | — | — | — |
 | `sparse_pooler` | ✅ 完结 · **1.60x**（v4，0.910→0.567 ms） | — | — | — | — |
 | `music_flamingo_rotary_embedding` | 📦 base.py 就绪（待 Phase 0） | — | — | — | — |
-| `mm_encoder_attention` | 📦 base.py 就绪（待 Phase 0） | — | — | — | — |
+| `mm_encoder_attention` | 📦 base.py 就绪（待 Phase 0） | ⛔ 无优化空间 · 单 kernel SDPA（1 launch），分支 `kernel-opt/mm-encoder-attn-s60` | — | — | — |
 | `mhc_post_layer_mix` | 📦 base.py 就绪（待 Phase 0） | — | — | — | — |
 | `mhc_head_compute_mix` | 📦 base.py 就绪（待 Phase 0） | — | — | — | — |
 | `centre_random_augmentation` | 📦 base.py 就绪（待 Phase 0） | — | — | — | — |
