@@ -37,7 +37,7 @@ S60 campaign 已在 r003 固化 canonical（`0.459285 -> 0.273673 ms`，`1.68x`�
 | `groupedtopk` | [base.py](groupedtopk/base.py)（设备无关共享） | [mlu](groupedtopk/mlu/) · [s60](groupedtopk/s60/) · [maca](groupedtopk/maca/) | [mlu outcome](groupedtopk/mlu/outcome.md) · [s60 final summary](groupedtopk/s60/final_summary.md) · [maca final summary](groupedtopk/maca/final_summary.md) |
 | `flexattention` | [base.py](flexattention/base.py)（设备无关共享） | [mlu](flexattention/mlu/) · [s60](flexattention/s60/) | [mlu outcome](flexattention/mlu/outcome.md) · [s60 project](flexattention/s60/project.md) |
 | `fused_moe` | [base.py](fused_moe/base.py) | [mlu](fused_moe/mlu/) | [outcome](fused_moe/mlu/outcome.md)（bangc 探针见 track2） |
-| `sparse_pooler` | [base.py](sparse_pooler/base.py) | [mlu](sparse_pooler/mlu/) | [project](sparse_pooler/mlu/project.md) |
+| `sparse_pooler` | [base.py](sparse_pooler/base.py)（设备无关共享） | [mlu](sparse_pooler/mlu/) · [s60](sparse_pooler/s60/) | [mlu project](sparse_pooler/mlu/project.md) · [s60 project](sparse_pooler/s60/project.md) |
 | `music_flamingo_rotary_embedding` | [base.py](music_flamingo_rotary_embedding/base.py) | 待 Phase 0 | — |
 | `mm_encoder_attention` | [base.py](mm_encoder_attention/base.py) | 待 Phase 0 | — |
 | `mhc_post_layer_mix` | [base.py](mhc_post_layer_mix/base.py) | 待 Phase 0 | — |
