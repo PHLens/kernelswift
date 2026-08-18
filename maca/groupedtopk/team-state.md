@@ -2,22 +2,22 @@
 schema_version: 1
 skill_version: 2.0.0
 runtime: codex
-phase: ready
-workflow_status: running
+phase: stopped
+workflow_status: stopped
 run_epoch: 1
 project_started_at: 2026-08-18T05:01:57Z
-current_round: "003"
-last_completed_round: "003"
+current_round: "004"
+last_completed_round: "004"
 last_accepted_round: "001"
 last_accepted_kernel: triton_grouped_topk_001.py
 last_accepted_report: rounds/report_001.md
-last_completed_decision: rounds/decision_003.md
-last_completed_coder_result: rounds/coder_result_003.md
-last_completed_report: rounds/report_003.md
+last_completed_decision: rounds/decision_004.md
+last_completed_coder_result: rounds/coder_result_004.md
+last_completed_report: rounds/report_004.md
 last_result: no-improvement
-performance_miss_streak: 2
+performance_miss_streak: 3
 failed_attempt_streak: 0
-total_rounds: 3
+total_rounds: 4
 max_rounds: 20
 valid_no_improvement_limit: 3
 adoption_threshold_pct: 5
@@ -36,8 +36,8 @@ implementation_backend: maca
 target_profile: triton_maca
 runtime_fingerprint_ref: project.md#runtime-fingerprint
 blocked_incident: null
-stop_reason: null
-stop_timestamp: null
+stop_reason: valid-no-improvement-limit
+stop_timestamp: 2026-08-18T10:12:07Z
 resume_eligible: always
 resume_constraints: []
 ---
@@ -78,6 +78,11 @@ change, incident, or commit yet.
 | 2026-08-18T08:42:55Z | coding | 003 | - | `triton_grouped_topk_001.py` | - | `e379bc4` |
 | 2026-08-18T08:54:21Z | verifying | 003 | - | `triton_grouped_topk_001.py` | - | `e379bc4` |
 | 2026-08-18T09:12:56Z | ready | 003 | no-improvement | `triton_grouped_topk_001.py` | - | - |
+| 2026-08-18T09:16:40Z | designing | 004 | - | `triton_grouped_topk_001.py` | - | `e24708a` |
+| 2026-08-18T09:25:14Z | coding | 004 | - | `triton_grouped_topk_001.py` | - | `e24708a` |
+| 2026-08-18T09:37:52Z | verifying | 004 | - | `triton_grouped_topk_001.py` | - | `e24708a` |
+| 2026-08-18T09:56:48Z | ready | 004 | no-improvement | `triton_grouped_topk_001.py` | - | `ca15c4e` |
+| 2026-08-18T10:12:07Z | stopped | 004 | - | `triton_grouped_topk_001.py` | third consecutive valid no-improvement reaches `valid_no_improvement_limit` (3) | `ca15c4e` |
 
 ## Policy Revisions
 
