@@ -5,18 +5,18 @@ phase: ready
 workflow_status: running
 run_epoch: 1
 project_started_at: 2026-08-18T05:02:14Z
-current_round: "004"
-last_completed_round: "004"
+current_round: "005"
+last_completed_round: "005"
 last_accepted_round: "004"
 last_accepted_kernel: triton_grouped_topk_004.py
 last_accepted_report: rounds/report_004.md
-last_completed_decision: rounds/decision_004.md
-last_completed_coder_result: rounds/coder_result_004.md
-last_completed_report: rounds/report_004.md
-last_result: accepted
+last_completed_decision: rounds/decision_005.md
+last_completed_coder_result: null
+last_completed_report: null
+last_result: aborted
 performance_miss_streak: 0
-failed_attempt_streak: 0
-total_rounds: 4
+failed_attempt_streak: 1
+total_rounds: 5
 max_rounds: 20
 valid_no_improvement_limit: 3
 adoption_threshold_pct: 5
@@ -63,6 +63,8 @@ Only Orchestrator updates this manifest. `workflow_status` expresses the campaig
 | 2026-08-18T06:11:59Z | coding | 004 | - | baseline_adapter.py | - | - |
 | 2026-08-18T06:29:07Z | verifying | 004 | - | baseline_adapter.py | - | - |
 | 2026-08-18T06:46:26Z | ready | 004 | accepted | triton_grouped_topk_004.py | - | - |
+| 2026-08-18T07:01:47Z | designing | 005 | - | triton_grouped_topk_004.py | - | - |
+| 2026-08-18T07:06:45Z | ready | 005 | aborted | triton_grouped_topk_004.py | - | - |
 
 ## Policy Revisions
 
