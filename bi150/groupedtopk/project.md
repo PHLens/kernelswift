@@ -104,6 +104,7 @@ These fields mirror `team-state.md` and identify the dedicated optimization bran
 |---:|---|---|---|---|---:|---:|---:|---|---|
 | 000 | Phase 0 | `baseline_adapter.py` | baseline | `base.py` | 0.474995 | 179.0703515625 | - | not-applicable | `baseline_adapter.py` |
 | 001 | `rounds/decision_001.md` | not-created | aborted | `baseline_adapter.py` | - | - | - | capability-miss | `baseline_adapter.py` |
+| 002 | `rounds/decision_002.md` | `triton_grouped_topk_002.py` | candidate-failed | `baseline_adapter.py` | - | - | - | topk-tie-ordering-active-set-mismatch | `baseline_adapter.py` |
 
 ## Reproduction
 
