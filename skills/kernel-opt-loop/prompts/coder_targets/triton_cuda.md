@@ -43,18 +43,29 @@ or a stable device-time interpretation until a local scoped export proves them.
 
 | Primitive | Status | Constraint | Evidence | Failure classification |
 |---|---|---|---|---|
-| `tl.load` | Supported | Masked contiguous one-dimensional float32 loads in the recorded vector-add probe only. | `scripts/bi150_triton_smoke.py`; `docs/bi150-kernel-opt-loop-prep.md` | Local misuse is implementation repair; runtime mismatch is environment-blocked. |
-| `tl.store` | Supported | Contiguous stores with the recorded output shape and dtype only. | `scripts/bi150_triton_smoke.py`; `docs/bi150-kernel-opt-loop-prep.md` | Local misuse is implementation repair; runtime mismatch is environment-blocked. |
-| `tl.arange` | Supported | Extent `256` in the recorded one-dimensional probe only. | `scripts/bi150_triton_smoke.py`; `docs/bi150-kernel-opt-loop-prep.md` | Unsupported required extent is capability-miss. |
-| `tl.program_id` | Supported | Axis `0` in a one-dimensional launch only. | `scripts/bi150_triton_smoke.py`; `docs/bi150-kernel-opt-loop-prep.md` | Incorrect mapping is implementation repair. |
+| `tl.load` | Supported | Contiguous one-dimensional float32 loads at extent `256`. | `scripts/bi150_triton_smoke.py`; `scripts/bi150_groupedtopk_probe.py` | Local misuse is implementation repair; runtime mismatch is environment-blocked. |
+| `tl.store` | Supported | Contiguous stores for one-dimensional extents `256`, `8`, and `1` with float32/int32 outputs. | `scripts/bi150_triton_smoke.py`; `scripts/bi150_groupedtopk_probe.py` | Local misuse is implementation repair; runtime mismatch is environment-blocked. |
+| `tl.arange` | Supported | Extents `256` and `8` in one-dimensional launches. | `scripts/bi150_triton_smoke.py`; `scripts/bi150_groupedtopk_probe.py` | Unsupported required extent is capability-miss. |
+| `tl.program_id` | Supported | Axis `0` in a one-dimensional launch. | `scripts/bi150_triton_smoke.py` | Incorrect mapping is implementation repair. |
+| `tl.reshape` | Supported | Element-count-preserving `(256,)` to `(8,32)` and `(8,)` to `(8,1)` reshapes. | `scripts/bi150_groupedtopk_probe.py` | Invalid shape is implementation repair. |
+| `tl.max` | Supported | Axis-`1` reduction over `(8,32)` and axis-`0` reduction over `(256,)`; float32 only. | `scripts/bi150_groupedtopk_probe.py` | Unsupported required reduction shape/dtype is capability-miss. |
+| `tl.sum` | Supported | Axis-`1` reduction over `(8,32)` and axis-`0` reduction over `(256,)`; float32 only. | `scripts/bi150_groupedtopk_probe.py` | Unsupported required reduction shape/dtype is capability-miss. |
+| `tl.exp` | Supported | Elementwise float32 exponential over a contiguous `(256,)` vector. | `scripts/bi150_groupedtopk_probe.py` | Unsupported required math is capability-miss. |
+| `tl.argmax` | Supported | Axis-`0` argmax over an `(8,)` float32 vector with a unique maximum. | `scripts/bi150_groupedtopk_probe.py` | Incorrect index mapping is implementation repair; unproven tie semantics remain constrained. |
+| `tl.zeros` | Supported | One-dimensional `(8,)` float32 value tensor. | `scripts/bi150_groupedtopk_probe.py` | Unsupported required shape/dtype is capability-miss. |
+| `tl.full` | Supported | One-dimensional `(8,)` and `(8,32)` float32 fills. | `scripts/bi150_groupedtopk_probe.py` | Unsupported required shape/dtype is capability-miss. |
+| `tl.where` | Supported | Boolean selection over `(8,)` and `(8,32)` float32 values. | `scripts/bi150_groupedtopk_probe.py` | Incorrect masking is implementation repair. |
+| `tl.broadcast_to` | Supported | `(8,1)` to `(8,32)` broadcast in the grouped probe. | `scripts/bi150_groupedtopk_probe.py` | Unsupported required shape is capability-miss. |
+| `tl.static_range` | Supported | Compile-time loop with four iterations in the grouped probe. | `scripts/bi150_groupedtopk_probe.py` | Unsupported required control construct is capability-miss. |
 
 ## Constrained Primitives
 
 | Primitive | Status | Constraint | Evidence | Failure classification |
 |---|---|---|---|---|
-| `masked elementwise indexing` | Constrained | The probe covers `offs < n_elements` masking only; gather/scatter, multidimensional indexing, and aliasing behavior remain unproven. | `scripts/bi150_triton_smoke.py`; `docs/bi150-kernel-opt-loop-prep.md` | An unproven normative indexing requirement is capability-miss. |
-| `launch configuration` | Constrained | The recorded probe uses a one-dimensional grid and `BLOCK=256`; no explicit `num_warps` or `num_stages` hint is established. | `scripts/bi150_triton_smoke.py`; `docs/bi150-kernel-opt-loop-prep.md` | An unavailable required launch requirement is capability-miss; an incorrect optional setting is implementation repair. |
-| `dtype and layout regime` | Constrained | Only contiguous `fp32` vectors are proven by the matched probe. | `scripts/bi150_triton_smoke.py`; `docs/bi150-kernel-opt-loop-prep.md` | An unproven normative shape, layout, or dtype requirement is capability-miss. |
+| `masked elementwise indexing` | Constrained | The matched probe covers contiguous `(8,32)` masking and reshape-backed storage only; gather/scatter, arbitrary multidimensional indexing, and aliasing remain unproven. | `scripts/bi150_groupedtopk_probe.py` | An unproven normative indexing requirement is capability-miss. |
+| `argmax tie and repeated selection` | Constrained | The probe covers one unique maximum only; repeated top-k selection and PyTorch-compatible tie ordering remain to be established. | `scripts/bi150_groupedtopk_probe.py` | An unproven normative tie or selection requirement is capability-miss. |
+| `launch configuration` | Constrained | The matched probes use a one-dimensional grid and direct launch; no explicit `num_warps` or `num_stages` hint is established. | `scripts/bi150_triton_smoke.py`; `scripts/bi150_groupedtopk_probe.py` | An unavailable required launch requirement is capability-miss; an incorrect optional setting is implementation repair. |
+| `dtype and layout regime` | Constrained | Contiguous float32 vectors and `(8,32)` row layout are proven; mixed precision, non-contiguous inputs, and arbitrary layouts remain unproven. | `scripts/bi150_groupedtopk_probe.py` | An unproven normative shape, layout, or dtype requirement is capability-miss. |
 
 ## Unsupported Primitives
 
@@ -70,17 +81,7 @@ without matched local evidence.
 
 | Primitive | Status | Constraint | Evidence | Failure classification |
 |---|---|---|---|---|
-| `tl.zeros` | Unknown | No qualifying BI150 probe for the required shape or dtype. | No qualifying BI150 probe | An unprovable normative use is capability-miss. |
-| `tl.reshape` | Unknown | No matched probe establishes legal shapes or layout-preserving behavior. | No qualifying BI150 probe | An unprovable normative use is capability-miss. |
-| `tl.max` | Unknown | No matched reduction probe is recorded. | No qualifying BI150 probe | An unprovable normative reduction is capability-miss. |
-| `tl.argmax` | Unknown | No matched reduction probe or tie-behavior characterization is recorded. | No qualifying BI150 probe | An unprovable normative reduction is capability-miss. |
-| `tl.sum` | Unknown | No matched reduction probe is recorded. | No qualifying BI150 probe | An unprovable normative reduction is capability-miss. |
-| `tl.exp` | Unknown | No matched transcendental-math probe is recorded. | No qualifying BI150 probe | An unprovable normative math requirement is capability-miss. |
-| `tl.where` | Unknown | No matched masked-select probe is recorded. | No qualifying BI150 probe | An unprovable normative mask requirement is capability-miss. |
 | `tl.dot` | Unknown | No qualifying probe for the required shape, dtype, or lowering path. | No qualifying BI150 probe | An unprovable normative use is capability-miss. |
-| `tl.broadcast_to` | Unknown | No matched broadcast probe is recorded. | No qualifying BI150 probe | An unprovable normative shape requirement is capability-miss. |
-| `tl.full` | Unknown | No matched fill probe is recorded. | No qualifying BI150 probe | An unprovable normative fill requirement is capability-miss. |
-| `tl.static_range` | Unknown | No matched compile-time loop probe is recorded. | No qualifying BI150 probe | An unprovable normative control requirement is capability-miss. |
 | `tl.make_block_ptr` | Unknown | Memory-placement and pointer semantics require a matched local probe. | No qualifying BI150 probe | An unprovable normative use is capability-miss. |
 | `vectorize` | Unknown | Accepted values and backend effect require a matched local probe. | No qualifying BI150 probe | An unprovable normative use is capability-miss. |
 | `async_copy` | Unknown | Availability, synchronization, and memory semantics require a matched local probe. | No qualifying BI150 probe | An unprovable normative use is capability-miss. |
@@ -113,8 +114,9 @@ deviation.
   harness, not a direct import alone.
 - No matched profiler export is recorded; do not plan mechanism observables that
   require unproven device-time fields.
-- `num_warps`, `num_stages`, reductions, `tl.dot`, block pointers, and mixed
-  precision remain unproven on this profile revision.
+- `num_warps`, `num_stages`, `tl.dot`, block pointers, and mixed precision remain
+  unproven on this profile revision; repeated argmax tie behavior remains
+  constrained rather than proven.
 
 ## Evidence Ledger
 
@@ -123,5 +125,6 @@ deviation.
 | BI150 shells require a CoreX environment bootstrap before `torch`, `triton`, and `ixsmi` work. | `docs/bi150-kernel-opt-loop-prep.md` | Recorded BI150 / CoreX 4.4.0 environment only. |
 | After bootstrap, `torch.cuda` exposes `Iluvatar BI-V150` with `major=7, minor=1`, `multi_processor_count=16`, and `total_memory=17179869184`. | `docs/bi150-kernel-opt-loop-prep.md`; `scripts/bi150_triton_smoke.py` | One BI150 device on the recorded runtime only. |
 | Direct Triton launch, `tl.program_id`, `tl.arange`, `tl.load`, and `tl.store` execute with checked results on the recorded BI150 runtime. | `scripts/bi150_triton_smoke.py`; `docs/bi150-kernel-opt-loop-prep.md` | One-dimensional vector-add probe with contiguous `fp32` tensors and `device="cuda"` only. |
-| `torch.cuda.synchronize()` is the observed synchronization boundary for the matched probe. | `scripts/bi150_triton_smoke.py`; `docs/bi150-kernel-opt-loop-prep.md` | Same BI150 runtime and probe only. |
-| `fast_libentry`, reductions, dot, block pointers, explicit launch hints, stream semantics, and profiler interpretation remain unproven. | This profile and absence of a qualifying probe. | Unknown is not treated as Supported or Unsupported. |
+| Grouped-topk-shaped reductions, reshape, argmax, exp, sum, where, broadcast, full, zeros, static-range, and masked stores execute with checked results on BI150. | `scripts/bi150_groupedtopk_probe.py` | One program over a contiguous float32 vector of length 256 reshaped to `(8,32)`; unique argmax maximum only. |
+| `torch.cuda.synchronize()` is the observed synchronization boundary for the matched probes. | `scripts/bi150_triton_smoke.py`; `scripts/bi150_groupedtopk_probe.py` | Same BI150 runtime and probe regime only. |
+| `tl.dot`, block pointers, explicit launch hints, stream/context lifecycle semantics, mixed precision, and profiler interpretation beyond the recorded CUDA trace remain unproven. | This profile and absence of a qualifying probe. | Unknown is not treated as Supported or Unsupported. |

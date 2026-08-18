@@ -609,6 +609,7 @@ class RoleContractTests(unittest.TestCase):
             "backend: cuda",
             "target_profile: triton_cuda",
             "scripts/bi150_triton_smoke.py",
+            "scripts/bi150_groupedtopk_probe.py",
             "docs/bi150-kernel-opt-loop-prep.md",
             "Iluvatar BI-V150",
             "device=\"cuda\"",
