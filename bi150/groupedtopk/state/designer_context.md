@@ -1,11 +1,11 @@
 # Designer Context State
 
 - role_contract_sha256: `d32060e9953982eca29c19d6ed7469c2fb5c06ea686385be5da10219981addef`
-- context_epoch: `6`
-- last_completed_round: `005`
+- context_epoch: `7`
+- last_completed_round: `006`
 - accepted_kernel: `triton_grouped_topk_004.py`
 - accepted_report: `rounds/report_004.md`
-- recent_three_round_evidence: `Round 002 custom selection failed structured group-tie exact IDs. Round 003 one-kernel partial fusion was design-rejected because post-selection masking needs library-produced group_idx. Round 004 two-stage fusion retained exact library topk boundaries and was accepted at 7.455430192% paired median wall improvement with device time 127.260771484375 us/call. Round 005 aborts: remaining exact library selection dominates, while the isolated int32 copy is too small to support a five-percent wall claim.`
+- recent_three_round_evidence: `Round 002 custom selection failed structured group-tie exact IDs. Round 003 one-kernel partial fusion was design-rejected because post-selection masking needs library-produced group_idx. Round 004 two-stage fusion retained exact library topk boundaries and was accepted at 7.455430192% paired median wall improvement with device time 127.260771484375 us/call. Round 005 and Round 006 aborts: remaining exact library selection dominates, while the isolated int32 copy is too small to support a five-percent wall claim.`
 - open_hypotheses: `No current >=5% falsifiable intervention. Reconsider only with matched BI150 evidence for a semantics-preserving exact-library selection reduction or another independent mechanism capable of clearing the 5% wall threshold without changing tie semantics, stream/device ownership, per-forward buffers, or fallback behavior.`
 - artifact_read_hashes: `project.md, team-state.md, designer_context.md, triton_grouped_topk_004.py, report_004.md, decisions_001_to_004.md, coder_results_002_to_004.md, triton_cuda.md, decision-template.md, invariants.md, bottleneck-judgment.md, and anti-patterns.md read for Round 005.`
 
@@ -47,3 +47,4 @@
 | `rounds/coder_result_004.md` | `aba12a62645a7d789a9a172fb55efe0eac86784c5c81ab86fa29c8d069c79e1c` | 005 |
 | `rounds/report_004.md` | `40400c3764ebcbf3825ba0530a59e3f7d081e5728dfd5068a64c26476874cd23` | 005 |
 | `rounds/decision_005.md` | `ce1e0f7808982c90273959eb6b07783925085bd63f5d959bd5e810a740d6160e` | 005 |
+| `rounds/decision_006.md` | `4da137fb5d59463663e71b08fefa5421f8377560396538c8759b33cec53045bf` | 006 |
