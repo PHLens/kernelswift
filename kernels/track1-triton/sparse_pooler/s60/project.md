@@ -106,6 +106,7 @@ total_memory: 43878764544
 | Round | Decision | Candidate | Result | Compared against | Wall ms | Device us/call | Improvement | Hypothesis verdict | Canonical after round |
 |---:|---|---|---|---|---:|---:|---:|---|---|
 | 000 | Phase 0 | `baseline_adapter.py` | baseline | `base.py` | 0.862541 | unavailable: GCU runtime-launch-only | - | not-applicable | `baseline_adapter.py` |
+| 001 | `rounds/decision_001.md` | `triton_sparse_pooler_001.py` | no-improvement | `baseline_adapter.py` | 1.092186 | unavailable: GCU runtime-launch-only | -26.79% (0.79x) | falsified (launch 11→6 but device slower) | `baseline_adapter.py` |
 
 ## Reproduction
 
