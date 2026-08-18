@@ -6,18 +6,18 @@ phase: ready
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-17T09:22:11Z
-current_round: "007"
-last_completed_round: "007"
+current_round: "008"
+last_completed_round: "008"
 last_accepted_round: "003"
 last_accepted_kernel: triton_grouped_topk_003.py
 last_accepted_report: rounds/report_003.md
-last_completed_decision: rounds/decision_007.md
+last_completed_decision: rounds/decision_008.md
 last_completed_coder_result: null
 last_completed_report: null
 last_result: aborted
 performance_miss_streak: 1
-failed_attempt_streak: 3
-total_rounds: 7
+failed_attempt_streak: 4
+total_rounds: 8
 max_rounds: 20
 valid_no_improvement_limit: 3
 adoption_threshold_pct: 5
@@ -79,6 +79,10 @@ Terminal results are `accepted|no-improvement|screened-out|design-rejected|candi
 | 2026-08-18T04:47:29Z | ready | 006 | aborted | triton_grouped_topk_003.py | no new Verifier-backed evidence for a distinct >=5% path | e76e948 |
 | 2026-08-18T04:55:39Z | designing | 007 | - | triton_grouped_topk_003.py | - | 053994f |
 | 2026-08-18T04:58:43Z | ready | 007 | aborted | triton_grouped_topk_003.py | no candidate-owned >=5% path after environment access was restored | 053994f |
+| 2026-08-18T05:00:34Z | measuring | 008 | - | triton_grouped_topk_003.py | matched GCU probe requested by Round 007 evidence boundary | - |
+| 2026-08-18T05:12:09Z | ready | 008 | - | triton_grouped_topk_003.py | named probe complete; no candidate terminal result | b608e52 |
+| 2026-08-18T05:13:16Z | designing | 008 | - | triton_grouped_topk_003.py | returned from named probe with new evidence | - |
+| 2026-08-18T05:18:28Z | ready | 008 | aborted | triton_grouped_topk_003.py | matched probe found no defensible >=5% candidate path | 7e5927a |
 
 ## Policy Revisions
 

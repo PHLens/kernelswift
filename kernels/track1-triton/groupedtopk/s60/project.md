@@ -107,6 +107,7 @@ total_memory: 41846MB
 | 005 | `rounds/decision_005.md` | - | aborted | - | - | - | - | not-applicable | `triton_grouped_topk_003.py` |
 | 006 | `rounds/decision_006.md` | - | aborted | - | - | - | - | not-applicable | `triton_grouped_topk_003.py` |
 | 007 | `rounds/decision_007.md` | - | aborted | - | - | - | - | not-applicable | `triton_grouped_topk_003.py` |
+| 008 | `rounds/decision_008.md` | - | aborted | - | - | - | - | not-applicable | `triton_grouped_topk_003.py` |
 
 ## Reproduction
 
