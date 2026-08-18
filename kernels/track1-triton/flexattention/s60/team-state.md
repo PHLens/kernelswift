@@ -6,18 +6,18 @@ phase: ready
 workflow_status: running
 run_epoch: 1
 project_started_at: 2026-08-18T09:54:18Z
-current_round: "000"
-last_completed_round: "000"
+current_round: "001"
+last_completed_round: "001"
 last_accepted_round: "000"
 last_accepted_kernel: baseline_adapter.py
 last_accepted_report: rounds/report_000.md
-last_completed_decision: null
+last_completed_decision: rounds/decision_001.md
 last_completed_coder_result: null
 last_completed_report: rounds/report_000.md
-last_result: baseline
+last_result: aborted
 performance_miss_streak: 0
-failed_attempt_streak: 0
-total_rounds: 0
+failed_attempt_streak: 1
+total_rounds: 1
 max_rounds: 20
 valid_no_improvement_limit: 3
 adoption_threshold_pct: 5
@@ -65,6 +65,8 @@ change, incident, or commit yet.
 |---|---|---:|---|---|---|---|
 | 2026-08-18T09:54:18Z | initializing | 000 | - | - | - | 90d43c9 |
 | 2026-08-18T09:54:18Z | ready | 000 | baseline | baseline_adapter.py | - | 90d43c9 |
+| 2026-08-18T10:00:00Z | designing | 001 | - | baseline_adapter.py | - | - |
+| 2026-08-18T10:00:00Z | ready | 001 | aborted | baseline_adapter.py | - | - |
 
 ## Policy Revisions
 

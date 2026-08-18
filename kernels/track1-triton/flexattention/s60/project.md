@@ -98,6 +98,7 @@ total_memory: 43878764544
 | Round | Decision | Candidate | Result | Compared against | Wall ms | Device us/call | Improvement | Hypothesis verdict | Canonical after round |
 |---:|---|---|---|---|---:|---:|---:|---|---|
 | 000 | Phase 0 | `baseline_adapter.py` | baseline | `base.py` | 0.269216 | unavailable: GCU runtime-launch-only | - | not-applicable | `baseline_adapter.py` |
+| 001 | `rounds/decision_001.md` | not-created | aborted | `baseline_adapter.py` | - | - | - | not-applicable | `baseline_adapter.py` |
 
 ## Reproduction
 

@@ -1,26 +1,29 @@
 # Designer Context State
 
 - role_contract_sha256: `d32060e9953982eca29c19d6ed7469c2fb5c06ea686385be5da10219981addef`
-- context_epoch: 1
-- last_completed_round: `000`
+- context_epoch: 2
+- last_completed_round: `001`
 - accepted_kernel: `baseline_adapter.py`
 - accepted_report: `rounds/report_000.md`
-- recent_three_round_evidence: `Phase 0 baseline established only`
-- open_hypotheses: `<to-fill in Round 001>`
-- artifact_read_hashes: `<to-fill>`
+- recent_three_round_evidence: `001 aborted: eager SDPA already fused (1 launch); hand-written Triton ~100x slower on device; host cost harness-fixed`
+- open_hypotheses: `none: all change families rejected on evidence (measurement-bound)`
+- artifact_read_hashes: `<decision_001 written>`
 
 ## Current Bottleneck
 
-- Baseline is established; no Verifier-backed bottleneck classification yet.
-  Round 001 will read `report_000.md` for the runtime-launch and wall evidence.
+- Measurement-bound: eager SDPA is a single fused CNNL kernel (1 launch/call);
+  wall time dominated by harness-fixed seed + gcu.synchronize cost. No
+  falsifiable >=5% intervention exists.
 
 ## Recent Three-round Evidence
 
 - `000`, baseline, `rounds/report_000.md`, not-applicable (Phase 0)
+- `001`, aborted, `rounds/decision_001.md`, no-change (measurement-bound)
 
 ## Open Hypotheses or Checks
 
-- `<to-fill in Round 001>`
+- None. Kernel-fusion, hand-written-Triton, and host-side paths are all
+  rejected by Phase 0 trace + local probe evidence.
 
 ## Artifact Read Hashes
 
