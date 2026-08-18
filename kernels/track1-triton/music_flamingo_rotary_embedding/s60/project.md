@@ -110,6 +110,7 @@ total_memory: 43878764544
 | Round | Decision | Candidate | Result | Compared against | Wall ms | Device us/call | Improvement | Hypothesis verdict | Canonical after round |
 |---:|---|---|---|---|---:|---:|---:|---|---|
 | 000 | Phase 0 | `baseline_adapter.py` | baseline | `base.py` | 0.465926 | unavailable: GCU runtime-launch-only | - | not-applicable | `baseline_adapter.py` |
+| 001 | `rounds/decision_001.md` | `triton_rotary_001.py` | no-improvement | `baseline_adapter.py` | 5.162427 | unavailable: GCU runtime-launch-only | -1010.99% (0.09x) | falsified (launch 13→1 but single-program device serial) | `baseline_adapter.py` |
 
 ## Reproduction
 

@@ -57,6 +57,10 @@ are `accepted|no-improvement|screened-out|design-rejected|candidate-failed|abort
 |---|---|---:|---|---|---|---|
 | 2026-08-18T22:35:00Z | initializing | 000 | - | - | - | - |
 | 2026-08-18T22:35:00Z | ready | 000 | baseline | baseline_adapter.py | - | - |
+| 2026-08-18T22:45:00Z | designing | 001 | - | baseline_adapter.py | - | - |
+| 2026-08-18T22:50:00Z | coding | 001 | - | baseline_adapter.py | - | - |
+| 2026-08-18T22:55:00Z | verifying | 001 | - | baseline_adapter.py | - | - |
+| 2026-08-18T23:00:00Z | ready | 001 | no-improvement | baseline_adapter.py | - | - |
 
 ## Policy Revisions
 
