@@ -63,8 +63,8 @@ change, incident, or commit yet.
 
 | Timestamp | Phase | Round | Result | Canonical | Incident | Commit |
 |---|---|---:|---|---|---|---|
-| 2026-08-18T09:54:18Z | initializing | 000 | - | - | - | - |
-| 2026-08-18T09:54:18Z | ready | 000 | baseline | baseline_adapter.py | - | - |
+| 2026-08-18T09:54:18Z | initializing | 000 | - | - | - | 90d43c9 |
+| 2026-08-18T09:54:18Z | ready | 000 | baseline | baseline_adapter.py | - | 90d43c9 |
 
 ## Policy Revisions
 
