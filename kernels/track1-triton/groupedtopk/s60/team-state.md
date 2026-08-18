@@ -6,18 +6,18 @@ phase: ready
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-17T09:22:11Z
-current_round: "005"
-last_completed_round: "005"
+current_round: "006"
+last_completed_round: "006"
 last_accepted_round: "003"
 last_accepted_kernel: triton_grouped_topk_003.py
 last_accepted_report: rounds/report_003.md
-last_completed_decision: rounds/decision_005.md
+last_completed_decision: rounds/decision_006.md
 last_completed_coder_result: null
 last_completed_report: null
 last_result: aborted
 performance_miss_streak: 1
-failed_attempt_streak: 1
-total_rounds: 5
+failed_attempt_streak: 2
+total_rounds: 6
 max_rounds: 20
 valid_no_improvement_limit: 3
 adoption_threshold_pct: 5
@@ -26,7 +26,7 @@ target_mode: null
 target_value: null
 target_measurement_fingerprint: null
 target_source: null
-last_checkpoint_round: null
+last_checkpoint_round: 6
 base_branch: dev
 base_commit: 6a970c9
 run_branch: kernel-opt/groupedtopk-s60-continue
@@ -75,6 +75,8 @@ Terminal results are `accepted|no-improvement|screened-out|design-rejected|candi
 | 2026-08-17T10:26:23Z | ready | 004 | no-improvement | triton_grouped_topk_003.py | below 5% adoption threshold | 5ded926 |
 | 2026-08-18T03:56:04Z | designing | 005 | - | triton_grouped_topk_003.py | - | d420230 |
 | 2026-08-18T04:02:45Z | ready | 005 | aborted | triton_grouped_topk_003.py | no justified >=5% path under current GCU evidence | d420230 |
+| 2026-08-18T04:44:28Z | designing | 006 | - | triton_grouped_topk_003.py | - | e76e948 |
+| 2026-08-18T04:47:29Z | ready | 006 | aborted | triton_grouped_topk_003.py | no new Verifier-backed evidence for a distinct >=5% path | e76e948 |
 
 ## Policy Revisions
 
