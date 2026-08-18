@@ -1,6 +1,6 @@
 # Coder Context State
 
-- role_contract_sha256: `pending-round-dispatch`
+- role_contract_sha256: `8501d60fd684b5e625dc9b213046fd09f7e1512f2228ee0ff1425263dfb84196`
 - context_epoch: `1`
 - last_completed_round: `000`
 - accepted_kernel: `baseline_adapter.py`

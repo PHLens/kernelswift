@@ -50,7 +50,7 @@ Only Orchestrator updates this manifest. `workflow_status` expresses the campaig
 | Timestamp | Phase | Round | Result | Canonical | Incident | Commit |
 |---|---|---:|---|---|---|---|
 | 2026-08-18T05:02:14Z | initializing | 000 | - | - | - | 6a970c9 |
-| 2026-08-18T05:05:04Z | ready | 000 | baseline | baseline_adapter.py | - | 6a970c9 |
+| 2026-08-18T05:05:04Z | ready | 000 | baseline | baseline_adapter.py | - | ceb795b |
 
 ## Policy Revisions
 

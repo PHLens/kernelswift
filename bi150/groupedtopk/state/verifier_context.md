@@ -28,4 +28,4 @@
 | Artifact | SHA-256 | Last read round |
 |---|---|---:|
 | `log/groupedtopk_baseline_forward_50iter.pt.trace.json` | `0ed6dfa64748d1226baac93d0cd32ec4f16c0b64555b3f16022ef103efc77af` | 000 |
-| `rounds/report_000.md` | `pending-local-commit` | 000 |
+| `rounds/report_000.md` | `39a512eed23f1f0889e7845cde5f854cf0c2ca9d377ff23588148f239139f1e5` | 000 |
