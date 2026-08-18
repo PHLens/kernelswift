@@ -5,18 +5,18 @@ phase: ready
 workflow_status: running
 run_epoch: 1
 project_started_at: 2026-08-18T05:02:14Z
-current_round: "002"
-last_completed_round: "002"
+current_round: "003"
+last_completed_round: "003"
 last_accepted_round: "000"
 last_accepted_kernel: baseline_adapter.py
 last_accepted_report: rounds/report_000.md
-last_completed_decision: rounds/decision_002.md
-last_completed_coder_result: rounds/coder_result_002.md
+last_completed_decision: rounds/decision_003.md
+last_completed_coder_result: rounds/coder_result_003.md
 last_completed_report: null
-last_result: candidate-failed
+last_result: design-rejected
 performance_miss_streak: 0
-failed_attempt_streak: 2
-total_rounds: 2
+failed_attempt_streak: 3
+total_rounds: 3
 max_rounds: 20
 valid_no_improvement_limit: 3
 adoption_threshold_pct: 5
@@ -25,7 +25,7 @@ target_mode: null
 target_value: null
 target_measurement_fingerprint: null
 target_source: null
-last_checkpoint_round: null
+last_checkpoint_round: 3
 base_branch: dev
 base_commit: 6a970c921dfb0c031b885190122ce1335d8d4cd7
 run_branch: kernel-opt/bi150-prepare-20260818
@@ -56,6 +56,9 @@ Only Orchestrator updates this manifest. `workflow_status` expresses the campaig
 | 2026-08-18T05:31:00Z | designing | 002 | - | baseline_adapter.py | - | - |
 | 2026-08-18T05:34:00Z | coding | 002 | - | baseline_adapter.py | - | - |
 | 2026-08-18T05:51:00Z | ready | 002 | candidate-failed | baseline_adapter.py | - | - |
+| 2026-08-18T05:52:58Z | designing | 003 | - | baseline_adapter.py | - | - |
+| 2026-08-18T05:57:28Z | coding | 003 | - | baseline_adapter.py | - | - |
+| 2026-08-18T06:03:13Z | ready | 003 | design-rejected | baseline_adapter.py | - | - |
 
 ## Policy Revisions
 
