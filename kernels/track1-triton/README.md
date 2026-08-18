@@ -12,7 +12,7 @@ task 编号 ↔ 算子目录映射见 [docs/competition/track1-triton.md](../../
 | `sparse_pooler` | ✅ 完结 · **1.60x**（v4，0.910→0.567 ms） | — | — | — | — |
 | `music_flamingo_rotary_embedding` | 📦 base.py 就绪（待 Phase 0） | — | — | — | — |
 | `mm_encoder_attention` | 📦 base.py 就绪（待 Phase 0） | — | — | — | — |
-| `mhc_post_layer_mix` | 📦 base.py 就绪（待 Phase 0） | — | — | — | — |
+| `mhc_post_layer_mix` | 📦 base.py 就绪（待 Phase 0） | ⛔ 无优化空间 · device matmul bound（launch 1.6%），分支 `kernel-opt/mhc-post-layer-mix-s60` | — | — | — |
 | `mhc_head_compute_mix` | 📦 base.py 就绪（待 Phase 0） | — | — | — | — |
 | `centre_random_augmentation` | 📦 base.py 就绪（待 Phase 0） | — | — | — | — |
 | `mhc_head_compute_mix_backward` | 📦 base.py 就绪（待 Phase 0） | — | — | — | — |
