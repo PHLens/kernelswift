@@ -5,18 +5,18 @@ phase: ready
 workflow_status: running
 run_epoch: 1
 project_started_at: 2026-08-18T05:02:14Z
-current_round: "003"
-last_completed_round: "003"
-last_accepted_round: "000"
-last_accepted_kernel: baseline_adapter.py
-last_accepted_report: rounds/report_000.md
-last_completed_decision: rounds/decision_003.md
-last_completed_coder_result: rounds/coder_result_003.md
-last_completed_report: null
-last_result: design-rejected
+current_round: "004"
+last_completed_round: "004"
+last_accepted_round: "004"
+last_accepted_kernel: triton_grouped_topk_004.py
+last_accepted_report: rounds/report_004.md
+last_completed_decision: rounds/decision_004.md
+last_completed_coder_result: rounds/coder_result_004.md
+last_completed_report: rounds/report_004.md
+last_result: accepted
 performance_miss_streak: 0
-failed_attempt_streak: 3
-total_rounds: 3
+failed_attempt_streak: 0
+total_rounds: 4
 max_rounds: 20
 valid_no_improvement_limit: 3
 adoption_threshold_pct: 5
@@ -59,6 +59,10 @@ Only Orchestrator updates this manifest. `workflow_status` expresses the campaig
 | 2026-08-18T05:52:58Z | designing | 003 | - | baseline_adapter.py | - | - |
 | 2026-08-18T05:57:28Z | coding | 003 | - | baseline_adapter.py | - | - |
 | 2026-08-18T06:03:13Z | ready | 003 | design-rejected | baseline_adapter.py | - | - |
+| 2026-08-18T06:05:40Z | designing | 004 | - | baseline_adapter.py | - | - |
+| 2026-08-18T06:11:59Z | coding | 004 | - | baseline_adapter.py | - | - |
+| 2026-08-18T06:29:07Z | verifying | 004 | - | baseline_adapter.py | - | - |
+| 2026-08-18T06:46:26Z | ready | 004 | accepted | triton_grouped_topk_004.py | - | - |
 
 ## Policy Revisions
 
