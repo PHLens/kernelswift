@@ -105,6 +105,7 @@ total_memory: 43878764544
 | 000 | Phase 0 | `baseline_adapter.py` | baseline | `base.py` | 5.112406 | unavailable: GCU runtime-launch-only | - | not-applicable | `baseline_adapter.py` |
 | 001 | `rounds/decision_001.md` | `triton_fused_moe_001.py` | accepted | `baseline_adapter.py` | 0.498811 | unavailable: GCU runtime-launch-only | +90.52% (10.55x) | confirmed (147→8 launches) | `triton_fused_moe_001.py` |
 | 002 | `rounds/decision_002.md` | `triton_fused_moe_002.py` | accepted | `triton_fused_moe_001.py` | 0.390289 | unavailable: GCU runtime-launch-only | +26.57% (1.36x) | confirmed (8→3 launches) | `triton_fused_moe_002.py` |
+| 003 | `rounds/decision_003.md` | not-created | aborted | `triton_fused_moe_002.py` | - | - | - | not-applicable (measurement-bound) | `triton_fused_moe_002.py` |
 
 ## Reproduction
 

@@ -6,18 +6,19 @@ phase: ready
 workflow_status: running
 run_epoch: 1
 project_started_at: 2026-08-18T10:34:35Z
-current_round: "001"
-last_completed_round: "001"
-last_accepted_round: "001"
-last_accepted_kernel: triton_fused_moe_001.py
-last_accepted_report: rounds/report_001.md
-last_completed_decision: rounds/decision_001.md
-last_completed_coder_result: rounds/coder_result_001.md
-last_completed_report: rounds/report_001.md
-last_result: accepted
+current_round: "003"
+last_completed_round: "003"
+last_accepted_round: "002"
+last_accepted_kernel: triton_fused_moe_002.py
+last_accepted_report: rounds/report_002.md
+last_completed_decision: rounds/decision_003.md
+last_completed_coder_result: rounds/coder_result_002.md
+last_completed_report: rounds/report_002.md
+last_result: aborted
 performance_miss_streak: 0
-failed_attempt_streak: 0
-total_rounds: 1
+failed_attempt_streak: 1
+total_rounds: 3
+last_checkpoint_round: 3
 max_rounds: 20
 valid_no_improvement_limit: 3
 adoption_threshold_pct: 5
@@ -66,6 +67,8 @@ are `accepted|no-improvement|screened-out|design-rejected|candidate-failed|abort
 | 2026-08-18T11:05:00Z | coding | 002 | - | triton_fused_moe_001.py | - | - |
 | 2026-08-18T11:10:00Z | verifying | 002 | - | triton_fused_moe_001.py | - | - |
 | 2026-08-18T11:15:00Z | ready | 002 | accepted | triton_fused_moe_002.py | - | - |
+| 2026-08-18T11:25:00Z | designing | 003 | - | triton_fused_moe_002.py | - | - |
+| 2026-08-18T11:30:00Z | ready | 003 | aborted | triton_fused_moe_002.py | - | - |
 
 ## Policy Revisions
 
