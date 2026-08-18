@@ -296,8 +296,8 @@ commit. Do not rewrite existing project histories.
 - `prompts/designer.md`, `prompts/coder.md`, and `prompts/verifier.md`: role
   behavior and ownership.
 - `prompts/coder_targets/<target_profile>.md`: the one complete profile selected
-  by the current runtime; this repository currently includes `triton_mlu` and
-  `triton_gcu`.
+  by the current runtime; this repository currently includes `triton_mlu`,
+  `triton_gcu`, and `triton_cuda`.
 - `references/decision-template.md`: normative decision schema.
 - `references/project-template.md`, `references/report-template.md`,
   `references/team-state-template.md`, and `references/role-context-template.md`:
