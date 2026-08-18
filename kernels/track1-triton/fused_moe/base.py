@@ -1,8 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch_mlu
-from torch_mlu.utils import gpu_migration
 
 
 class Model(nn.Module):
@@ -92,7 +90,7 @@ def get_init_inputs():
 
 if __name__ == "__main__":
     init_inputs = get_init_inputs()
-    model = Model(*init_inputs).cuda().eval()
+    model = Model(*init_inputs).eval()
     inputs = get_inputs()
     with torch.no_grad():
         out = model(*inputs)
