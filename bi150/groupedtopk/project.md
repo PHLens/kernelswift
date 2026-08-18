@@ -109,6 +109,7 @@ These fields mirror `team-state.md` and identify the dedicated optimization bran
 | 004 | `rounds/decision_004.md` | `triton_grouped_topk_004.py` | accepted | `baseline_adapter.py` | 0.432098 | 127.260771484375 | 7.455430192 | supported | `triton_grouped_topk_004.py` |
 | 005 | `rounds/decision_005.md` | not-created | aborted | `triton_grouped_topk_004.py` | - | - | - | no-falsifiable-intervention | `triton_grouped_topk_004.py` |
 | 006 | `rounds/decision_006.md` | not-created | aborted | `triton_grouped_topk_004.py` | - | - | - | no-falsifiable-intervention | `triton_grouped_topk_004.py` |
+| 007 | `rounds/decision_007.md` | not-created | aborted | `triton_grouped_topk_004.py` | - | - | - | persistent-no-falsifiable-intervention | `triton_grouped_topk_004.py` |
 
 ## Reproduction
 
