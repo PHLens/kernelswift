@@ -11,6 +11,16 @@ updates, Git commits, global termination, and recovery. Designer, Coder, and
 Verifier own only the files declared in their role contracts. One live campaign
 has one active candidate and a measurement-exclusive shared machine.
 
+## Deliverable requirement
+
+The deliverable is a Triton implementation. A campaign must always produce a
+correctness-PASS Triton candidate as its committed deliverable. Never leave a
+target empty because its Triton candidate does not beat the baseline: a correct
+but non-winning Triton implementation is still the required submission, and the
+final summary must record it as the canonical deliverable rather than an empty
+result. `aborted`, `no-improvement`, and `screened-out` are workflow-terminal
+states, not a license to omit the candidate source.
+
 ## When to use
 
 Use this skill when a project has an immutable PyTorch-style `base.py`, an
@@ -140,7 +150,10 @@ second active round. Resolve `last_accepted_kernel` and
 2. Run `scripts/validate_decision.py` with the manifest target profile. Record
    decision hash. A proceeding decision is immutable before coding.
 3. A valid abort form produces terminal result `aborted` without Coder or
-   Verifier.
+   Verifier. An `aborted` result does not erase the deliverable requirement: if
+   a correctness-PASS Triton candidate already exists, keep it as the canonical
+   deliverable; if none exists, the Orchestrator must still dispatch a minimal
+   correctness-PASS Triton implementation before ending the run.
 4. Set `phase: coding`. Dispatch Coder with immutable decision and canonical
    source. Require `coder_result_NNN.md` and, for `candidate-ready`, matching
    candidate hashes and compile-smoke evidence.
