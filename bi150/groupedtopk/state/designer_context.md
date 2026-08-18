@@ -1,25 +1,26 @@
 # Designer Context State
 
 - role_contract_sha256: `d32060e9953982eca29c19d6ed7469c2fb5c06ea686385be5da10219981addef`
-- context_epoch: `7`
-- last_completed_round: `006`
-- accepted_kernel: `triton_grouped_topk_004.py`
-- accepted_report: `rounds/report_004.md`
-- recent_three_round_evidence: `Round 002 custom selection failed structured group-tie exact IDs. Round 003 one-kernel partial fusion was design-rejected because post-selection masking needs library-produced group_idx. Round 004 two-stage fusion retained exact library topk boundaries and was accepted at 7.455430192% paired median wall improvement with device time 127.260771484375 us/call. Round 005 and Round 006 aborts: remaining exact library selection dominates, while the isolated int32 copy is too small to support a five-percent wall claim.`
-- open_hypotheses: `No current >=5% falsifiable intervention. Reconsider only with matched BI150 evidence for a semantics-preserving exact-library selection reduction or another independent mechanism capable of clearing the 5% wall threshold without changing tie semantics, stream/device ownership, per-forward buffers, or fallback behavior.`
+- context_epoch: `8`
+- last_completed_round: `008`
+- accepted_kernel: `triton_grouped_topk_008.py`
+- accepted_report: `rounds/report_008.md`
+- recent_three_round_evidence: `Rounds 005 to 007 established that direct modifications cannot clear a five-percent wall gain while exact library top-k selection remains mandatory. Round 008 found a new host mechanism: constrained torch.compile dispatch preserved the accepted two-stage Triton algorithm and exact tie behavior, then achieved 19.987917795% paired median wall improvement with device time 111.120595703125 us/call.`
+- open_hypotheses: `The compiled two-stage candidate is canonical. Future designs must start from triton_grouped_topk_008.py and preserve exact torch.topk ties, constructor-owned compiled-callable lifecycle, current stream/device behavior, per-forward buffer ownership, and eager fallback behavior.`
 - artifact_read_hashes: `project.md, team-state.md, designer_context.md, triton_grouped_topk_004.py, report_004.md, decisions_001_to_004.md, coder_results_002_to_004.md, triton_cuda.md, decision-template.md, invariants.md, bottleneck-judgment.md, and anti-patterns.md read for Round 005.`
 
 ## Current Bottleneck
 
-- Verifier-backed accepted profile: `at::native::sbtopk::gatherTopK` 48.852978515625 us/call and `at::native::bitonicSortKVInPlace` 36.45123046875 us/call; accepted candidate device ratio 0.2945183072.
-- Classification: mixed; exact library selection is required for BI150/PyTorch active-set-dependent ties.
-- The isolated `at::native::direct_copy int32` is 8.76669921875 us/call, below the 21.6049 us device-equivalent of five percent of the accepted 0.432098 ms wall median; it is not a defensible standalone >=5% wall hypothesis.
+- Verifier-backed compiled profile: `at::native::sbtopk::gatherTopK` 49.368779296875 us/call and `at::native::bitonicSortKVInPlace` 37.02447265625 us/call; accepted candidate device ratio 0.3226872915.
+- Classification: mixed; exact library selection is still required for BI150/PyTorch active-set-dependent ties, while compiled dispatch fuses surrounding eager framework work.
+- Round 008 removed 16.338291015625 us/call of attributed device time and 0.94 kernels/call without modifying selector semantics.
 
 ## Recent Three-round Evidence
 
 - Round 003, `rounds/coder_result_003.md`: design-revision-required because a one-kernel design cannot consume library-produced group_idx for masking; canonical baseline retained.
 - Round 004, `rounds/report_004.md`: two-stage partial fusion accepted; wall median `0.432098 ms`, device `127.260771484375 us/call`, `9.9 kernels/call`, exact tie suite passed.
-- Round 005, `rounds/decision_005.md`: aborted. No supported semantics-preserving intervention can credibly clear the five-percent wall threshold from the canonical Round 004 candidate.
+- Round 005, `rounds/decision_005.md`: aborted. No supported direct-kernel intervention could credibly clear the five-percent wall threshold from the Round 004 candidate.
+- Round 008, `rounds/report_008.md`: compiled dispatch candidate accepted; `0.344360 ms` wall median, `111.120595703125 us/call`, `8.96 kernels/call`, exact tie suite passed.
 
 ## Open Hypotheses or Checks
 
@@ -48,3 +49,8 @@
 | `rounds/report_004.md` | `40400c3764ebcbf3825ba0530a59e3f7d081e5728dfd5068a64c26476874cd23` | 005 |
 | `rounds/decision_005.md` | `ce1e0f7808982c90273959eb6b07783925085bd63f5d959bd5e810a740d6160e` | 005 |
 | `rounds/decision_006.md` | `4da137fb5d59463663e71b08fefa5421f8377560396538c8759b33cec53045bf` | 006 |
+| `rounds/decision_007.md` | `e51cb64103bc8b5de6f16bd9fe7bf7a3cd3a502986f43a9b27d22280c5d107c2` | 007 |
+| `rounds/decision_008.md` | `bec59b81693001fd27302a610ab48123e38a4a81c44b65cedfff9530b059e5d1` | 008 |
+| `triton_grouped_topk_008.py` | `d1fb6b03d3be92cdd6423f1f44f33ea81d13f0e4df18227fe2d5f7dceb582535` | 008 |
+| `rounds/coder_result_008.md` | `255ac5a2a36a162e17701f91233d258895790b144d711fd8c9540ed3bd4dae94` | 008 |
+| `rounds/report_008.md` | `f1fa38cef46804c96be6c4eb3f5eddeaa7ec509830dae6f2bea58f8be0e2b3b7` | 008 |
