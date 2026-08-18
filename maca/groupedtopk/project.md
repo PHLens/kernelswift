@@ -163,6 +163,7 @@ evidence and is normalized per forward call.
 | Round | Decision | Candidate | Result | Compared against | Wall ms | Device us/call | Improvement | Hypothesis verdict | Canonical after round |
 |---:|---|---|---|---|---:|---:|---:|---|---|
 | 000 | Phase 0 | `baseline_adapter.py` | baseline | `base.py` | `0.231739` | `147.7526708984375` | - | not-applicable | `baseline_adapter.py` |
+| 001 | `rounds/decision_001.md` | `triton_grouped_topk_001.py` | accepted | `baseline_adapter.py` | `0.068280` | `10.7442822265625` | `69.59021613749428%` | confirmed | `triton_grouped_topk_001.py` |
 
 ## Reproduction
 

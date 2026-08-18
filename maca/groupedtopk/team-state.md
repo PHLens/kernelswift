@@ -6,18 +6,18 @@ phase: ready
 workflow_status: running
 run_epoch: 1
 project_started_at: 2026-08-18T05:01:57Z
-current_round: "000"
-last_completed_round: "000"
-last_accepted_round: "000"
-last_accepted_kernel: baseline_adapter.py
-last_accepted_report: rounds/report_000.md
-last_completed_decision: null
-last_completed_coder_result: null
-last_completed_report: rounds/report_000.md
-last_result: baseline
+current_round: "001"
+last_completed_round: "001"
+last_accepted_round: "001"
+last_accepted_kernel: triton_grouped_topk_001.py
+last_accepted_report: rounds/report_001.md
+last_completed_decision: rounds/decision_001.md
+last_completed_coder_result: rounds/coder_result_001.md
+last_completed_report: rounds/report_001.md
+last_result: accepted
 performance_miss_streak: 0
 failed_attempt_streak: 0
-total_rounds: 0
+total_rounds: 1
 max_rounds: 20
 valid_no_improvement_limit: 3
 adoption_threshold_pct: 5
@@ -66,6 +66,10 @@ change, incident, or commit yet.
 | 2026-08-18T05:01:57Z | initializing | 000 | - | - | - | - |
 | 2026-08-18T05:20:04Z | verifying | 000 | - | `baseline_adapter.py` | - | - |
 | 2026-08-18T06:03:44Z | ready | 000 | baseline | `baseline_adapter.py` | - | - |
+| 2026-08-18T06:06:55Z | designing | 001 | - | `baseline_adapter.py` | - | `52649df` |
+| 2026-08-18T06:19:35Z | coding | 001 | - | `baseline_adapter.py` | - | `52649df` |
+| 2026-08-18T06:42:00Z | verifying | 001 | - | `baseline_adapter.py` | - | `52649df` |
+| 2026-08-18T07:13:53Z | ready | 001 | accepted | `triton_grouped_topk_001.py` | - | - |
 
 ## Policy Revisions
 
