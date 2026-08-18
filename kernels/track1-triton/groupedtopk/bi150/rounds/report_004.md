@@ -135,15 +135,15 @@ BI150 before timing and profiling.
 cd /root/kernelswift-bi150
 export COREX_VERSION=4.4.0
 . /usr/local/corex/enable
-python3 auto_bench.py --v0_file bi150/groupedtopk/base.py --v1_file bi150/groupedtopk/triton_grouped_topk_004.py --warmup 5 --repeat 10 --full-traceback
+python3 auto_bench.py --v0_file kernels/track1-triton/groupedtopk/bi150/base.py --v1_file kernels/track1-triton/groupedtopk/bi150/triton_grouped_topk_004.py --warmup 5 --repeat 10 --full-traceback
 ```
 
 ```bash
 cd /root/kernelswift-bi150
 export COREX_VERSION=4.4.0
 . /usr/local/corex/enable
-sed 's/^class ModelNew/class Model/' bi150/groupedtopk/baseline_adapter.py > /tmp/bi150_baseline_model_004.py
-python3 auto_bench.py --v0_file /tmp/bi150_baseline_model_004.py --v1_file bi150/groupedtopk/triton_grouped_topk_004.py --warmup 50 --repeat 100
+sed 's/^class ModelNew/class Model/' kernels/track1-triton/groupedtopk/bi150/baseline_adapter.py > /tmp/bi150_baseline_model_004.py
+python3 auto_bench.py --v0_file /tmp/bi150_baseline_model_004.py --v1_file kernels/track1-triton/groupedtopk/bi150/triton_grouped_topk_004.py --warmup 50 --repeat 100
 rm -f /tmp/bi150_baseline_model_004.py
 ```
 
@@ -151,6 +151,6 @@ rm -f /tmp/bi150_baseline_model_004.py
 cd /root/kernelswift-bi150
 export COREX_VERSION=4.4.0
 . /usr/local/corex/enable
-python3 auto_bench.py --v0_file bi150/groupedtopk/base.py --v1_file bi150/groupedtopk/triton_grouped_topk_004.py --warmup 50 --repeat 100 --profile --profile-mode forward --profile-warmup 20 --profile-iterations 50 --profile-reference-file bi150/groupedtopk/baseline_adapter.py --profile-output bi150/groupedtopk/log/groupedtopk_round004_forward_50iter.pt.trace.json
-python3 skills/kernel-opt-loop/scripts/summarize_trace.py bi150/groupedtopk/log/groupedtopk_round004_forward_50iter.pt.trace.json --iterations 50 --scope reference_baseline_adapter --wall-ms 0.466908
+python3 auto_bench.py --v0_file kernels/track1-triton/groupedtopk/bi150/base.py --v1_file kernels/track1-triton/groupedtopk/bi150/triton_grouped_topk_004.py --warmup 50 --repeat 100 --profile --profile-mode forward --profile-warmup 20 --profile-iterations 50 --profile-reference-file kernels/track1-triton/groupedtopk/bi150/baseline_adapter.py --profile-output kernels/track1-triton/groupedtopk/bi150/log/groupedtopk_round004_forward_50iter.pt.trace.json
+python3 skills/kernel-opt-loop/scripts/summarize_trace.py kernels/track1-triton/groupedtopk/bi150/log/groupedtopk_round004_forward_50iter.pt.trace.json --iterations 50 --scope reference_baseline_adapter --wall-ms 0.466908
 ```

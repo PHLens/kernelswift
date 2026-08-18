@@ -4,7 +4,7 @@
 
 - schema_version: 1
 - skill_version: 2.0.0
-- project_root: `/root/kernelswift-bi150/bi150/groupedtopk`
+- project_root: `/root/kernelswift-bi150/kernels/track1-triton/groupedtopk/bi150`
 - base: `base.py`
 - baseline_adapter: `baseline_adapter.py`
 - harness: `/root/kernelswift-bi150/auto_bench.py`
@@ -67,9 +67,9 @@ These values are observed in Phase 0. They are not assumed from the profile.
 - primary_metric: `unrounded median wall_time_ms`
 - profiler_iterations: `50`
 - profiler_scopes: `baseline_base,candidate_baseline_adapter`
-- correctness_command: `cd /root/kernelswift-bi150 && export COREX_VERSION=4.4.0 && . /usr/local/corex/enable && python3 auto_bench.py --v0_file bi150/groupedtopk/base.py --v1_file bi150/groupedtopk/baseline_adapter.py --warmup 5 --repeat 10 --full-traceback`
-- benchmark_command: `cd /root/kernelswift-bi150 && export COREX_VERSION=4.4.0 && . /usr/local/corex/enable && python3 auto_bench.py --v0_file bi150/groupedtopk/base.py --v1_file bi150/groupedtopk/baseline_adapter.py --warmup 50 --repeat 100`
-- profiler_command: `cd /root/kernelswift-bi150 && export COREX_VERSION=4.4.0 && . /usr/local/corex/enable && python3 auto_bench.py --v0_file bi150/groupedtopk/base.py --v1_file bi150/groupedtopk/baseline_adapter.py --warmup 50 --repeat 100 --profile --profile-mode forward --profile-warmup 20 --profile-iterations 50 --profile-output bi150/groupedtopk/log/groupedtopk_baseline_forward_50iter.pt.trace.json`
+- correctness_command: `cd /root/kernelswift-bi150 && export COREX_VERSION=4.4.0 && . /usr/local/corex/enable && python3 auto_bench.py --v0_file kernels/track1-triton/groupedtopk/bi150/base.py --v1_file kernels/track1-triton/groupedtopk/bi150/baseline_adapter.py --warmup 5 --repeat 10 --full-traceback`
+- benchmark_command: `cd /root/kernelswift-bi150 && export COREX_VERSION=4.4.0 && . /usr/local/corex/enable && python3 auto_bench.py --v0_file kernels/track1-triton/groupedtopk/bi150/base.py --v1_file kernels/track1-triton/groupedtopk/bi150/baseline_adapter.py --warmup 50 --repeat 100`
+- profiler_command: `cd /root/kernelswift-bi150 && export COREX_VERSION=4.4.0 && . /usr/local/corex/enable && python3 auto_bench.py --v0_file kernels/track1-triton/groupedtopk/bi150/base.py --v1_file kernels/track1-triton/groupedtopk/bi150/baseline_adapter.py --warmup 50 --repeat 100 --profile --profile-mode forward --profile-warmup 20 --profile-iterations 50 --profile-output kernels/track1-triton/groupedtopk/bi150/log/groupedtopk_baseline_forward_50iter.pt.trace.json`
 
 Benchmark wall time controls adoption. Profiler data is attributable diagnostic evidence and is normalized per forward call.
 
@@ -78,7 +78,7 @@ Benchmark wall time controls adoption. Profiler data is attributable diagnostic 
 - measurement_fingerprint: `57bf01d317ee03ca2b09730e648f0f93d2bf4f226639ca3af2b1ff57b2865575`
 - base_sha256: `d57ace7d9196e2e44bdcfd17d1738482e7fd1bbb2d86fc6c9449c43938953eb5`
 - baseline_adapter_sha256: `689d458c7abe07323508fc054bfef609dc4bd1cd9c94e3bb706d6f2d2cd00016`
-- fingerprint_command: `python3 -c "import hashlib,json; base=open('bi150/groupedtopk/base.py','rb').read(); harness=open('auto_bench.py','rb').read(); settings={'shape':'hidden_states=[83,7168] fp16; gating_output=[83,256] fp32; outputs=[83,8] fp32+int32','dtype':'fp16 (hidden_states), fp32 (gating_output, topk_weights), int32 (topk_ids)','device':'cuda:0 (Iluvatar BI-V150)','warmup':50,'repeat':100,'profile_mode':'forward','profile_warmup':20,'profile_iterations':50}; payload=json.dumps(settings,sort_keys=True,separators=(',',':')).encode(); print(hashlib.sha256(base+b'\\x00'+harness+b'\\x00'+payload).hexdigest())"`
+- fingerprint_command: `python3 -c "import hashlib,json; base=open('kernels/track1-triton/groupedtopk/bi150/base.py','rb').read(); harness=open('auto_bench.py','rb').read(); settings={'shape':'hidden_states=[83,7168] fp16; gating_output=[83,256] fp32; outputs=[83,8] fp32+int32','dtype':'fp16 (hidden_states), fp32 (gating_output, topk_weights), int32 (topk_ids)','device':'cuda:0 (Iluvatar BI-V150)','warmup':50,'repeat':100,'profile_mode':'forward','profile_warmup':20,'profile_iterations':50}; payload=json.dumps(settings,sort_keys=True,separators=(',',':')).encode(); print(hashlib.sha256(base+b'\\x00'+harness+b'\\x00'+payload).hexdigest())"`
 
 A fingerprint change requires a new comparable baseline before optimization can continue.
 
@@ -119,15 +119,15 @@ These fields mirror `team-state.md` and identify the dedicated optimization bran
 cd /root/kernelswift-bi150
 export COREX_VERSION=4.4.0
 . /usr/local/corex/enable
-python3 auto_bench.py --v0_file bi150/groupedtopk/base.py --v1_file bi150/groupedtopk/baseline_adapter.py --warmup 5 --repeat 10 --full-traceback
-python3 auto_bench.py --v0_file bi150/groupedtopk/base.py --v1_file bi150/groupedtopk/baseline_adapter.py --warmup 50 --repeat 100
+python3 auto_bench.py --v0_file kernels/track1-triton/groupedtopk/bi150/base.py --v1_file kernels/track1-triton/groupedtopk/bi150/baseline_adapter.py --warmup 5 --repeat 10 --full-traceback
+python3 auto_bench.py --v0_file kernels/track1-triton/groupedtopk/bi150/base.py --v1_file kernels/track1-triton/groupedtopk/bi150/baseline_adapter.py --warmup 50 --repeat 100
 ```
 
 ```bash
 cd /root/kernelswift-bi150
 export COREX_VERSION=4.4.0
 . /usr/local/corex/enable
-python3 auto_bench.py --v0_file bi150/groupedtopk/base.py --v1_file bi150/groupedtopk/baseline_adapter.py --warmup 50 --repeat 100 --profile --profile-mode forward --profile-warmup 20 --profile-iterations 50 --profile-output bi150/groupedtopk/log/groupedtopk_baseline_forward_50iter.pt.trace.json
-python3 skills/kernel-opt-loop/scripts/summarize_trace.py bi150/groupedtopk/log/groupedtopk_baseline_forward_50iter.pt.trace.json --iterations 50 --scope baseline_base --wall-ms 0.474612
-python3 skills/kernel-opt-loop/scripts/summarize_trace.py bi150/groupedtopk/log/groupedtopk_baseline_forward_50iter.pt.trace.json --iterations 50 --scope candidate_baseline_adapter --wall-ms 0.474995
+python3 auto_bench.py --v0_file kernels/track1-triton/groupedtopk/bi150/base.py --v1_file kernels/track1-triton/groupedtopk/bi150/baseline_adapter.py --warmup 50 --repeat 100 --profile --profile-mode forward --profile-warmup 20 --profile-iterations 50 --profile-output kernels/track1-triton/groupedtopk/bi150/log/groupedtopk_baseline_forward_50iter.pt.trace.json
+python3 skills/kernel-opt-loop/scripts/summarize_trace.py kernels/track1-triton/groupedtopk/bi150/log/groupedtopk_baseline_forward_50iter.pt.trace.json --iterations 50 --scope baseline_base --wall-ms 0.474612
+python3 skills/kernel-opt-loop/scripts/summarize_trace.py kernels/track1-triton/groupedtopk/bi150/log/groupedtopk_baseline_forward_50iter.pt.trace.json --iterations 50 --scope candidate_baseline_adapter --wall-ms 0.474995
 ```

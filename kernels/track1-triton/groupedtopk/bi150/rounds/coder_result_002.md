@@ -42,8 +42,8 @@ sketch.
 
 | Attempt | Candidate SHA-256 | Commands and gate | Observation | Result |
 |---|---|---|---|---|
-| 1 | `8356acbbab5b21244ae2411546455cacc72fe4b40e233074bd920f6ebc984704` | `python3 -m py_compile bi150/groupedtopk/triton_grouped_topk_002.py`; remote `auto_bench.py --warmup 2 --repeat 3 --full-traceback`; remote all-zero tie check through `auto_bench.load_ks_module` | AST and real harness smoke passed (`PASS accuracy`, v1 `0.170447 ms`). All-zero input failed integer IDs: reference `[7,6,4,5,1,0,2,3]`; candidate `[0,1,2,3,4,5,6,7]`. | repair required |
-| 2 | `3cda42c8aee3b35bb44e1ec4e7231101765800be7602191ac8a5019a70925e87` | `python3 -m py_compile bi150/groupedtopk/triton_grouped_topk_002.py`; remote harness smoke; remote all-zero and structured-tie checks through `auto_bench.load_ks_module` | AST and harness smoke passed (`PASS accuracy`, v1 `0.165995 ms`). All-zero IDs matched. A structured group-tie input failed: reference `[32,0,64,96,4,3,1,2]`; candidate `[0,32,64,96,7,6,4,5]`. | implementation failed |
+| 1 | `8356acbbab5b21244ae2411546455cacc72fe4b40e233074bd920f6ebc984704` | `python3 -m py_compile kernels/track1-triton/groupedtopk/bi150/triton_grouped_topk_002.py`; remote `auto_bench.py --warmup 2 --repeat 3 --full-traceback`; remote all-zero tie check through `auto_bench.load_ks_module` | AST and real harness smoke passed (`PASS accuracy`, v1 `0.170447 ms`). All-zero input failed integer IDs: reference `[7,6,4,5,1,0,2,3]`; candidate `[0,1,2,3,4,5,6,7]`. | repair required |
+| 2 | `3cda42c8aee3b35bb44e1ec4e7231101765800be7602191ac8a5019a70925e87` | `python3 -m py_compile kernels/track1-triton/groupedtopk/bi150/triton_grouped_topk_002.py`; remote harness smoke; remote all-zero and structured-tie checks through `auto_bench.load_ks_module` | AST and harness smoke passed (`PASS accuracy`, v1 `0.165995 ms`). All-zero IDs matched. A structured group-tie input failed: reference `[32,0,64,96,4,3,1,2]`; candidate `[0,32,64,96,7,6,4,5]`. | implementation failed |
 
 ## Gate Evidence
 

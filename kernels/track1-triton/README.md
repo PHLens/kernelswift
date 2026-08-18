@@ -34,7 +34,7 @@ S60 campaign 已在 r003 固化 canonical（`0.459285 -> 0.273673 ms`，`1.68x`�
 
 | 算子 | base | campaign 根 | 结论 |
 |---|---|---|---|
-| `groupedtopk` | [base.py](groupedtopk/base.py)（设备无关共享） | [mlu](groupedtopk/mlu/) · [s60](groupedtopk/s60/) · [maca](groupedtopk/maca/) · [bi150](../../bi150/groupedtopk/) | [mlu outcome](groupedtopk/mlu/outcome.md) · [s60 final summary](groupedtopk/s60/final_summary.md) · [maca final summary](groupedtopk/maca/final_summary.md) · [bi150 r009 report](../../bi150/groupedtopk/rounds/report_009.md) |
+| `groupedtopk` | [base.py](groupedtopk/base.py)（设备无关共享） | [mlu](groupedtopk/mlu/) · [s60](groupedtopk/s60/) · [maca](groupedtopk/maca/) · [bi150](groupedtopk/bi150/) | [mlu outcome](groupedtopk/mlu/outcome.md) · [s60 final summary](groupedtopk/s60/final_summary.md) · [maca final summary](groupedtopk/maca/final_summary.md) · [bi150 r009 report](groupedtopk/bi150/rounds/report_009.md) |
 | `flexattention` | [base.py](flexattention/base.py)（设备无关共享） | [mlu](flexattention/mlu/) · [s60](flexattention/s60/) | [mlu outcome](flexattention/mlu/outcome.md) · [s60 project](flexattention/s60/project.md) |
 | `fused_moe` | [base.py](fused_moe/base.py) | [mlu](fused_moe/mlu/) | [outcome](fused_moe/mlu/outcome.md)（bangc 探针见 track2） |
 | `sparse_pooler` | [base.py](sparse_pooler/base.py)（设备无关共享） | [mlu](sparse_pooler/mlu/) · [s60](sparse_pooler/s60/) | [mlu project](sparse_pooler/mlu/project.md) · [s60 project](sparse_pooler/s60/project.md) |
