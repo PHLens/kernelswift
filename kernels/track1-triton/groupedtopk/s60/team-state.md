@@ -6,18 +6,18 @@ phase: ready
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-17T09:22:11Z
-current_round: "004"
-last_completed_round: "004"
+current_round: "005"
+last_completed_round: "005"
 last_accepted_round: "003"
 last_accepted_kernel: triton_grouped_topk_003.py
 last_accepted_report: rounds/report_003.md
-last_completed_decision: rounds/decision_004.md
-last_completed_coder_result: rounds/coder_result_004.md
-last_completed_report: rounds/report_004.md
-last_result: no-improvement
+last_completed_decision: rounds/decision_005.md
+last_completed_coder_result: null
+last_completed_report: null
+last_result: aborted
 performance_miss_streak: 1
-failed_attempt_streak: 0
-total_rounds: 4
+failed_attempt_streak: 1
+total_rounds: 5
 max_rounds: 20
 valid_no_improvement_limit: 3
 adoption_threshold_pct: 5
@@ -73,6 +73,8 @@ Terminal results are `accepted|no-improvement|screened-out|design-rejected|candi
 | 2026-08-17T10:20:00Z | coding | 004 | - | triton_grouped_topk_003.py | - | 5ded926 |
 | 2026-08-17T10:24:00Z | verifying | 004 | - | triton_grouped_topk_003.py | backend internal stream lookup observed outside candidate scope | 5ded926 |
 | 2026-08-17T10:26:23Z | ready | 004 | no-improvement | triton_grouped_topk_003.py | below 5% adoption threshold | 5ded926 |
+| 2026-08-18T03:56:04Z | designing | 005 | - | triton_grouped_topk_003.py | - | d420230 |
+| 2026-08-18T04:02:45Z | ready | 005 | aborted | triton_grouped_topk_003.py | no justified >=5% path under current GCU evidence | d420230 |
 
 ## Policy Revisions
 

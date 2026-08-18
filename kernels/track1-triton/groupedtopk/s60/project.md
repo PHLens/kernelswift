@@ -104,6 +104,7 @@ total_memory: 41846MB
 | 002 | `rounds/decision_002.md` | `triton_grouped_topk_002.py` | accepted | `reference_triton_grouped_topk_001.py` | 0.274740 | unavailable: GCU runtime-launch-only | 9.0214% | confirmed | `triton_grouped_topk_002.py` |
 | 003 | `rounds/decision_003.md` | `triton_grouped_topk_003.py` | accepted | `reference_triton_grouped_topk_002.py` | 0.273673 | unavailable: GCU runtime-launch-only | 6.4647% | confirmed | `triton_grouped_topk_003.py` |
 | 004 | `rounds/decision_004.md` | `triton_grouped_topk_004.py` | no-improvement | `reference_triton_grouped_topk_003.py` | 0.271659 | unavailable: GCU runtime-launch-only | 2.05898% | not-confirmed | `triton_grouped_topk_003.py` |
+| 005 | `rounds/decision_005.md` | - | aborted | - | - | - | - | not-applicable | `triton_grouped_topk_003.py` |
 
 ## Reproduction
 
