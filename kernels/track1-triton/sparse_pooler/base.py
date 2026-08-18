@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class Model(nn.Module):
     """SPLADESparsePooler: MLM head logits → ReLU log(1+x) pooled over sequence (max or sum)."""
 
@@ -47,7 +48,7 @@ def get_init_inputs():
 
 
 if __name__ == "__main__":
-    model = Model(*get_init_inputs()).cuda().eval()
+    model = Model(*get_init_inputs()).eval()
     with torch.no_grad():
         out = model(*get_inputs())
     for o in out:

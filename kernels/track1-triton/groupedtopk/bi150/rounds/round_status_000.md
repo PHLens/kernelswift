@@ -1,0 +1,29 @@
+# Round Status 000
+
+- phase: `baseline-complete`
+- result: `baseline`
+- measurement_exclusive: `false`
+- completed_commands:
+  - CoreX BI150 runtime discovery: PASS
+  - `scripts/bi150_triton_smoke.py`: PASS
+  - `auto_bench.py` baseline correctness smoke: PASS
+  - `auto_bench.py` baseline formal benchmark: PASS; three timing pairs collected
+  - `auto_bench.py` baseline forward profile: exported
+  - `scripts/summarize_trace.py` reference/candidate scopes: PASS
+- artifacts:
+  - `base.py`: `d57ace7d9196e2e44bdcfd17d1738482e7fd1bbb2d86fc6c9449c43938953eb5`
+  - `baseline_adapter.py`: `689d458c7abe07323508fc054bfef609dc4bd1cd9c94e3bb706d6f2d2cd00016`
+  - `log/groupedtopk_baseline_forward_50iter.pt.trace.json`: `0ed6dfa64748d1226baac93d0cd32ec4f16c0b64555b3f16022ef103efec77af`
+- runtime:
+  - `Iluvatar BI-V150`, `torch 2.7.1`, `triton 3.1.0`, capability `7.1`
+  - `torch.cuda` available; CoreX `4.4.0` bootstrap required
+- raw_samples:
+  - reference: `[0.473436, 0.479897, 0.474612] ms`
+  - baseline_adapter: `[0.472600, 0.479476, 0.474995] ms`
+- profiler:
+  - baseline device time: `177.181318359375 us/call`
+  - baseline adapter device time: `179.0703515625 us/call`
+  - baseline kernel count: `14.8/call`
+  - baseline adapter kernel count: `14.96/call`
+- measurement_fingerprint: `57bf01d317ee03ca2b09730e648f0f93d2bf4f226639ca3af2b1ff57b2865575`
+- next_safe_action: `dispatch Round 001 Designer decision`

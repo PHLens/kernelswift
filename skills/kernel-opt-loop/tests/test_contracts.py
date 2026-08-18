@@ -564,10 +564,68 @@ class RoleContractTests(unittest.TestCase):
         self.assertIn("`tl.dot` | Unknown", profile)
         self.assertIn("`fast_libentry` | Unknown", profile)
 
+    def test_triton_cuda_profile_is_complete_and_evidence_scoped(self):
+        profile = (PROMPTS / "coder_targets" / "triton_cuda.md").read_text(
+            encoding="utf-8"
+        )
+
+        for heading in (
+            "# Target Profile: triton_cuda",
+            "## Identity and Match",
+            "## Runtime and Launcher Conventions",
+            "## Supported Primitives",
+            "## Constrained Primitives",
+            "## Unsupported Primitives",
+            "## Unknown Primitives",
+            "## Allowed Fallbacks",
+            "## Target-specific Pitfalls",
+            "## Evidence Ledger",
+        ):
+            with self.subTest(heading=heading):
+                self.assertIn(heading, profile)
+
+        for primitive in (
+            "`tl.load`",
+            "`tl.store`",
+            "`tl.arange`",
+            "`tl.program_id`",
+            "`tl.zeros`",
+            "`tl.reshape`",
+            "`tl.max`",
+            "`tl.argmax`",
+            "`tl.sum`",
+            "`tl.exp`",
+            "`tl.where`",
+            "`tl.dot`",
+            "`tl.make_block_ptr`",
+            "`fast_libentry`",
+            "`num_warps`",
+            "`num_stages`",
+        ):
+            with self.subTest(primitive=primitive):
+                self.assertIn(primitive, profile)
+
+        for evidence in (
+            "backend: cuda",
+            "target_profile: triton_cuda",
+            "scripts/bi150_triton_smoke.py",
+            "scripts/bi150_groupedtopk_probe.py",
+            "docs/bi150-kernel-opt-loop-prep.md",
+            "Iluvatar BI-V150",
+            "device=\"cuda\"",
+            "torch.cuda.synchronize()",
+            "COREX_VERSION=4.4.0",
+        ):
+            with self.subTest(evidence=evidence):
+                self.assertIn(evidence, profile)
+
+        self.assertIn("`tl.dot` | Unknown", profile)
+        self.assertIn("`fast_libentry` | Unknown", profile)
+        self.assertIn("`num_warps` | Unknown", profile)
+
     def test_no_inactive_target_stubs_or_fake_lowering_claims(self):
         targets = PROMPTS / "coder_targets"
         for name in (
-            "triton_cuda.md",
             "triton_hip.md",
             "triton_ascend.md",
             "tilelang.md",
@@ -808,6 +866,7 @@ class CrossFileContractTests(unittest.TestCase):
             "prompts/verifier.md",
             "prompts/coder_targets/triton_mlu.md",
             "prompts/coder_targets/triton_gcu.md",
+            "prompts/coder_targets/triton_cuda.md",
             "references/anti-patterns.md",
             "references/bottleneck-judgment.md",
             "references/decision-template.md",
@@ -975,7 +1034,6 @@ class CrossFileContractTests(unittest.TestCase):
                 self.assertNotIn(forbidden, all_skill_text)
 
         for name in (
-            "triton_cuda.md",
             "triton_hip.md",
             "triton_ascend.md",
             "tilelang.md",

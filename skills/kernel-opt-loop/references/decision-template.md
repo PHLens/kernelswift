@@ -34,8 +34,8 @@ Metadata is one fenced JSON object with these fields:
 | `reference_implementation` | Relative path to the accepted implementation |
 | `reference_report` | Relative path to the accepted report |
 | `language` | Implementation language, `triton` for the v1 profile |
-| `backend` | The selected runtime backend, such as `mlu` or `gcu` |
-| `target_profile` | The selected matching complete profile, such as `triton_mlu` or `triton_gcu` |
+| `backend` | The selected runtime backend, such as `mlu`, `gcu`, or `cuda` |
+| `target_profile` | The selected matching complete profile, such as `triton_mlu`, `triton_gcu`, or `triton_cuda` |
 | `runtime_fingerprint_ref` | Relative project reference with an anchor |
 | `change_scope` | `kernel`, `host`, `mixed`, or `none` |
 | `change_family` | Nonempty lowercase hyphen-separated slug for backlog routing |

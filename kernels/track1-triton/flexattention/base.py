@@ -4,6 +4,13 @@ import torch.nn.functional as F
 
 
 class Model(nn.Module):
+    """Causal scaled-dot-product attention (flexattention).
+
+    Shared cross-backend reference (device-neutral): tensors are created with
+    the 'cuda' device string and auto_bench.py rewrites/moves them to the
+    active accelerator (mlu / gcu / cuda).
+    """
+
     def __init__(self, num_heads: int = 8, head_size: int = 64,
                  scale: float = None, num_kv_heads: int = 8):
         super().__init__()
@@ -48,7 +55,7 @@ def get_init_inputs():
 
 if __name__ == "__main__":
     init_inputs = get_init_inputs()
-    model = Model(*init_inputs).cuda().eval()
+    model = Model(*init_inputs).eval()
     inputs = get_inputs()
     with torch.no_grad():
         out = model(*inputs)
