@@ -2,8 +2,8 @@
 schema_version: 1
 skill_version: 2.0.0
 runtime: claude-code
-phase: ready
-workflow_status: running
+phase: stopped
+workflow_status: stopped
 run_epoch: 1
 project_started_at: 2026-08-18T09:54:18Z
 current_round: "001"
@@ -67,6 +67,7 @@ change, incident, or commit yet.
 | 2026-08-18T09:54:18Z | ready | 000 | baseline | baseline_adapter.py | - | 90d43c9 |
 | 2026-08-18T10:00:00Z | designing | 001 | - | baseline_adapter.py | - | - |
 | 2026-08-18T10:00:00Z | ready | 001 | aborted | baseline_adapter.py | - | - |
+| 2026-08-18T10:05:00Z | stopped | 001 | user-intervention | baseline_adapter.py | - | - |
 
 ## Policy Revisions
 
