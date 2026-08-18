@@ -1,201 +1,309 @@
 ---
 name: kernel-opt-loop
-description: Iterative Triton kernel optimization loop on MLU/Cambricon (or any accelerator with an auto_bench-style harness). Use when the user asks to "optimize an operator", "improve a kernel's speedup", or mentions Triton + auto_bench + a base.py reference. Drives the loop: run baseline → write v1 Triton kernel → measure correctness + wall time → update log.md (groupedtopk format) → commit per round on a branch → pick the next single bottleneck. Do NOT use for one-shot bug fixes or non-iterative work.
+description: Coordinate a bounded, continuous Triton kernel or operator optimization campaign against an auto_bench-style harness using durable Designer, Coder, and Verifier artifacts.
 ---
 
-# Kernel Opt Loop
+# Kernel Optimization Loop
 
-Iterative methodology for taking a PyTorch eager operator (base.py) and producing a sequence of Triton kernels, each round committed with its optimization method + measured speedup, and a log.md that grows one entry per round in the groupedtopk format.
+This skill is the runtime-neutral Orchestrator contract. It owns workflow state,
+artifact gates, deterministic routing, canonical pointers, project overview
+updates, Git commits, global termination, and recovery. Designer, Coder, and
+Verifier own only the files declared in their role contracts. One live campaign
+has one active candidate and a measurement-exclusive shared machine.
 
 ## When to use
 
-- User says "优化 X 算子" / "optimize operator X" + there's a `base.py` reference impl
-- An `auto_bench.py` harness exists that takes `--v0_file` / `--v1_file` and reports correctness + wall time
-- Triton is the target (MLU/Cambricon Triton, NVIDIA Triton, etc.)
-- The work is iterative (multiple rounds, each picking ONE bottleneck)
+Use this skill when a project has an immutable PyTorch-style `base.py`, an
+`auto_bench.py`-style harness, and a request for iterative Triton operator or
+kernel optimization. It preserves correctness, benchmark wall time, and
+attributable profiler evidence across bounded continuous rounds.
 
-Do NOT use for: single-shot fixes, pure refactors, or non-iterative one-pass work.
+Do not use it for a one-shot bug fix, a non-iterative refactor, a workflow that
+may modify reference or harness semantics, or a target without a complete
+profile. Existing optimization projects are not migrated automatically.
 
 ## Required inputs
 
-Before starting, confirm these exist or ask the user:
+Resolve these before mutation:
 
-1. **Operator directory** (e.g. `fused_moe/`, `groupedtopk/`) containing:
-   - `base.py` — PyTorch eager reference with `Model`, `get_inputs()`, `get_init_inputs()`
-2. **`auto_bench.py`** in the repo root (or path) — takes `--v0_file --v1_file --warmup --repeat`
-3. **Python interpreter** that has torch + torch_mlu (or target accelerator) + triton installed
-4. **Target device** is set (e.g. `export CUDA_VISIBLE_DEVICES=0` or MLU equivalent)
+1. Absolute project root and immutable `base.py` path.
+2. Absolute harness path and its actual module-loading behavior.
+3. Absolute interpreter path, selected device, and required environment.
+4. Shape, dtype, correctness tolerances, warmup, repeat, profiling mode,
+   profiling warmup, and profiling iteration settings.
+5. An optional user target only when supplied as `absolute_latency_ms` or
+   `speedup_vs_baseline`; otherwise leave it null.
+6. Absolute skill root containing this file, the target-profile registry, one
+   matching complete profile, role contracts, templates, validators, helpers,
+   evaluator, and one runtime adapter.
 
-If `base.py` doesn't exist, ask the user to provide it. Do not write base.py yourself — it's the reference contract.
+Repository layout convention: the operator's immutable reference is a shared,
+device-neutral `base.py` at `<operator>/base.py`, and a campaign root is
+`<operator>/<backend>/` without its own base copy. Record the base in
+`project.md` as a relative path such as `../base.py`; resolve it to an absolute
+path before mutation and record its starting bytes and SHA-256. Never copy or
+edit the shared base.
 
-## Workflow
+Ask only for undiscoverable user-owned values. Never infer a device,
+interpreter, concurrency promise, target, or semantic tolerance from a
+candidate.
 
-### Phase 0 — Setup
+## Runtime selection
 
-1. Read `base.py` and identify the operator's shape, dtype, semantic.
-2. Read `auto_bench.py` enough to know:
-   - How `time_forward` measures (does it call `set_seed` + `sync_devices` per iter?)
-   - Whether there's an AST filter (`_filter_module_ast`) that strips non-literal module-level assigns — this affects how you write `fast_libentry` patterns
-   - What fields `ModelNew` must expose (`__init__` signature matching `get_init_inputs()`, `forward(hidden_states, router_logits)` matching `get_inputs()`)
-3. Pick measurement rules and stick with them for the whole project:
-   - **auto_bench wall time is authoritative** — do NOT mix with manual `time.perf_counter()` medians in the same table
-   - device time = sum of `dur` for `cat == "kernel"` events in profiler JSON
-4. Create a branch: `git checkout -b <op-name>-opt` from master.
+Choose in this exact order: Codex collaboration when exposed, Claude Code agent teams when enabled, then sequential fallback.
 
-### Phase 1 — Round 0: baseline commit
+Load exactly one runtime adapter and use its common operations. Multi-agent
+availability changes orchestration mechanics, not artifacts, ownership, routing,
+or state semantics. Sequential fallback executes each role contract in the main
+session without nested agent processes and still respects every ownership and
+handoff gate.
 
-1. Run `auto_bench --v0_file <op>/base.py --v1_file <op>/base.py --warmup 50 --repeat 100` to get the baseline wall time and verify the harness works.
-2. Optionally profile: run forward 50 iters under torch.profiler, dump JSON to `<op>/log/<op>_forward_50iter.pt.trace.json` (`**/log/` is gitignored).
-3. Write `log.md` in round-0 state — see [log-template.md](references/log-template.md). Round-0 state has:
-   - Section 1 (problem + measurement rules)
-   - Section 2 (upbound definition — be honest, don't fake a stretch goal)
-   - Section 3 (table with ONLY the base.py row)
-   - Section 4 (only Entry 000 — "PyTorch eager 起点", no optimization)
-   - Section 5 (current bottleneck, post-base state)
-   - Section 6 (next direction — P0 only)
-   - Section 7 (reproduction command)
-   - Section 8 (checkpoint date + "v1 Triton: 待补")
-4. Commit: `git add <op>/base.py <op>/log.md && git commit -m "<op>: add eager baseline"`
+## Agent bootstrap contract
 
-### Phase 2 — Optimization round N (N ≥ 1)
+Orchestrator resolves every placeholder to an absolute path, supplies only the
+current phase inputs and required outputs, and sends this compact bootstrap. Do
+not paste the complete role contract into a role start message.
 
-Each round is ONE bottleneck, ONE .py file, ONE log.md update, ONE commit. Roughly 5 minutes of work.
+```text
+You are the <role> for kernel-opt-loop.
 
-#### Step 1: Pick the bottleneck
+Before taking any action, read these files completely and follow them:
+- Role contract: <absolute-skill-root>/prompts/<role>.md
+- Runtime adapter: <absolute-skill-root>/adapters/<runtime>.md
 
-Compute `device_ratio = sum(kernel dur) / wall_time` first (kernel dur = sum of `dur` for all `cat == "kernel"` events in one forward's profiler JSON; wall = auto_bench per-call). This single ratio classifies the round:
+Skill root: <absolute-skill-root>
+Project root: <absolute-project-root>
+Current phase: <phase-or-round>
+Inputs:
+- <absolute-input-path>
+Required outputs:
+- <absolute-output-path>
 
-- **device-bound** (`device_ratio > 80%`): optimize the kernel itself — loop fusion, `tl.dot` for GEMM, fewer `tl.exp` calls, fewer `tl.load`s.
-- **host-bound** (`device_ratio < 20%`): reduce host overhead — `fast_libentry`, cache output buffer, drop `torch.mlu.device()` context, fuse routing PyTorch ops into the kernel.
-- **measurement-bound** (host overhead is only `set_seed` + `sync_devices`, the harness's fixed costs): stop, declare done.
-
-For the full procedure — including how to break down host overhead into launcher / `set_seed` / `sync_devices` / harness-state components, how to find the dominant kernel in the trace when device-bound, the compressible-vs-fixed table, and the 5-round fused_moe worked example — see [references/bottleneck-judgment.md](references/bottleneck-judgment.md).
-
-Pick ONE bottleneck class. Don't fix two things in one round — if you do, you can't attribute the speedup. The workflow requires ≥5% stable improvement in the same trace to keep a change; sub-5% is noise.
-
-#### Step 2: Write the new kernel file
-
-- Create `<op>/triton_<op>_<NNN>.py` (zero-padded 3-digit, e.g. `001`, `002`, ...).
-- Copy the previous round's file as the starting point. Change only what the chosen bottleneck requires.
-- Expose `ModelNew` with the same `__init__` / `forward` / `get_inputs` / `get_init_inputs` contract as `base.py`.
-- Keep the kernel body minimal — don't refactor unrelated parts.
-
-#### Step 3: Handle `auto_bench`'s AST filter (if present)
-
-If `auto_bench.py` has a `_filter_module_ast` that strips non-literal module-level assigns, patterns like:
-
-```python
-_fast = fast_libentry()(_kernel)  # STRIPPED at filter time → NameError at runtime
+Do not rely on parent conversation history. Do not write files outside your
+declared ownership. Report completion through the runtime adapter.
 ```
 
-won't work. Use the class-body `globals()` trick:
+The role reads its full contract. State-changing role responses are advisory
+until the required durable artifact exists and passes its gate.
 
-```python
-@triton.jit
-def _kernel(...): ...
+## Phase 0
 
-class ModelNew(nn.Module):
-    if "_fast" not in globals():
-        globals()["_fast"] = fast_libentry()(_kernel)
+Perform initialization in this order:
 
-    def forward(self, ...):
-        _fast[grid](...)  # resolves via globals()
+1. Resolve absolute skill, project, base, harness, interpreter, and device
+   paths. Record starting SHA-256 and bytes of `base.py` and the harness.
+2. Record a clean Git base branch and commit. Create the dedicated run branch
+   `kernel-opt/<operator>-<run-epoch-or-timestamp>` unless the user explicitly
+   authorizes an existing dedicated branch. Reject automatic execution on
+   `main`, `master`, or `dev`.
+3. Create `rounds/`, `state/`, and gitignored `log/`. Materialize `project.md`,
+   `team-state.md`, and `state/designer_context.md`, `state/coder_context.md`,
+   and `state/verifier_context.md` from their templates. Only Orchestrator
+   writes the manifest and project overview.
+4. Discover implementation language, backend, target profile, Triton
+   distribution/version, active backend target/version when available, and
+   device architecture. Select exactly one matching complete profile from
+   `prompts/coder_targets/`; never fall back across backends. A missing runtime,
+   missing profile, or identity mismatch is an environment block.
+5. Dispatch Designer for Phase 0 semantic analysis. Request only unknown
+   user-owned values and validate its writable-file boundary before continuing.
+6. Run `scripts/make_baseline_adapter.py` to create `baseline_adapter.py` by
+   renaming the one top-level `Model` to `ModelNew`. Verify recorded `base.py`
+   bytes are unchanged.
+7. Dispatch Verifier for baseline correctness, benchmark wall samples, and the
+   required baseline profiler evidence. Require `rounds/report_000.md` with
+   result `baseline`, fingerprints, normalized evidence, and exact reproduction
+   commands.
+8. Compute the measurement fingerprint as SHA-256 over base bytes, NUL, harness bytes, NUL, and canonical JSON measurement settings. Serialize with
+   `sort_keys=True` and `separators=(',', ':')`. The JSON object has exactly
+   these keys: `"shape"`, `"dtype"`, `"device"`, `"warmup"`, `"repeat"`,
+   `"profile_mode"`, `"profile_warmup"`, and `"profile_iterations"`.
+9. After all gates pass, set `last_completed_round: "000"`,
+   `last_accepted_round: "000"`, `last_accepted_kernel: baseline_adapter.py`,
+   `last_accepted_report: rounds/report_000.md`, completed report pointers,
+   `last_result: baseline`, `phase: ready`, and `workflow_status: running`.
+   Append Phase 0 transition and overview rows, then commit the artifacts.
+
+On a Phase 0 environment failure, create an incident, set `phase: blocked` and
+`workflow_status: blocked`, leave accepted pointers null, append and commit the
+blocking transition, and report remediation. Phase 0 is not a completed round.
+
+## Round N
+
+Round number is `total_rounds + 1`, formatted as three digits. Never allocate a
+second active round. Resolve `last_accepted_kernel` and
+`last_accepted_report` before dispatch.
+
+1. Set `phase: designing`. Dispatch Designer with canonical evidence, recent
+   completed evidence, exact profile, project invariants, and anti-pattern
+   guidance. Designer writes one `decision_NNN.md`.
+2. Run `scripts/validate_decision.py` with the manifest target profile. Record
+   decision hash. A proceeding decision is immutable before coding.
+3. A valid abort form produces terminal result `aborted` without Coder or
+   Verifier.
+4. Set `phase: coding`. Dispatch Coder with immutable decision and canonical
+   source. Require `coder_result_NNN.md` and, for `candidate-ready`, matching
+   candidate hashes and compile-smoke evidence.
+5. Apply the routing table. Never dispatch Coder directly from Designer or
+   Verifier directly from Coder; all handoffs pass through Orchestrator.
+6. Set `phase: verifying` and `measurement_exclusive: true` only when Verifier
+   owns local commands. Require durable status updates and route at most one
+   same-round repair or missing-evidence request through Orchestrator.
+7. Validate all artifacts and hashes before calculating one terminal result.
+   Set `last_completed_round`, `last_completed_decision`,
+   `last_completed_coder_result`, `last_completed_report`, and `last_result`,
+   using null where no artifact exists. Append exactly one overview row and one
+   terminal transition row.
+8. Clear `measurement_exclusive` at durable completion. The terminal artifact
+   gate is the only input to the continuous run controller below.
+
+`round_status_NNN.md` is updated at verification start, after correctness, after
+each timing pair, and at verification end. Completion notifications are
+preferred when the adapter supports them; Orchestrator does not poll a runtime
+that already delivers completion.
+
+## Routing and state transitions
+
+Only Orchestrator transitions the manifest. Allowed phases are
+`initializing|ready|designing|coding|verifying|repairing|measuring|blocked|stopped`.
+
+| Producer classification | Orchestrator action |
+|---|---|
+| Designer abort | Complete `aborted`; do not dispatch Coder or Verifier. |
+| Coder `candidate-ready` | Dispatch Verifier after recorded Coder gate. |
+| Coder `major-deviation` or `capability-miss` | Complete `design-rejected`; preserve evidence and keep canonical unchanged. |
+| Coder `implementation-failed` | Complete `candidate-failed`; keep canonical unchanged. |
+| Any `environment-blocked` | Write/preserve incident, set `blocked`, and report remediation; no terminal round. |
+| Verifier `implementation-repair-required` | Set `repairing` and return to Coder exactly once in the same round. |
+| Verifier requires a design change | Complete `design-rejected`; never edit the current decision. |
+| Verifier correctness fails after repair | Complete `candidate-failed`. |
+| Verifier `measurement-incomplete` | Set `measuring`, collect named probe, then return to Verifier; classify design or environment if impossible. |
+| Verifier terminal evidence | Complete `accepted`, `no-improvement`, or `screened-out` from the role contract. |
+
+Environment incidents update neither counter nor `total_rounds`. Rejected
+candidates remain auditable and never become the next source baseline.
+
+## Continuous run controller
+
+A round_result is not workflow termination. At every terminal artifact gate,
+commit the terminal artifacts before evaluating the pure helper. The required
+routing is:
+
+```text
+terminal artifact gate -> terminal commit -> evaluate_run_policy.py
+  workflow_status=running -> optional checkpoint -> continue idle Designer
+  workflow_status=stopped -> final summary commit -> end_workflow
+  workflow_status=blocked -> incident commit -> blocking report -> end live run
 ```
 
-`_filter_module_ast` keeps ClassDef nodes, so the class body runs at import time and populates the module global.
-
-#### Step 4: Run auto_bench
+Build a JSON input projection from the manifest; it is evaluator input, not a
+second persisted state store. For example:
 
 ```bash
-<python> auto_bench.py \
-  --v0_file <op>/base.py \
-  --v1_file <op>/triton_<op>_<NNN>.py \
-  --warmup 50 --repeat 100
+python3 <skill-root>/scripts/evaluate_run_policy.py \
+  --state-json '{"total_rounds":2,"performance_miss_streak":2,"failed_attempt_streak":0,"last_checkpoint_round":null,"max_rounds":20,"valid_no_improvement_limit":3}' \
+  --result no-improvement
 ```
 
-Check:
-- `PASS accuracy` — if FAIL, fix before logging anything. Don't commit broken kernels.
-- `v0=... ms, v1=... ms, speedup=...` — record these exact numbers.
+Apply returned counters, `workflow_status`, `phase`, `stop_reason`, and
+`last_checkpoint_round` atomically to `team-state.md` and its transition log.
+When `workflow_status=running`, commit, then and only then dispatch the next round through the idle Designer.
+When stopped, write and commit the final summary before ending the live run.
+When blocked, commit the incident and send the blocking report before ending the
+live run.
 
-If accuracy fails, the most common causes:
-- argmax using a sentinel value that corrupts the sum (e.g. `tl.where(is_best, e_idx, E)` sums to `best + (E-1)*E`). Use `tl.where(is_best, e_idx, 0)`.
-- shape mismatch in `tl.dot` (forgot `tl.trans`). `[1, H] @ [2I, H]` is wrong; need `[1, H] @ [H, 2I]`.
-- dtype: `tl.dot` may require fp16 or fp32 inputs explicitly cast.
+## Global termination policy
 
-#### Step 5: Optionally profile
+The frozen default policy is:
 
-If device time matters for this round, run torch.profiler and dump JSON to `<op>/log/<op>_<NNN>_forward_50iter.pt.trace.json`. Summarize kernel time by name:
-
-```bash
-jq -r '.traceEvents[] | select(.cat == "kernel") | [.name, .dur] | @tsv' \
-  <op>/log/<NNN>.json \
-| awk -F'\t' '{a[$1]+=$2; c[$1]++} END {for (n in a) printf "%s\tcount=%d\ttotal=%.2fus\tavg=%.2fus\n", n, c[n], a[n], a[n]/c[n]}' \
-| sort -t= -k3 -rn | head
+```yaml
+max_rounds: 20
+valid_no_improvement_limit: 3
+adoption_threshold_pct: 5
 ```
 
-#### Step 6: Update log.md (BEFORE next round)
+Every terminal result increments `total_rounds` exactly once. Counter effects
+are exact:
 
-Append to log.md:
+| Result | `performance_miss_streak` | `failed_attempt_streak` | Canonical |
+|---|---:|---:|---|
+| `accepted` | reset to 0 | reset to 0 | Advance candidate and report. |
+| `no-improvement` | increment by 1 | unchanged | Unchanged. |
+| `screened-out` | unchanged | unchanged | Unchanged. |
+| `design-rejected` | unchanged | increment by 1 | Unchanged. |
+| `candidate-failed` | unchanged | increment by 1 | Unchanged. |
+| `aborted` | unchanged | increment by 1 | Unchanged. |
 
-1. Add a row to Section 3 table: `| <file> vN | <wall> ms | <device> us / iter | <rel-to-prev>x | <rel-to-base>x |`
-2. Append Entry 00N under Section 4 with these subsections (in order):
-   - **状态** (state — what the previous round looked like, why this round is needed)
-   - **假设** (hypotheses — what you expect the change to do)
-   - **优化手段** (what you changed — concrete code/pattern)
-   - **踩坑** (pitfalls — argmax sentinel, AST filter, etc. Be honest.)
-   - **结果** (auto_bench wall + device time + speedup numbers)
-   - **与 upbound 的差距** (gap to upbound — be quantitative)
-   - **下一步** (next direction — one sentence)
-3. Update Section 5 (current bottleneck) to reflect post-round state
-4. Update Section 6 (next directions) — reorder or mark P0 done
-5. Update Section 8 checkpoint date if needed
+Stop precedence is explicit user stop, comparable optional target reached, third
+valid `no-improvement`, then twentieth terminal round. A checkpoint at rounds
+3, 6, 9, and later multiples of three is a derived status message only: it does
+not pause the run and never creates a checkpoint artifact. `last_checkpoint_round`
+prevents duplicate messages.
 
-**This step is mandatory before the next round.** The user explicitly required: "每轮跑出结果后先更新log.md再分析瓶颈跑下一轮" (update log.md BEFORE analyzing next bottleneck).
+The evaluator records stop reasons as `user-intervention`, `target-reached`,
+`valid-no-improvement-limit`, or `round-budget-exhausted`.
 
-#### Step 7: Commit per round
+The optional target is only `absolute_latency_ms` or `speedup_vs_baseline`, is
+measured by `wall_time_ms`, and is comparable only under the baseline measurement
+fingerprint. A user may append a target at a safe terminal boundary. All other
+policy fields are frozen for the run epoch. A user stop is recorded immediately
+but waits for the active command boundary unless immediate interruption is
+explicitly requested.
 
-```bash
-git add <op>/triton_<op>_<NNN>.py <op>/log.md
-git commit -m "<op>: v<NNN> <short method>, <speedup>x"
-```
+## Measurement-exclusive phases
 
-Commit message rules:
-- First line: `<op>: v<NNN> <one-phrase method>, <rel-to-base>x`
-- Body: what changed (concrete), wall time before/after, device time, why.
-- Footer: `Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>`
-- **DO NOT** put log.md in a single final commit. Each round's log.md diff lives in that round's commit. (User explicitly required this.)
+Set `measurement_exclusive: true` before Verifier begins `verifying` or
+`measuring`, and clear it only after durable completion, block, or terminal
+artifact commit. During this state no other role may execute local commands or
+perform scans, builds, cache warming, or writes. This is a same-machine safety
+requirement, not a performance budget.
 
-### Phase 3 — Stop criteria
+## Run epochs and recovery
 
-Stop when ONE of:
-- Wall time is host-overhead-bound (device time < 20% of wall) AND remaining host overhead is from the harness's fixed costs (set_seed, sync_devices). Further device optimization has no wall payoff.
-- 5 rounds done with diminishing returns (each round < 5% improvement). The workflow spec says "不能在同 trace 中稳定改善至少 5% 的方案不进入主实现" (a change that doesn't stably improve ≥5% in the same trace doesn't go into main).
-- User says stop.
+Treat durable files, not session-local roles, as authoritative. Before dispatch,
+validate manifest schema, artifact existence and hashes, target runtime
+fingerprint, measurement fingerprint, current phase, and last committed
+transition. Reuse a valid uncommitted predecessor in the same round but never reopen a completed decision.
 
-When stopping, write a final entry noting the stop reason and the cumulative speedup.
+Only `recover` resumes a block or uncommitted safe step. It preserves counters
+and resumes at the first missing or invalid artifact. A stopped run requires a
+new `run_epoch` and an explicit user approval reason before counters reset.
+Target/profile/fingerprint/policy changes, canonical-pointer mismatch, or failed
+three-round reconciliation require rehydration from compact role context and
+changed artifacts. A measurement fingerprint change requires a comparable
+baseline before candidate comparison.
 
-## Measurement discipline
+## Git evidence ledger
 
-This is the single most important thing. Most confusion in kernel optimization comes from mixing measurement regimes.
+Commit Phase 0, every terminal round, every incident, and final stop summary on
+the dedicated run branch. Track baseline adapter, project/team state, decisions,
+Coder results, reports, candidate source when present, role context, incidents,
+and final summary. Do not track raw profiler logs, command output, caches,
+runtime sessions, bootstraps, or secrets; reports instead retain raw relative
+paths, hashes, and commands. `log/` remains ignored.
 
-1. **Pick one wall-time source.** auto_bench's `time_forward` is the default. Do NOT mix it with manual `time.perf_counter()` medians — they will disagree by 2-3x because auto_bench adds `set_seed` + `sync_devices` overhead per iter.
-2. **Device time is separate.** It comes from profiler JSON, not wall time. A wall-vs-device gap is a signal (host-bound if large), not a bug.
-3. **Don't compare across regimes.** If you change the measurement (e.g. preallocated output, fewer syncs), re-run all previous rounds under the new regime before comparing.
-4. **Re-run on noise.** If a round's wall time is within 5% of the previous, it's noise — re-run to confirm or reject. Don't log noise as improvement.
-5. **Use the same warmup/repeat for all rounds.** `--warmup 50 --repeat 100` is a good default. Changing it mid-project invalidates comparisons.
+## Knowledge lift
 
-## Pitfalls log (project-wide)
-
-Things that have bitten this workflow:
-
-- **`_filter_module_ast` stripping**: auto_bench's filter drops non-literal module-level assigns. `fast_libentry()(_kernel)` at module scope → NameError. Fix: class-body `globals()` trick (see Step 3 above).
-- **argmax sentinel**: `tl.where(is_best, e_idx, E)` corrupts the sum. Use `tl.where(is_best, e_idx, 0)`.
-- **`tl.dot` shape**: requires 2D inputs and matching inner dims. `[1, H] @ [2I, H]` is wrong; transpose first.
-- **`torch.mlu.device()` context manager**: has host enter/exit overhead. If the caller already sets the device, drop it.
-- **`torch.empty_like` per forward**: allocator overhead. Cache the output tensor on the ModelNew instance.
-- **`torch.cuda.is_available()` on MLU box**: returns True (because CUDA stub is loaded), so `sync_devices()` syncs BOTH cuda and mlu — double sync cost per iter. This is harness overhead, not kernel overhead. Don't try to fix it in the kernel.
+At final stop, inspect project evidence for generic failed patterns with clear
+preconditions, observed failure, evidence revision, and reconsideration
+conditions. Propose promotions to the user. Modify
+`references/anti-patterns.md` only after explicit user approval in a separate
+commit. Do not rewrite existing project histories.
 
 ## References
 
-- [log-template.md](references/log-template.md) — skeleton for log.md with all 8 sections
-- See `groupedtopk/log.md` and `fused_moe/log.md` in this repo for full worked examples
+- `adapters/claude-code.md` and `adapters/codex.md`: runtime lifecycle mappings.
+- `prompts/designer.md`, `prompts/coder.md`, and `prompts/verifier.md`: role
+  behavior and ownership.
+- `prompts/coder_targets/<target_profile>.md`: the one complete profile selected
+  by the current runtime; this repository currently includes `triton_mlu` and
+  `triton_gcu`.
+- `references/decision-template.md`: normative decision schema.
+- `references/project-template.md`, `references/report-template.md`,
+  `references/team-state-template.md`, and `references/role-context-template.md`:
+  durable artifacts.
+- `references/invariants.md`, `references/bottleneck-judgment.md`, and
+  `references/anti-patterns.md`: constraints and evidence guidance.
+- `scripts/validate_decision.py`, `scripts/make_baseline_adapter.py`,
+  `scripts/summarize_trace.py`, and `scripts/evaluate_run_policy.py`:
+  deterministic gates and helpers.

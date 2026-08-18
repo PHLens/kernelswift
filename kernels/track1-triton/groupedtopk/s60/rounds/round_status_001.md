@@ -1,0 +1,26 @@
+# Round Status 001
+
+- phase: `verification-complete`
+- result: `accepted`
+- measurement_exclusive: `false`
+- decision_sha256: `f49d72923a1e274a5ae00725947db509665c9ef899f0113c2db07a4d7336f6af`
+- candidate_sha256: `f42ff6b47b28996199bbe9b8df0a181db2834be99473453f3eea35df51df693e`
+- completed_commands:
+  - `python3 -m py_compile s60/groupedtopk/triton_grouped_topk_001.py`: PASS
+  - S60 auto_bench compile smoke/correctness: PASS
+  - three S60 formal ordered benchmark pairs: PASS
+  - S60 scoped forward profile: exported
+  - local `scripts/summarize_trace.py` reference/candidate summaries: PASS
+- correctness: `PASS`
+- raw_samples:
+  - reference: `[0.449626, 0.459056, 0.447581] ms`
+  - candidate: `[0.274446, 0.273881, 0.270696] ms`
+- medians:
+  - reference: `0.449626 ms`
+  - candidate: `0.273881 ms`
+  - improvement: `39.08693002628853%`
+- profile:
+  - reference runtime launches: `12.0/call`, `131.004023 us/call`
+  - candidate runtime launches: `1.0/call`, `10.409482 us/call`
+  - device duration: unavailable in recorded GCU exporter
+- next_safe_action: `terminal artifacts committed in `9225fb0`; evaluate next-round policy before dispatch`

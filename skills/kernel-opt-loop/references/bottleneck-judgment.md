@@ -1,127 +1,176 @@
 # Bottleneck Judgment
 
-How to decide which of three classes — device-bound, host-bound, measurement-bound — is the current round's bottleneck, and which concrete optimization to pick within that class.
+Use attributable evidence to classify the current bottleneck as device-bound,
+host-bound, mixed, or measurement-bound. The classification informs one
+falsifiable intervention; it never replaces the round's Evaluation Contract.
 
-## The single most important ratio
+## Measurement Rules
 
+1. Benchmark wall time and profiler time are different measurements. Interleaved
+   accepted-reference/candidate benchmark wall time is authoritative for
+   adoption. Profiler time explains mechanisms.
+2. Collect and summarize separate reference and candidate scopes. Never add or
+   compare events from a combined scope.
+3. Normalize every multi-iteration profiler total per forward call before using
+   it. For `N` calls:
+
+   ```text
+   device_us_per_call = device_total_us / N
+   kernel_count_per_call = kernel_count_total / N
+   device_ratio = device_us_per_call / (benchmark_wall_ms_per_call * 1000)
+   ```
+
+4. Compare the candidate to `last_accepted_kernel`, not merely the numerically
+   previous candidate. Keep shape, dtype, device, harness, warmup/repeat, and
+   profiler settings inside one measurement fingerprint.
+5. Use unrounded medians for the 5% adoption decision. A profiler improvement
+   alone does not adopt a candidate.
+
+## Required Evidence Levels
+
+- **Level 0, every candidate:** conformance, correctness, guardrails, and
+  interleaved paired wall samples for the accepted reference and candidate.
+- **Level 1, after correctness passes:** separately scoped device time per call,
+  kernel count per call, and top-k kernel breakdown for both implementations.
+  If the selected target profile explicitly marks device duration unavailable,
+  record its normalized backend-specific runtime-launch evidence and preserve
+  the unavailable device fields; never substitute launch time for device time.
+- **Level 2, intent-driven:** targeted kernel, host, launcher, allocation,
+  synchronization, or backend probe requested by the Evaluation Contract.
+- **Level 3, deep on demand:** complete trace work only when conflicting results,
+  an unattributed regression, decisive noise, or a stop claim requires it.
+
+Detailed host decomposition is Level 2 evidence. Do not run it unconditionally;
+request it when the causal hypothesis concerns host, launcher, allocation,
+context, stream, or harness-fixed time.
+
+## The Primary Ratio
+
+```text
+device_ratio = device_us_per_call / (benchmark_wall_ms_per_call * 1000)
 ```
-device_ratio = sum(kernel dur) / wall_time
-```
 
-where `sum(kernel dur)` is the sum of `dur` for all `cat == "kernel"` events in the profiler JSON for ONE forward call, and `wall_time` is auto_bench's reported per-call wall time (microseconds, from `time_forward` median).
+`device_us_per_call` is the sum of all kernel durations inside one implementation
+scope divided by that scope's forward-call count. It is not one selected kernel,
+the complete device span, or an unnormalized 50-call total.
 
-Compute this number FIRST every round. It maps to a bottleneck class:
+Use these ranges as heuristics, not as adoption rules:
 
-| `device_ratio` | Class | What to optimize |
+| Device ratio | Class | Likely next evidence or intervention |
 |---:|---|---|
-| > 80% | **device-bound** | The kernel itself (fuse ops, change GEMM strategy, reduce compute) |
-| 20%–80% | **mixed** | Both device and host have room. Pick device first if cheaper; otherwise pick host. |
-| < 20% | **host-bound** | Host overhead (launcher, routing ops, allocator, context managers) |
-| < 5% AND wall stuck | **measurement-bound** | Harness fixed costs (set_seed, sync_devices). Stop. |
+| > 80% | device-bound | Dominant kernel dataflow, computation, or fusion |
+| 20%-80% | mixed | Choose one separately observable device or host mechanism |
+| < 20% | host-bound | Launcher, wrapper, allocation, routing, or context probe |
+| < 5% and wall is stuck | measurement-bound candidate | Prove remaining host time is harness-fixed before stopping |
 
-Don't optimize across classes — if `device_ratio = 70%` and you optimize device, the wall drop is bounded by ~30%, and you can attribute the result cleanly. If you optimize host at the same time, you can't tell which helped.
+The ratio says where time is observed, not whether that time is compressible.
 
 ## Procedure
 
-### Step 1 — Get device time
+### 1. Establish Comparable Scopes
 
-Profile ONE forward call (or 50 iters, take total/50). Extract kernel time:
+Run the unchanged benchmark in interleaved order and retain every raw wall
+sample. Profile the accepted reference under a scope such as
+`accepted_reference` and the candidate under a separate `candidate` scope. Use
+the same positive iteration count for both. Reject a trace whose scopes overlap or
+are missing. A target profile may define an explicit runtime-launch-only trace;
+in that case require its declared runtime event class and do not call the trace
+an attributable device-kernel profile.
 
-```bash
-jq -r '.traceEvents[] | select(.cat == "kernel") | .dur' \
-  <op>/log/<NNN>.pt.trace.json \
-| awk '{s+=$1; c++} END {printf "total=%.2fus  count=%d  avg=%.2fus\n", s, c, s/c}'
+For a 50-call candidate scope with 1,000 us of device work and 50 kernel events:
+
+```text
+device_us_per_call = 1000 / 50 = 20 us
+kernel_count_per_call = 50 / 50 = 1
 ```
 
-If you only care about your own kernel (not all PyTorch ops it calls):
+If its unrounded benchmark median is 0.100 ms per call:
 
-```bash
-jq -r '.traceEvents[] | select(.cat == "kernel" and (.name | startswith("_fused_moe"))) | .dur' \
-  <op>/log/<NNN>.pt.trace.json \
-| awk '{s+=$1; c++} END {printf "kernel total=%.2fus  count=%d  avg=%.2fus\n", s, c, s/c}'
+```text
+device_ratio = 20 / (0.100 * 1000) = 0.20
 ```
 
-The first form is "all kernels launched during one forward" — use this for `device_ratio` because wall time includes ALL of them. The second is "just my Triton kernel" — use this to track your kernel's own progress across rounds.
+Apply the same normalization independently to the accepted-reference scope.
 
-### Step 2 — Compute device_ratio
+### 2. Inspect the Level 1 Breakdown
 
-```
-device_ratio = (sum all kernel dur in one forward) / (auto_bench wall time per call)
-```
+Aggregate kernel names within each scope and report total count, count per call,
+total duration, and duration per call. Sort by total duration. A disappearing
+library kernel, reduced launch count, or faster target kernel can support the
+declared mechanism, but the unrounded wall result still controls adoption.
 
-Example (v5 fused_moe): all-kernel dur ≈ 21 us, auto_bench wall = 138 us. `device_ratio = 21/138 ≈ 15%` → **host-bound**.
+Do not compare a candidate's one-call number with a reference's 50-call total.
+Do not use one implementation's wall median in the other implementation's ratio.
 
-### Step 3 — If host-bound, break down the host overhead
+### 3. Request Targeted Level 2 Evidence When Needed
 
-`host_overhead = wall - device_time`. To attribute it to sources, run three measurements in sequence on the same process:
+When the Evaluation Contract names host or lifecycle behavior, measure only the
+declared components in the same process and regime. A useful decomposition may
+include:
 
-1. **A. auto_bench `time_forward`** — the authoritative wall number.
-2. **B. minimal loop**: `for _ in range(N): sync(); out = kernel(...); sync()` — no `set_seed`, no `build_case`, just the kernel call. The median × N approximates "kernel + launcher + bare sync" cost.
-3. **C. B + `set_seed(seed)` before each call** — measures `set_seed` overhead = C - B.
-4. **D. C + `sync_devices()` (sync both cuda and mlu if both visible) after each call** — measures `sync_devices` overhead = D - C.
-5. **A - D** = remaining overhead from `build_case` + `load_state_dict` + accuracy run state.
+1. authoritative harness wall time;
+2. kernel call plus the harness's synchronization boundary;
+3. the same call with seed setup;
+4. the same call with the harness's device synchronization;
+5. the residual wrapper or case-construction cost.
 
-Example (v5 fused_moe, 1 forward):
-- A = 135 us (auto_bench)
-- B = 82 us (kernel 21 us + launcher ~60 us)
-- C = 94 us → `set_seed` = 12 us
-- D = 134 us → `sync_devices` = 40 us (cuda+mlu double sync)
-- A - D = 1 us → no build_case effect at this round (but can be ~24 us when build_case state differs)
+Subtract only measurements with matching units and call counts. Treat results as
+diagnostic because changing the loop can change the measured regime. Record
+allocator, launcher, context, device, and stream assumptions in the Host Plan.
 
-Total breakdown: device 21 us (15%) + launcher 60 us (44%) + `set_seed` 12 us (9%) + `sync_devices` 40 us (29%) + other 2 us (3%) = 135 us.
+### 4. Select One Intervention
 
-### Step 4 — Decide the round's target
+- If one candidate kernel dominates scoped device time, consider its dataflow,
+  redundant work, loads, math, or target-supported tuning.
+- If separate library kernels dominate, consider fusion only when they are inside
+  the decision's allowed change boundary.
+- If allocation or launcher work is observed, specify state owner, lifetime,
+  cache key, invalidation, concurrency, device, and stream behavior before making
+  a host change.
+- If only harness-fixed work remains, collect enough targeted evidence for a
+  measurement-bound stop recommendation. Do not optimize `base.py` or alter the
+  harness to manufacture a speedup.
 
-Based on the breakdown:
+Before dispatch, confirm that the intervention is expected to improve unrounded
+wall time by at least 5%, has a named mechanism observable, preserves all
+guardrails, and changes only one attributable cause. A mixed change is acceptable
+only when its kernel and host pieces are inseparable and separately observable.
 
-- **launcher is the biggest non-device chunk** → optimize launcher (`fast_libentry`, drop `torch.mlu.device()` context, cache output buffer). This was v3 + v5 of fused_moe.
-- **routing PyTorch ops are visible in trace as separate kernels** → fuse them into the Triton kernel. This was v2 of fused_moe.
-- **`sync_devices` is the biggest chunk AND it's harness overhead** → measurement-bound. Don't try to fix it in the kernel. Either declare done, or switch shape to make device time dominate again.
-- **device_ratio > 50%** → optimize the kernel. Look at the trace to see which kernel dominates:
+## Worked Example
 
-```bash
-jq -r '.traceEvents[] | select(.cat == "kernel") | [.name, .dur] | @tsv' \
-  <op>/log/<NNN>.pt.trace.json \
-| awk -F'\t' '{a[$1]+=$2; c[$1]++} END {for (n in a) printf "%s\tcount=%d\ttotal=%.2fus\tavg=%.2fus\n", n, c[n], a[n], a[n]/c[n]}' \
-| sort -t= -k3 -rn | head
-```
+The historical fused_moe values below illustrate classification only. Each
+device value is already normalized per forward call; no raw multi-call total is
+used as a per-call value.
 
-The top row is the dominant kernel. If it's your own Triton kernel, look inside it for what's expensive (e.g. `tl.exp` in routing, elementwise outer product instead of `tl.dot`, redundant `tl.load`s). If it's a library kernel (CNNL topk, scatter), that's a candidate to fuse into your Triton kernel.
+| Round | Benchmark wall us/call | Device us/call | Device ratio | Class | Observed target |
+|---:|---:|---:|---:|---|---|
+| 0 | 6940 | 2700 | 39% | mixed | Remove mask/scatter work |
+| 1 | 564 | 21 | 4% | host-bound | Fuse routing kernels |
+| 2 | 218 | 23 | 11% | host-bound | Launcher and output allocation |
+| 3 | 153 | 23 | 15% | host-bound | Test whether device work can still move wall time |
+| 4 | 164 | 21 | 13% | host-bound | Device-context overhead |
+| 5 | 138 | 21 | 15% | host-bound | Stop after proving remaining host cost is fixed |
 
-### Step 5 — Sanity-check the choice
+The source project found compressible launcher and context costs before reaching
+harness-fixed seed and synchronization costs. Those findings are evidence for
+that recorded runtime and Host Plan, not universal instructions to remove device
+contexts or cache buffers.
 
-Before committing to the round's target, answer:
+## Compressible Versus Fixed Host Time
 
-- **Is the optimization expected to move the bottleneck class?** (e.g. host→device, or staying in class but reducing the dominant component.) If no — it's noise, don't do it.
-- **Is the expected improvement > 5%?** The workflow spec says < 5% doesn't go into main. Re-run if needed to confirm.
-- **Can I attribute the result cleanly?** (Only ONE thing changed.) If you also touched something else, you can't tell what helped.
+Classify a component from current evidence:
 
-## Worked example (fused_moe, all 5 rounds)
-
-| Round | wall (us) | all-kernel dur (us) | device_ratio | Class | Target |
-|---|---:|---:|---:|---|---|
-| 0 (base) | 6940 | ~2700 | 39% | mixed | (write v1 — eliminate mask/scatter) |
-| 1 (v1) | 564 | 21 | 4% | host-bound | fuse routing into kernel (v2) |
-| 2 (v2) | 218 | 23 | 11% | host-bound | `fast_libentry` + cache output (v3) |
-| 3 (v3) | 153 | 23 | 15% | host-bound | `tl.dot` for GEMM (v4) — picked device because host was close to floor |
-| 4 (v4) | 164 | 21 | 13% | host-bound | drop `torch.mlu.device()` (v5) |
-| 5 (v5) | 138 | 21 | 15% | host-bound | stop — remaining host is `set_seed` + `sync_devices` (harness) |
-
-Note v3→v4: `device_ratio` was 15% (host-bound), but the host overhead was already close to the floor (`set_seed` 12 + `sync_devices` 40 + launcher 60 = 112 us, floor for this harness). Continuing to optimize host had diminishing returns, so even though it's host-bound by ratio, the round picked a device optimization (v4 `tl.dot`) — and indeed wall didn't drop (v4 164 > v3 153, within noise). v5 then got the last bit of host overhead (context manager) and dropped to 138.
-
-The lesson: `device_ratio` tells you where the time is, but you also need to know whether the host overhead is **compressible** (launcher, your own code) or **fixed** (harness). Optimize compressible pieces; stop when only fixed remains.
-
-## Compressible vs fixed host overhead (cheat sheet)
-
-| Source | Compressible? | How |
+| Source | Typical classification | Required check |
 |---|---|---|
-| Triton launcher default path | yes | `fast_libentry()` |
-| `torch.empty_like` per forward | yes | cache output on ModelNew instance |
-| `with torch.mlu.device(...)` context | yes | drop it (caller sets device) |
-| Routing PyTorch ops (softmax/topk/cast) | yes | fuse into kernel |
-| `fast_libentry` residual path | partly | `num_warps`/`num_stages` tuning; or rewrite launcher in C++ |
-| `set_seed` per forward | no (harness) | — |
-| `sync_devices` syncing multiple accelerators | no (harness) | — |
-| `build_case` + `load_state_dict` state diff | no (harness) | — |
+| Launcher path | Potentially compressible | Target profile and same-regime wall evidence |
+| Per-forward allocation | Potentially compressible | Host Plan lifecycle and correctness |
+| Wrapper routing operations | Potentially compressible | Scoped kernel count and semantic boundary |
+| Device/stream context | Runtime-dependent | Caller ownership and stream preservation |
+| Seed setup in user-owned harness | Fixed for the regime | Measurement fingerprint and Level 2 evidence |
+| Harness device synchronization | Fixed for the regime | Measurement fingerprint and Level 2 evidence |
+| Case construction/load state | Fixed for the regime | Same-process decomposition |
 
-If the breakdown shows the compressible items are gone, stop — further optimization requires either changing the harness or changing the shape.
+Stop as measurement-bound only when normalized evidence shows remaining device
+work is below the stated bound and targeted Level 2 evidence shows the remaining
+host time is harness-fixed. Otherwise return the unresolved observation to the
+next Designer without inventing a cause.
