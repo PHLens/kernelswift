@@ -55,8 +55,8 @@ are `accepted|no-improvement|screened-out|design-rejected|candidate-failed|abort
 
 | Timestamp | Phase | Round | Result | Canonical | Incident | Commit |
 |---|---|---:|---|---|---|---|
-| 2026-08-18T10:34:35Z | initializing | 000 | - | - | - | - |
-| 2026-08-18T10:34:35Z | ready | 000 | baseline | baseline_adapter.py | - | - |
+| 2026-08-18T10:34:35Z | initializing | 000 | - | - | - | 863de0e |
+| 2026-08-18T10:34:35Z | ready | 000 | baseline | baseline_adapter.py | - | 863de0e |
 
 ## Policy Revisions
 
