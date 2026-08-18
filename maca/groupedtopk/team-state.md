@@ -81,8 +81,8 @@ change, incident, or commit yet.
 | 2026-08-18T09:16:40Z | designing | 004 | - | `triton_grouped_topk_001.py` | - | `e24708a` |
 | 2026-08-18T09:25:14Z | coding | 004 | - | `triton_grouped_topk_001.py` | - | `e24708a` |
 | 2026-08-18T09:37:52Z | verifying | 004 | - | `triton_grouped_topk_001.py` | - | `e24708a` |
-| 2026-08-18T09:56:48Z | ready | 004 | no-improvement | `triton_grouped_topk_001.py` | - | `ca15c4e` |
-| 2026-08-18T10:12:07Z | stopped | 004 | - | `triton_grouped_topk_001.py` | third consecutive valid no-improvement reaches `valid_no_improvement_limit` (3) | `ca15c4e` |
+| 2026-08-18T09:56:48Z | ready | 004 | no-improvement | `triton_grouped_topk_001.py` | - | - |
+| 2026-08-18T10:12:07Z | stopped | 004 | - | `triton_grouped_topk_001.py` | third consecutive valid no-improvement reaches `valid_no_improvement_limit` (3) | `36bfdf9` |
 
 ## Policy Revisions
 
