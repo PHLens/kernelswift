@@ -37,6 +37,13 @@ Resolve these before mutation:
    matching complete profile, role contracts, templates, validators, helpers,
    evaluator, and one runtime adapter.
 
+Repository layout convention: the operator's immutable reference is a shared,
+device-neutral `base.py` at `<operator>/base.py`, and a campaign root is
+`<operator>/<backend>/` without its own base copy. Record the base in
+`project.md` as a relative path such as `../base.py`; resolve it to an absolute
+path before mutation and record its starting bytes and SHA-256. Never copy or
+edit the shared base.
+
 Ask only for undiscoverable user-owned values. Never infer a device,
 interpreter, concurrency promise, target, or semantic tolerance from a
 candidate.

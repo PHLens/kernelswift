@@ -5,7 +5,7 @@
 - schema_version: 1
 - skill_version: 2.0.0
 - project_root: `<absolute-project-root>`
-- base: `base.py`
+- base: `<operator-shared base relative to project_root — normally ../base.py>`
 - baseline_adapter: `baseline_adapter.py`
 - harness: `<absolute-harness-path>`
 - interpreter: `<absolute-interpreter-path>`

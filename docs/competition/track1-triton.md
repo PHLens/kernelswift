@@ -7,9 +7,27 @@
 在多个国产硬件后端上，用 Triton 实现并优化 **10 个算子**，以 `auto_bench.py`
 （v0 PyTorch 参考 vs v1 Triton 候选）的 wall time 为度量。
 
-> ⚠️ 10 算子完整清单在飞书文档内，当前无法访问。仓库已有 4 个算子
-> （见下方矩阵），其余算子待补充后录入本文件与
-> [矩阵表](../../kernels/track1-triton/README.md)。
+## 任务清单（task 编号 ↔ 算子目录）
+
+10 个任务的 base.py 已全部落盘（`kernels/track1-triton/<算子>/base.py`，
+设备无关共享参考）。优化进度见
+[矩阵表](../../kernels/track1-triton/README.md)。
+
+| task | 算子目录 | 语义 |
+|---|---|---|
+| 1 | `groupedtopk` | 分组 top-k 专家路由（已完结：mlu 6.56x；s60/maca/bi150 运行中） |
+| 2 | `flexattention` | 因果 SDPA 融合（已完结：mlu 7.08x） |
+| 3 | `fused_moe` | MoE 路由 + per-expert GEMM（已完结：mlu 50.4x） |
+| 4 | `sparse_pooler` | SPLADE 稀疏池化（已完结：mlu 1.60x） |
+| 5 | `music_flamingo_rotary_embedding` | 音乐位置编码（batch 时间 + 序列时间，输出 cos/sin） |
+| 6 | `mm_encoder_attention` | MMEncoderAttention：多模态编码器注意力（view/transpose + `F.scaled_dot_product_attention`） |
+| 7 | `mhc_post_layer_mix` | MHC 后层混合：einsum(`abmn,abmc→abnc`) + post_layer_mix 加权 |
+| 8 | `mhc_head_compute_mix` | sigmoid pre/post + comb 矩阵 Sinkhorn 归一化（20 轮迭代） |
+| 9 | `centre_random_augmentation` | 蛋白坐标中心化 + 随机刚体增广（四元数旋转矩阵） |
+| 10 | `mhc_head_compute_mix_backward` | mhc_head_compute_mix 手动反向（grad_input/scale/base） |
+
+> task 5–10 的 base 由任务模板落盘；task 1–4 为仓库既有算子，编号顺序为推断
+> （待飞书官方清单确认）。若官方算子名与目录名不一致，以本表为准做映射。
 
 ## 后端矩阵（当前）
 
