@@ -6,18 +6,18 @@ phase: ready
 workflow_status: running
 run_epoch: 1
 project_started_at: 2026-08-18T05:01:57Z
-current_round: "001"
-last_completed_round: "001"
+current_round: "002"
+last_completed_round: "002"
 last_accepted_round: "001"
 last_accepted_kernel: triton_grouped_topk_001.py
 last_accepted_report: rounds/report_001.md
-last_completed_decision: rounds/decision_001.md
-last_completed_coder_result: rounds/coder_result_001.md
-last_completed_report: rounds/report_001.md
-last_result: accepted
-performance_miss_streak: 0
+last_completed_decision: rounds/decision_002.md
+last_completed_coder_result: rounds/coder_result_002.md
+last_completed_report: rounds/report_002.md
+last_result: no-improvement
+performance_miss_streak: 1
 failed_attempt_streak: 0
-total_rounds: 1
+total_rounds: 2
 max_rounds: 20
 valid_no_improvement_limit: 3
 adoption_threshold_pct: 5
@@ -70,6 +70,10 @@ change, incident, or commit yet.
 | 2026-08-18T06:19:35Z | coding | 001 | - | `baseline_adapter.py` | - | `52649df` |
 | 2026-08-18T06:42:00Z | verifying | 001 | - | `baseline_adapter.py` | - | `52649df` |
 | 2026-08-18T07:13:53Z | ready | 001 | accepted | `triton_grouped_topk_001.py` | - | - |
+| 2026-08-18T07:19:57Z | designing | 002 | - | `triton_grouped_topk_001.py` | - | `6d3b694` |
+| 2026-08-18T07:34:36Z | coding | 002 | - | `triton_grouped_topk_001.py` | - | `6d3b694` |
+| 2026-08-18T07:45:31Z | verifying | 002 | - | `triton_grouped_topk_001.py` | - | `6d3b694` |
+| 2026-08-18T08:14:10Z | ready | 002 | no-improvement | `triton_grouped_topk_001.py` | - | - |
 
 ## Policy Revisions
 
