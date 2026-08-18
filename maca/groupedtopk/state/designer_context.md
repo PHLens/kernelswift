@@ -1,72 +1,79 @@
-# Designer Context State
+# Designer Context
 
-- role_contract_sha256: `d32060e9953982eca29c19d6ed7469c2fb5c06ea686385be5da10219981addef`
-- context_epoch: `3`
-- last_completed_round: `001`
-- accepted_kernel: `triton_grouped_topk_001.py`
-- accepted_report: `rounds/report_001.md`
-- recent_three_round_evidence: `Round 000 baseline; Round 001 accepted kernel-fusion with 68.280 us wall, 10.7442822265625 us/device-call, and 1.0 kernel/call.`
-- open_hypotheses: `Three ranked items; H-002 fresh-allocation-coalescing is selected in rounds/decision_002.md.`
-- artifact_read_hashes: `Thirteen Round 002 canonical, evidence, contract, reference, and decision artifacts are recorded below.`
+## Context Epoch
 
-## Current Bottleneck
+- epoch: 4
+- current_round: 003
+- last_completed_round: 002
+- last_accepted_round: 001
+- status: Round 003 decision validated and ready for Coder
 
-- Verifier-backed Round 001 evidence is host-bound: canonical wall is
-  `68.280 us/call`, device work is `10.7442822265625 us/call`
-  (`15.7356%` device ratio), and the CPU scope is `41.58952 us/call`.
-  Within that inclusive CPU scope, `aten::empty` occurs `2.0/call` for
-  `10.03988 us/call`; one launch is `4.88562 us/call`. These inclusive
-  events may nest/overlap and are not additive. Evidence:
-  `rounds/report_001.md` and `state/verifier_context.md`.
+## Canonical Pointer
 
-## Recent Three-round Evidence
+- accepted implementation: `triton_grouped_topk_001.py`
+- accepted report: `rounds/report_001.md`
+- current decision: `rounds/decision_003.md`
+- canonical implementation SHA256: `9ba99fcfaa3515e9252f18373d3dfb6980b5ba80a21169923b0c2e5b56bef384`
+- canonical report SHA256: `f2866692d8d1c4519e9a2028c7b1d707fcb4f9f945fd856f78139f2dbe2aec4a`
+- current decision SHA256: `cfcee8a61b91536da0aa302504b8bc4119c9c2deac5150878b6371870791f6b7`
+- measurement fingerprint: `3fe7d50260b3670756d26f003427faccb76e1e79c204b0a500a62d2eb481c809`
 
-- Round 000 - `baseline`, canonical adapter `0.231739 ms`,
-  `147.7526708984375 us/device-call`, `15.0 kernels/call`; evidence
-  `rounds/report_000.md`.
-- Round 001 - `accepted`, change family `kernel-fusion`; canonical
-  `triton_grouped_topk_001.py`, `0.068280 ms`, `69.59021613749428%`
-  formal wall improvement, `10.7442822265625 us/device-call`, and
-  `1.0 kernel/call`; exact tie parity passed. Evidence:
-  `rounds/report_001.md`.
+## Durable Evidence
 
-## Open Hypotheses or Checks
+1. Round 000 baseline: canonical wall was `0.231739 ms`; the separately
+   scoped device trace reported `147.75267 us/call`, `15 kernels/call`,
+   and `89.674 us/call` across the four gatherTopK/bitonicSort launches.
+2. Round 001 accepted `kernel-fusion`: the fixed benchmark became one
+   Triton program per token with canonical wall `68.280 us/call`; the
+   separately scoped device result is `10.7442822265625 us/call` and
+   exactly one kernel/launch per call. The supplemental CPU scope is
+   `41.58952 us/call`; two inclusive `aten::empty` events total
+   `10.03988 us/call` and the inclusive launch event is
+   `4.88562 us/call`. Inclusive events are not additive and do not
+   reconstruct wall time.
+3. Round 002 `fresh-allocation-coalescing` is a durable no-improvement.
+   Its capability, single-backing, disjoint-view, lifetime, alias,
+   concurrency, fallback, kernel-equivalence, and correctness checks passed,
+   but formal wall medians were `0.071684 ms` reference versus
+   `0.081513 ms` candidate, an improvement of
+   `-13.711567434852972%`. Profiling was skipped after the wall gate failed,
+   so the regression has no durable causal attribution. Canonical remains
+   Round 001 and this allocation family must not be carried into Round 003.
 
-- Rank 1, selected - `fresh-allocation-coalescing`: replace two fixed-fast-path
-  `torch.empty` calls with one fresh per-call backing and two disjoint typed
-  views, without reuse or kernel change. Expected wall gain `6%`; risk
-  `medium-high` because MACA CUDA dtype-view support and shared-storage
-  lifetime/aliasing require proof; evidence `state/verifier_context.md`;
-  validation cost `medium` (storage/lifetime probes, CPU attribution, frozen
-  kernel gate, correctness, wall, and scoped profile). Decision:
-  `rounds/decision_002.md`.
-- Rank 2, deferred - `launcher-overhead`: only if a target-supported direct
-  launcher reduction is discovered, attack the observed one launch and
-  `4.88562 us/call` inclusive launch event. Conditional expected wall gain
-  `5-7%`; risk `high` because `fast_libentry` is unsupported and current
-  direct launch is the only proven path; evidence `state/verifier_context.md`
-  and `prompts/coder_targets/triton_maca.md`; validation cost `high`.
-- Rank 3, deferred - `selection-algorithm`: only if later profiling proves the
-  accepted fused kernel itself limits wall time, test a target-proven partial
-  selection dataflow. Conditional expected wall gain `5-10%`; risk `high`
-  because current device work is only `10.7442822265625 us/call` and no MACA
-  alternative lowering evidence exists; evidence `rounds/report_001.md` and
-  `references/anti-patterns.md`; validation cost `high`.
+## Current Bottleneck Judgment
 
-## Artifact Read Hashes
+The accepted implementation is host-bound overall, but the only remaining
+device work is still a measurable `10.7442822265625 us` single kernel.
+Clearing the 5% wall gate at `68.280 us` requires `3.414 us/call`; a
+kernel-only intervention therefore needs roughly a 31.8% device-time
+reduction if host work is unchanged. Round 003 targets a countable redundancy
+inside that kernel: eight expert ranks each perform a 256-lane argmax and then
+a second 256-lane sum solely to recover the selected value.
 
-| Artifact | SHA-256 | Last read round |
-|---|---|---:|
-| `maca/groupedtopk/team-state.md` | `b709e261d98a1558256865808a7aeb2c67cdb4e1735985b43439ea60b8db4e72` | `002` |
-| `maca/groupedtopk/project.md` | `503ca8ca604c4cacb2cc9c52c9efedefdf36bad4d59df190da0e453da42ae310` | `002` |
-| `maca/groupedtopk/triton_grouped_topk_001.py` | `9ba99fcfaa3515e9252f18373d3dfb6980b5ba80a21169923b0c2e5b56bef384` | `002` |
-| `maca/groupedtopk/reference_triton_grouped_topk_001.py` | `70258939973f728858383b832e37069ec6b3d4681200cdb4e70daac42229b2f9` | `002` |
-| `maca/groupedtopk/rounds/report_001.md` | `f2866692d8d1c4519e9a2028c7b1d707fcb4f9f945fd856f78139f2dbe2aec4a` | `002` |
-| `maca/groupedtopk/state/verifier_context.md` | `283453f35aa90e6ab70f0781fd79c8fb848064ae978354e1b54a19b350abf3aa` | `002` |
-| `maca/groupedtopk/rounds/decision_002.md` | `96b175002ab35ebbdeab2e647e1f0acfb150d08ca30792db1c6657a3afea7c55` | `002` |
-| `skills/kernel-opt-loop/prompts/designer.md` | `d32060e9953982eca29c19d6ed7469c2fb5c06ea686385be5da10219981addef` | `002` |
-| `skills/kernel-opt-loop/prompts/coder_targets/triton_maca.md` | `2cfa08c2664f01e70bb43eec7bb998be836a6a719b17535268a8d6ca18c85540` | `002` |
-| `skills/kernel-opt-loop/references/bottleneck-judgment.md` | `664d1e622333559a08419bb39b0b19b04054507a8adb58e3e347ab308c69eae7` | `002` |
-| `skills/kernel-opt-loop/references/invariants.md` | `22b53f5f900c8062c445f35be52414b4abba99f8e4893a4dfab996eb1cd8d29c` | `002` |
-| `skills/kernel-opt-loop/references/anti-patterns.md` | `aebcdee623024594ad6a19905d626dd7c7ba099d68eba203315229608a40d0c4` | `002` |
-| `skills/kernel-opt-loop/references/decision-template.md` | `e25ac46fedb7af63457acdabb92104d6ff2512b9734c309c321dc2a0e1979c50` | `002` |
+## Ranked Backlog
+
+| Rank | Hypothesis / family | Bottleneck | Expected wall gain | Risk | Evidence pointer | Validation cost |
+| --- | --- | --- | ---: | --- | --- | --- |
+| 1 | Selected Round 003: fuse each expert rank's separate argmax and selected-value sum into one standard Triton value-plus-index max reduction with explicit left tie break (`value-index-reduction-fusion`) | redundant full-width device reductions | about 6%; adoption still requires at least 5% | high: pinned MACA support and exact tie IDs are unproven capability gates | `triton_grouped_topk_001.py`, `rounds/report_001.md`, `rounds/decision_003.md` | high: compile/runtime gate, targeted ties, correctness, wall, then device profile |
+| 2 | Reduce launch-wrapper overhead only if a standard, target-profile-supported direct-launch mechanism is first proven (`launcher-overhead-reduction`) | host launch path | conditional 5-7% | high: `fast_libentry` is unsupported and current direct launch is the only proven path | `state/verifier_context.md`, target profile | high: capability probe plus full wall/profile and stream/device checks |
+| 3 | Specialize fixed-shape Python dispatch/guard work only after targeted host attribution identifies at least `3.414 us/call` of removable exclusive work (`fast-path-dispatch-specialization`) | unattributed host overhead | conditional 5-7% | medium-high: current CPU durations are inclusive and cannot establish the saving | `state/verifier_context.md`, `rounds/report_001.md` | medium: targeted CPU attribution, contract/fallback audit, then wall gate |
+
+## Closed Direction
+
+- Do not retry, cache, pool, or extend Round 002's one-backing/two-view fresh
+  allocation coalescing without genuinely new causal evidence. Its requested
+  mechanism was realized safely but failed the primary wall metric.
+
+## Artifact Hash Ledger
+
+- `team-state.md`: `d60f670f8e383ca8a269f72093732b00047121ba7cef049634fa7a1fd659faaf`
+- `project.md`: `41f73ad526412fe37a41116701a3257cb7f90bffbae88611f69a99a4e2bb7750`
+- `base.py`: `49ec0cf7a48679c23c5187eb7ba546fd41025019a9d6e9b59e1273c48a31dfbb`
+- `triton_grouped_topk_001.py`: `9ba99fcfaa3515e9252f18373d3dfb6980b5ba80a21169923b0c2e5b56bef384`
+- `reference_triton_grouped_topk_001.py`: `70258939973f728858383b832e37069ec6b3d4681200cdb4e70daac42229b2f9`
+- `rounds/report_001.md`: `f2866692d8d1c4519e9a2028c7b1d707fcb4f9f945fd856f78139f2dbe2aec4a`
+- `rounds/decision_002.md`: `96b175002ab35ebbdeab2e647e1f0acfb150d08ca30792db1c6657a3afea7c55`
+- `rounds/report_002.md`: `a5ad9cfe8ead4e1e3cf06ef990ea0817537af4c088219f1eed9a551055426365`
+- `rounds/decision_003.md`: `cfcee8a61b91536da0aa302504b8bc4119c9c2deac5150878b6371870791f6b7`
+- `state/verifier_context.md`: `c270638dc54852a64e6d931ac625940d4e019422a5cf4d924728a79f4f1f6c75`
+- `skills/kernel-opt-loop/prompts/coder_targets/triton_maca.md`: `2cfa08c2664f01e70bb43eec7bb998be836a6a719b17535268a8d6ca18c85540`

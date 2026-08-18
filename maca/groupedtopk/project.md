@@ -165,6 +165,7 @@ evidence and is normalized per forward call.
 | 000 | Phase 0 | `baseline_adapter.py` | baseline | `base.py` | `0.231739` | `147.7526708984375` | - | not-applicable | `baseline_adapter.py` |
 | 001 | `rounds/decision_001.md` | `triton_grouped_topk_001.py` | accepted | `baseline_adapter.py` | `0.068280` | `10.7442822265625` | `69.59021613749428%` | confirmed | `triton_grouped_topk_001.py` |
 | 002 | `rounds/decision_002.md` | `triton_grouped_topk_002.py` | no-improvement | `triton_grouped_topk_001.py` | `0.081513` | not-run | `-13.711567434852972%` | partially-confirmed; wall-time claim falsified | `triton_grouped_topk_001.py` |
+| 003 | `rounds/decision_003.md` | `triton_grouped_topk_003.py` | no-improvement | `triton_grouped_topk_001.py` | `0.067263` | not-run | `0.04903708987159917%` | partially-confirmed; wall-time claim falsified | `triton_grouped_topk_001.py` |
 
 ## Reproduction
 
