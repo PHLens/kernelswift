@@ -5,8 +5,12 @@
 - schema_version: 1
 - skill_version: 2.0.0
 - project_root: `/home/phlens/kernelswift/.worktrees/grouptopk-c500-20260818/maca/groupedtopk`
+  (historical: campaign was archived to `kernels/track1-triton/groupedtopk/maca/`
+  after the 2026-08 layout restructure)
 - remote_project_root: `/data/kernelswift-c500/maca/groupedtopk`
-- base: `base.py`
+- base: `base.py` (historical: recorded at campaign root during the run; the
+  shared operator reference now lives at `../base.py` — byte-identical semantics
+  verified; hashes below correspond to the pre-restructure MACA copy)
 - baseline_adapter: `baseline_adapter.py`
 - harness: `/home/phlens/kernelswift/.worktrees/grouptopk-c500-20260818/auto_bench.py`
 - remote_harness: `/data/kernelswift-c500/auto_bench.py`
