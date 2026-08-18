@@ -103,8 +103,8 @@ exact library top-k selection path.
 cd /root/kernelswift-bi150
 export COREX_VERSION=4.4.0
 . /usr/local/corex/enable
-sed 's/^class ModelNew/class Model/' bi150/groupedtopk/triton_grouped_topk_004.py > /tmp/bi150_accepted_model_008.py
-python3 auto_bench.py --v0_file /tmp/bi150_accepted_model_008.py --v1_file bi150/groupedtopk/triton_grouped_topk_008.py --warmup 50 --repeat 100
+sed 's/^class ModelNew/class Model/' kernels/track1-triton/groupedtopk/bi150/triton_grouped_topk_004.py > /tmp/bi150_accepted_model_008.py
+python3 auto_bench.py --v0_file /tmp/bi150_accepted_model_008.py --v1_file kernels/track1-triton/groupedtopk/bi150/triton_grouped_topk_008.py --warmup 50 --repeat 100
 rm -f /tmp/bi150_accepted_model_008.py
 ```
 
@@ -112,7 +112,7 @@ rm -f /tmp/bi150_accepted_model_008.py
 cd /root/kernelswift-bi150
 export COREX_VERSION=4.4.0
 . /usr/local/corex/enable
-sed 's/^class ModelNew/class Model/' bi150/groupedtopk/triton_grouped_topk_004.py > /tmp/bi150_accepted_model_008.py
-python3 auto_bench.py --v0_file /tmp/bi150_accepted_model_008.py --v1_file bi150/groupedtopk/triton_grouped_topk_008.py --warmup 50 --repeat 100 --profile --profile-mode forward --profile-warmup 20 --profile-iterations 50 --profile-reference-file bi150/groupedtopk/triton_grouped_topk_004.py --profile-output bi150/groupedtopk/log/groupedtopk_round008_forward_50iter.pt.trace.json
+sed 's/^class ModelNew/class Model/' kernels/track1-triton/groupedtopk/bi150/triton_grouped_topk_004.py > /tmp/bi150_accepted_model_008.py
+python3 auto_bench.py --v0_file /tmp/bi150_accepted_model_008.py --v1_file kernels/track1-triton/groupedtopk/bi150/triton_grouped_topk_008.py --warmup 50 --repeat 100 --profile --profile-mode forward --profile-warmup 20 --profile-iterations 50 --profile-reference-file kernels/track1-triton/groupedtopk/bi150/triton_grouped_topk_004.py --profile-output kernels/track1-triton/groupedtopk/bi150/log/groupedtopk_round008_forward_50iter.pt.trace.json
 rm -f /tmp/bi150_accepted_model_008.py
 ```

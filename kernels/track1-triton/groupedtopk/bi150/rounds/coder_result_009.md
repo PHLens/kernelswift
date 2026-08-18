@@ -35,7 +35,7 @@ and `forward` contract are all unchanged.
 | Gate | Observation | Verdict |
 |---|---|---|
 | Decision validation | `validate_decision.py decision_009.md --expected-profile triton_cuda` returned `valid: true`, exit code 0 | pass |
-| AST | `python3 -m py_compile bi150/groupedtopk/triton_grouped_topk_009.py` succeeded | pass |
+| AST | `python3 -m py_compile kernels/track1-triton/groupedtopk/bi150/triton_grouped_topk_009.py` succeeded | pass |
 | Harness compile smoke | `auto_bench.py --v0_file base.py --v1_file triton_grouped_topk_009.py --warmup 5 --repeat 10 --full-traceback`: `PASS accuracy`; v0 `0.487708 ms`, v1 `0.287010 ms`, speedup `1.699x` | pass |
 | All-equal ties | IDs `[7,6,4,5,1,0,2,3]` both sides, `torch.equal` true, weights allclose | pass |
 | Two-expert tie | base `[1,0,2,3,4,5,7,6]` == candidate `[1,0,2,3,4,5,7,6]`, `torch.equal` true, weights allclose | pass |

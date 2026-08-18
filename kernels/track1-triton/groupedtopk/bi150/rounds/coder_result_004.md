@@ -45,7 +45,7 @@ Result: candidate-ready
 
 | Attempt | Candidate SHA-256 | Commands and gate | Observation | Result |
 |---|---|---|---|---|
-| 1 | `881a549cf95746dda93ee4c898e7ab0e67e3133a526088553091f8b8d7431d83` | `python3 -m py_compile bi150/groupedtopk/triton_grouped_topk_004.py`; remote `auto_bench.py --v0_file bi150/groupedtopk/base.py --v1_file bi150/groupedtopk/triton_grouped_topk_004.py --warmup 2 --repeat 3 --full-traceback`; remote tie checks loaded through `auto_bench.load_ks_module` | Static parse passed. Real harness compiled and passed seeded accuracy (`v1=0.449993 ms`). All-equal, two-expert-tie, and structured group-tie cases passed exact integer IDs and floating tolerance. | candidate-ready |
+| 1 | `881a549cf95746dda93ee4c898e7ab0e67e3133a526088553091f8b8d7431d83` | `python3 -m py_compile kernels/track1-triton/groupedtopk/bi150/triton_grouped_topk_004.py`; remote `auto_bench.py --v0_file kernels/track1-triton/groupedtopk/bi150/base.py --v1_file kernels/track1-triton/groupedtopk/bi150/triton_grouped_topk_004.py --warmup 2 --repeat 3 --full-traceback`; remote tie checks loaded through `auto_bench.load_ks_module` | Static parse passed. Real harness compiled and passed seeded accuracy (`v1=0.449993 ms`). All-equal, two-expert-tie, and structured group-tie cases passed exact integer IDs and floating tolerance. | candidate-ready |
 
 ## Gate Evidence
 

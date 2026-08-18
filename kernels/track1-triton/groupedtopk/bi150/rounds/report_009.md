@@ -184,15 +184,15 @@ No Verifier-to-Coder repair was needed.
 cd /root/CodeBuddy/20260818191200/kernelswift
 export COREX_VERSION=4.4.0
 . /usr/local/corex/enable
-python3 auto_bench.py --v0_file bi150/groupedtopk/base.py --v1_file bi150/groupedtopk/triton_grouped_topk_009.py --warmup 5 --repeat 10 --full-traceback
+python3 auto_bench.py --v0_file kernels/track1-triton/groupedtopk/bi150/base.py --v1_file kernels/track1-triton/groupedtopk/bi150/triton_grouped_topk_009.py --warmup 5 --repeat 10 --full-traceback
 ```
 
 ```bash
 cd /root/CodeBuddy/20260818191200/kernelswift
 export COREX_VERSION=4.4.0
 . /usr/local/corex/enable
-sed 's/^class ModelNew/class Model/' bi150/groupedtopk/triton_grouped_topk_008.py > /tmp/bi150_accepted_model_009.py
-python3 auto_bench.py --v0_file /tmp/bi150_accepted_model_009.py --v1_file bi150/groupedtopk/triton_grouped_topk_009.py --warmup 50 --repeat 100
+sed 's/^class ModelNew/class Model/' kernels/track1-triton/groupedtopk/bi150/triton_grouped_topk_008.py > /tmp/bi150_accepted_model_009.py
+python3 auto_bench.py --v0_file /tmp/bi150_accepted_model_009.py --v1_file kernels/track1-triton/groupedtopk/bi150/triton_grouped_topk_009.py --warmup 50 --repeat 100
 rm -f /tmp/bi150_accepted_model_009.py
 ```
 
@@ -200,9 +200,9 @@ rm -f /tmp/bi150_accepted_model_009.py
 cd /root/CodeBuddy/20260818191200/kernelswift
 export COREX_VERSION=4.4.0
 . /usr/local/corex/enable
-sed 's/^class ModelNew/class Model/' bi150/groupedtopk/triton_grouped_topk_008.py > /tmp/bi150_accepted_model_009.py
-python3 auto_bench.py --v0_file /tmp/bi150_accepted_model_009.py --v1_file bi150/groupedtopk/triton_grouped_topk_009.py --warmup 50 --repeat 100 --profile --profile-mode forward --profile-warmup 20 --profile-iterations 50 --profile-reference-file bi150/groupedtopk/triton_grouped_topk_008.py --profile-output bi150/groupedtopk/log/groupedtopk_round009_forward_50iter.pt.trace.json
+sed 's/^class ModelNew/class Model/' kernels/track1-triton/groupedtopk/bi150/triton_grouped_topk_008.py > /tmp/bi150_accepted_model_009.py
+python3 auto_bench.py --v0_file /tmp/bi150_accepted_model_009.py --v1_file kernels/track1-triton/groupedtopk/bi150/triton_grouped_topk_009.py --warmup 50 --repeat 100 --profile --profile-mode forward --profile-warmup 20 --profile-iterations 50 --profile-reference-file kernels/track1-triton/groupedtopk/bi150/triton_grouped_topk_008.py --profile-output kernels/track1-triton/groupedtopk/bi150/log/groupedtopk_round009_forward_50iter.pt.trace.json
 rm -f /tmp/bi150_accepted_model_009.py
-python3 skills/kernel-opt-loop/scripts/summarize_trace.py bi150/groupedtopk/log/groupedtopk_round009_forward_50iter.pt.trace.json --iterations 50 --scope reference_triton_grouped_topk_008 --wall-ms 0.357771
-python3 skills/kernel-opt-loop/scripts/summarize_trace.py bi150/groupedtopk/log/groupedtopk_round009_forward_50iter.pt.trace.json --iterations 50 --scope candidate_triton_grouped_topk_009 --wall-ms 0.277234
+python3 skills/kernel-opt-loop/scripts/summarize_trace.py kernels/track1-triton/groupedtopk/bi150/log/groupedtopk_round009_forward_50iter.pt.trace.json --iterations 50 --scope reference_triton_grouped_topk_008 --wall-ms 0.357771
+python3 skills/kernel-opt-loop/scripts/summarize_trace.py kernels/track1-triton/groupedtopk/bi150/log/groupedtopk_round009_forward_50iter.pt.trace.json --iterations 50 --scope candidate_triton_grouped_topk_009 --wall-ms 0.277234
 ```

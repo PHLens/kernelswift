@@ -28,7 +28,7 @@ outputs is introduced.
 
 | Gate | Observation | Verdict |
 |---|---|---|
-| AST | `python3 -m py_compile bi150/groupedtopk/triton_grouped_topk_008.py` | pass |
+| AST | `python3 -m py_compile kernels/track1-triton/groupedtopk/bi150/triton_grouped_topk_008.py` | pass |
 | Harness compile smoke | BI150 `auto_bench.py --warmup 5 --repeat 10 --full-traceback`: `PASS accuracy`; candidate `0.353165 ms` | pass |
 | All-equal ties | IDs `[7,6,4,5,1,0,2,3]`, weights allclose | pass |
 | Two-expert tie | IDs `[1,0,2,3,4,5,6,7]`, weights allclose | pass |
