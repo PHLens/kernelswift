@@ -2,8 +2,8 @@
 schema_version: 1
 skill_version: 2.0.0
 runtime: codex
-phase: ready
-workflow_status: running
+phase: stopped
+workflow_status: stopped
 run_epoch: 2
 project_started_at: 2026-08-17T09:22:11Z
 current_round: "008"
@@ -36,8 +36,8 @@ implementation_backend: gcu
 target_profile: triton_gcu
 runtime_fingerprint_ref: project.md#runtime-fingerprint
 blocked_incident: null
-stop_reason: null
-stop_timestamp: null
+stop_reason: user-intervention
+stop_timestamp: 2026-08-18T05:21:33Z
 resume_eligible: always
 resume_constraints: []
 ---
@@ -83,6 +83,7 @@ Terminal results are `accepted|no-improvement|screened-out|design-rejected|candi
 | 2026-08-18T05:12:09Z | ready | 008 | - | triton_grouped_topk_003.py | named probe complete; no candidate terminal result | b608e52 |
 | 2026-08-18T05:13:16Z | designing | 008 | - | triton_grouped_topk_003.py | returned from named probe with new evidence | - |
 | 2026-08-18T05:18:28Z | ready | 008 | aborted | triton_grouped_topk_003.py | matched probe found no defensible >=5% candidate path | 7e5927a |
+| 2026-08-18T05:21:33Z | stopped | 008 | - | triton_grouped_topk_003.py | user selected campaign stop after matched probe | b053fc9 |
 
 ## Policy Revisions
 
