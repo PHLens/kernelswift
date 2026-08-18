@@ -2,8 +2,8 @@
 schema_version: 1
 skill_version: 2.0.0
 runtime: claude-code
-phase: ready
-workflow_status: running
+phase: stopped
+workflow_status: stopped
 run_epoch: 1
 project_started_at: 2026-08-18T10:34:35Z
 current_round: "003"
@@ -69,6 +69,7 @@ are `accepted|no-improvement|screened-out|design-rejected|candidate-failed|abort
 | 2026-08-18T11:15:00Z | ready | 002 | accepted | triton_fused_moe_002.py | - | - |
 | 2026-08-18T11:25:00Z | designing | 003 | - | triton_fused_moe_002.py | - | - |
 | 2026-08-18T11:30:00Z | ready | 003 | aborted | triton_fused_moe_002.py | - | - |
+| 2026-08-18T11:35:00Z | stopped | 003 | measurement-bound | triton_fused_moe_002.py | - | - |
 
 ## Policy Revisions
 
