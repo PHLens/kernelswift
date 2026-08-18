@@ -69,13 +69,15 @@ accepted-reference and candidate samples. Correctness, every guardrail, and
 `no-improvement`. Benchmark wall time controls adoption; profiler time never
 substitutes for authoritative timing.
 
-Use the existing harness and change only `--v1_file`, for example:
+Use the existing harness and change only `--v1_file`, for example (shared
+`operator/base.py` at the operator level; campaign artifacts under the backend
+subdirectory):
 
 ```bash
 python3 auto_bench.py --v0_file operator/base.py \
-  --v1_file operator/baseline_adapter.py --warmup 50 --repeat 100
+  --v1_file operator/<backend>/baseline_adapter.py --warmup 50 --repeat 100
 python3 auto_bench.py --v0_file operator/base.py \
-  --v1_file operator/triton_operator_001.py --warmup 50 --repeat 100
+  --v1_file operator/<backend>/triton_operator_001.py --warmup 50 --repeat 100
 ```
 
 ## Evaluation Contract and profiler evidence
@@ -108,10 +110,10 @@ harness's existing dual-scope interface rather than editing it:
 
 ```bash
 python3 auto_bench.py --v0_file operator/base.py \
-  --v1_file operator/triton_operator_001.py \
-  --profile --profile-reference-file operator/baseline_adapter.py \
+  --v1_file operator/<backend>/triton_operator_001.py \
+  --profile --profile-reference-file operator/<backend>/baseline_adapter.py \
   --profile-mode forward --profile-warmup 20 --profile-iterations 50 \
-  --profile-output operator/log/round_001_forward_50iter.pt.trace.json
+  --profile-output operator/<backend>/log/round_001_forward_50iter.pt.trace.json
 ```
 
 Summarize `reference_baseline_adapter` and

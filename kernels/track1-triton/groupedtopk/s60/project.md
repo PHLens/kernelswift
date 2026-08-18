@@ -5,7 +5,9 @@
 - schema_version: 1
 - skill_version: 2.0.0
 - project_root: `/home/cambricon/kernelswift/s60/groupedtopk`
-- base: `base.py`
+- base: `base.py` (historical: recorded at campaign root during the run;
+  after the 2026-08 layout restructure the shared reference lives at
+  `../base.py`; hashes below correspond to the pre-restructure S60-adapted copy)
 - baseline_adapter: `baseline_adapter.py`
 - harness: `/home/cambricon/kernelswift/auto_bench.py`
 - interpreter: `/usr/bin/python3` on the S60 host

@@ -15,7 +15,6 @@ auto_bench.py             # 共享评测 harness（v0/v1 对比 + profiler），
 docs/
 ├── competition/          #   比赛规则与算子清单（按赛道）
 ├── backend-registry.md   #   后端编码 ↔ 芯片/软件栈/target profile 映射
-├── directory-restructure-proposal.md  # 本次目录重构提案（含决策记录）
 └── superpowers/          #   内部设计文档（kernel-opt-loop 技能 specs/plans）
 skills/kernel-opt-loop/   # 优化循环技能（Designer/Coder/Verifier 契约 + target profiles）
 ```
@@ -34,9 +33,10 @@ skills/kernel-opt-loop/   # 优化循环技能（Designer/Coder/Verifier 契约 
 ## 如何新增一个 campaign
 
 1. 在 `kernels/track1-triton/<算子>/<后端>/` 下由
-   [kernel-opt-loop 技能](../skills/kernel-opt-loop/SKILL.md) 的 Phase 0 生成 campaign 根
-   （`base.py` + `project.md` + `state/` + `rounds/` + `log/`），并创建专属 run 分支
-   `kernel-opt/<算子>-<后缀>`（worktree 方式运行，避免与 dev 冲突）。
+   [kernel-opt-loop 技能](skills/kernel-opt-loop/SKILL.md) 的 Phase 0 生成 campaign 根
+   （`project.md` + `state/` + `rounds/` + `log/` + `baseline_adapter.py`）。
+   共享 `base.py` 已位于 `<算子>/base.py`，**不要复制**。
+   创建专属 run 分支 `kernel-opt/<算子>-<后缀>`（worktree 方式运行，避免与 dev 冲突）。
 2. 更新 `kernels/track1-triton/README.md` 矩阵表对应格子。
 3. 后端首次出现时，确认 `skills/kernel-opt-loop/prompts/coder_targets/` 下存在匹配的
    target profile（目前只有 `triton_mlu` / `triton_gcu`）。

@@ -1,8 +1,16 @@
 import torch
 import torch.nn as nn
-import torch_mlu
+
 
 class Model(nn.Module):
+    """Grouped Top-K expert routing: score experts, select the highest-scoring
+    expert groups, then select experts only from those groups.
+
+    Shared cross-backend reference (device-neutral): tensors are created with
+    the 'cuda' device string and auto_bench.py rewrites/moves them to the
+    active accelerator (mlu / gcu / cuda).
+    """
+
     def __init__(
         self,
         topk: int,
@@ -68,8 +76,12 @@ def get_inputs():
     # hidden_states: [num_tokens, hidden_size], float16 — only used for batch-size check
     # gating_output: [num_tokens, num_experts], float32
     num_tokens, hidden_size, num_experts = 83, 7168, 256
-    hidden_states = torch.randn(num_tokens, hidden_size, dtype=torch.float16).mlu()
-    gating_output = torch.randn(num_tokens, num_experts, dtype=torch.float32).mlu()
+    hidden_states = torch.randn(
+        num_tokens, hidden_size, dtype=torch.float16, device="cuda"
+    )
+    gating_output = torch.randn(
+        num_tokens, num_experts, dtype=torch.float32, device="cuda"
+    )
     return [hidden_states, gating_output]
 
 
@@ -82,27 +94,7 @@ if __name__ == "__main__":
     init_inputs = get_init_inputs()
     model = Model(*init_inputs).eval()
     inputs = get_inputs()
-    model_compiled = torch.compile(model, mode='reduce-overhead')
-    import time
-    start = time.perf_counter()
-    profiler = torch.profiler.profile(
-    	activities=[
-    		torch.profiler.ProfilerActivity.CPU,
-    		torch.profiler.ProfilerActivity.MLU, # 使能MLU后端
-    	],
-    	schedule=torch.profiler.schedule(
-    		wait=1,
-    		warmup=2,
-    		active=2),
-    	on_trace_ready=torch.profiler.tensorboard_trace_handler("./log")
-    )
-    profiler.start()
+    model_compiled = torch.compile(model, mode="reduce-overhead")
     with torch.no_grad():
-        for i in range(4):
-            topk_weights, topk_ids = model_compiled(*inputs)
-            torch.mlu.synchronize()
-            profiler.step()
-    profiler.stop()
-    #print("Time Measured: ", (time.perf_counter() - start) * 1000.0, " ms")
-    #print(topk_weights.shape)   # [83, 8]
-    #print(topk_ids.shape)       # [83, 8]
+        topk_weights, topk_ids = model_compiled(*inputs)
+    print(topk_weights.shape, topk_ids.shape)
