@@ -2,22 +2,22 @@
 schema_version: 1
 skill_version: 2.0.0
 runtime: claude-code
-phase: ready
-workflow_status: running
+phase: stopped
+workflow_status: stopped
 run_epoch: 1
 project_started_at: 2026-08-18T22:05:00Z
-current_round: "001"
-last_completed_round: "001"
+current_round: "002"
+last_completed_round: "002"
 last_accepted_round: "000"
 last_accepted_kernel: baseline_adapter.py
 last_accepted_report: rounds/report_000.md
-last_completed_decision: rounds/decision_001.md
+last_completed_decision: rounds/decision_002.md
 last_completed_coder_result: rounds/coder_result_001.md
 last_completed_report: rounds/report_001.md
-last_result: no-improvement
+last_result: aborted
 performance_miss_streak: 1
-failed_attempt_streak: 0
-total_rounds: 1
+failed_attempt_streak: 1
+total_rounds: 2
 max_rounds: 20
 valid_no_improvement_limit: 3
 adoption_threshold_pct: 5
@@ -61,6 +61,9 @@ are `accepted|no-improvement|screened-out|design-rejected|candidate-failed|abort
 | 2026-08-18T22:20:00Z | coding | 001 | - | baseline_adapter.py | - | - |
 | 2026-08-18T22:25:00Z | verifying | 001 | - | baseline_adapter.py | - | - |
 | 2026-08-18T22:30:00Z | ready | 001 | no-improvement | baseline_adapter.py | - | - |
+| 2026-08-18T22:40:00Z | designing | 002 | - | baseline_adapter.py | - | - |
+| 2026-08-18T22:42:00Z | ready | 002 | aborted | baseline_adapter.py | - | - |
+| 2026-08-18T22:45:00Z | stopped | 002 | measurement-bound | baseline_adapter.py | - | - |
 
 ## Policy Revisions
 
