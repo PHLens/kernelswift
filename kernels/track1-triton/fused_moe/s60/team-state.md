@@ -58,10 +58,10 @@ are `accepted|no-improvement|screened-out|design-rejected|candidate-failed|abort
 | 2026-08-18T10:34:35Z | initializing | 000 | - | - | - | 863de0e |
 | 2026-08-18T10:34:35Z | ready | 000 | baseline | baseline_adapter.py | - | 863de0e |
 | 2026-08-18T10:45:00Z | designing | 001 | - | baseline_adapter.py | - | 3f205f6 |
-| 2026-08-18T10:45:00Z | coding | 001 | - | baseline_adapter.py | - | - |
-| 2026-08-18T10:48:00Z | repairing | 001 | candidate-failed | baseline_adapter.py | slice-index compile error | - |
-| 2026-08-18T10:50:00Z | verifying | 001 | - | baseline_adapter.py | - | - |
-| 2026-08-18T10:52:00Z | ready | 001 | accepted | triton_fused_moe_001.py | - | - |
+| 2026-08-18T10:45:00Z | coding | 001 | - | baseline_adapter.py | - | 1ce7c86 |
+| 2026-08-18T10:48:00Z | repairing | 001 | candidate-failed | baseline_adapter.py | slice-index compile error | 1ce7c86 |
+| 2026-08-18T10:50:00Z | verifying | 001 | - | baseline_adapter.py | - | 1ce7c86 |
+| 2026-08-18T10:52:00Z | ready | 001 | accepted | triton_fused_moe_001.py | - | 1ce7c86 |
 
 ## Policy Revisions
 
