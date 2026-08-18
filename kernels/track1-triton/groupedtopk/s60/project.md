@@ -68,7 +68,7 @@ total_memory: 41846MB
 - timing_order: `ordered reference/candidate pairs; each pair uses the unchanged harness`
 - primary_metric: `unrounded median wall_time_ms`
 - profiler_iterations: `50`
-- profiler_scopes: `baseline_base,candidate_triton_grouped_topk_001`
+- profiler_scopes: `baseline_base,candidate_triton_grouped_topk_001; baseline_reference_triton_grouped_topk_001,candidate_triton_grouped_topk_002`
 - profiler_device_time: `unavailable on recorded GCU exporter; runtime_launch_* fields are retained`
 - correctness_command: `cd /root/kernelswift-s60 && python3 auto_bench.py --v0_file base.py --v1_file baseline_adapter.py --warmup 5 --repeat 10 --full-traceback`
 - benchmark_command: `cd /root/kernelswift-s60 && python3 auto_bench.py --v0_file base.py --v1_file triton_grouped_topk_001.py --warmup 50 --repeat 100`
@@ -92,8 +92,8 @@ total_memory: 41846MB
 ## Git Run Identity
 
 - base_branch: `dev`
-- base_commit: `50c7212`
-- run_branch: `kernel-opt/groupedtopk-s60`
+- base_commit: `6a970c9`
+- run_branch: `kernel-opt/groupedtopk-s60-continue`
 
 ## Round Overview
 
@@ -101,6 +101,13 @@ total_memory: 41846MB
 |---:|---|---|---|---|---:|---:|---:|---|---|
 | 000 | Phase 0 | `baseline_adapter.py` | baseline | `base.py` | 0.459285 | unavailable: GCU runtime-launch-only | - | not-applicable | `baseline_adapter.py` |
 | 001 | `rounds/decision_001.md` | `triton_grouped_topk_001.py` | accepted | `baseline_adapter.py` | 0.273881 | unavailable: GCU runtime-launch-only | 39.0869% | confirmed | `triton_grouped_topk_001.py` |
+| 002 | `rounds/decision_002.md` | `triton_grouped_topk_002.py` | accepted | `reference_triton_grouped_topk_001.py` | 0.274740 | unavailable: GCU runtime-launch-only | 9.0214% | confirmed | `triton_grouped_topk_002.py` |
+| 003 | `rounds/decision_003.md` | `triton_grouped_topk_003.py` | accepted | `reference_triton_grouped_topk_002.py` | 0.273673 | unavailable: GCU runtime-launch-only | 6.4647% | confirmed | `triton_grouped_topk_003.py` |
+| 004 | `rounds/decision_004.md` | `triton_grouped_topk_004.py` | no-improvement | `reference_triton_grouped_topk_003.py` | 0.271659 | unavailable: GCU runtime-launch-only | 2.05898% | not-confirmed | `triton_grouped_topk_003.py` |
+| 005 | `rounds/decision_005.md` | - | aborted | - | - | - | - | not-applicable | `triton_grouped_topk_003.py` |
+| 006 | `rounds/decision_006.md` | - | aborted | - | - | - | - | not-applicable | `triton_grouped_topk_003.py` |
+| 007 | `rounds/decision_007.md` | - | aborted | - | - | - | - | not-applicable | `triton_grouped_topk_003.py` |
+| 008 | `rounds/decision_008.md` | - | aborted | - | - | - | - | not-applicable | `triton_grouped_topk_003.py` |
 
 ## Reproduction
 
@@ -113,6 +120,24 @@ python3 auto_bench.py --v0_file base.py --v1_file triton_grouped_topk_001.py --w
 ```bash
 cd /root/kernelswift-s60
 python3 auto_bench.py --v0_file base.py --v1_file triton_grouped_topk_001.py --warmup 50 --repeat 100 --profile --profile-mode forward --profile-warmup 20 --profile-iterations 50 --profile-output log/groupedtopk_round_001_forward_50iter.pt.trace.json
+```
+
+```bash
+cd /root/kernelswift-s60
+python3 auto_bench.py --v0_file reference_triton_grouped_topk_001.py --v1_file triton_grouped_topk_002.py --warmup 50 --repeat 100
+python3 auto_bench.py --v0_file reference_triton_grouped_topk_001.py --v1_file triton_grouped_topk_002.py --warmup 50 --repeat 100 --profile --profile-mode forward --profile-warmup 20 --profile-iterations 50 --profile-output log/groupedtopk_round_002_forward_50iter.pt.trace.json
+```
+
+```bash
+cd /root/kernelswift-s60
+python3 auto_bench.py --v0_file reference_triton_grouped_topk_002.py --v1_file triton_grouped_topk_003.py --warmup 50 --repeat 100
+python3 auto_bench.py --v0_file reference_triton_grouped_topk_002.py --v1_file triton_grouped_topk_003.py --warmup 50 --repeat 100 --profile --profile-mode forward --profile-warmup 20 --profile-iterations 50 --profile-output log/groupedtopk_round_003_forward_50iter.pt.trace.json
+```
+
+```bash
+cd /root/kernelswift-s60
+python3 auto_bench.py --v0_file reference_triton_grouped_topk_003.py --v1_file triton_grouped_topk_004.py --warmup 50 --repeat 100
+python3 auto_bench.py --v0_file reference_triton_grouped_topk_003.py --v1_file triton_grouped_topk_004.py --warmup 50 --repeat 100 --profile --profile-mode forward --profile-warmup 20 --profile-iterations 50 --profile-output log/groupedtopk_round_004_forward_50iter.pt.trace.json
 ```
 
 The remote working directory is `/root/kernelswift-s60`; the local project and

@@ -1,0 +1,34 @@
+# Round Status 004
+
+- phase: `verification-complete`
+- result: `no-improvement`
+- measurement_exclusive: `false`
+- performance_miss_streak: `1`
+- decision_sha256: `a126c9abc86da11734be828bc6c5900e0b1107ba07ecbfa079fc4f74d1416713`
+- source_canonical_sha256: `3aad6be6422ff08aeb0c6e6be0c92d0645588c7b93429809c525f55c6a6b3e37`
+- reference_adapter_sha256: `9977aaf9ec96c851be33f2582e6284451fd41686a1acc4607deb4e104dca5ea7`
+- candidate_sha256: `ea9be7896731f7f371f9ba087c8d01daca6556c66a3e50b2c6146fe6de118bb0`
+- completed_commands:
+  - local candidate/reference `py_compile`: PASS
+  - S60 explicit stream snapshot stack check: PASS for candidate-owned path
+  - S60 metadata/lifecycle/concurrency checks: PASS
+  - S60 correctness smoke: PASS
+  - three S60 formal paired benchmark runs: PASS correctness, below threshold
+  - S60 paired forward profile: exported
+  - local `scripts/summarize_trace.py` reference/candidate summaries: PASS
+- correctness: `PASS`
+- lifecycle_guardrails: `PASS`
+- raw_samples:
+  - reference 003: `[0.350635, 0.275174, 0.277370] ms`
+  - candidate 004: `[0.342246, 0.271659, 0.269279] ms`
+- medians:
+  - reference: `0.277370 ms`
+  - candidate: `0.271659 ms`
+  - improvement: `2.058982586436897%`
+  - speedup: `1.0210226791676331x`
+- profile:
+  - reference runtime launches: `1.0/call`, `11.01330078125 us/call`
+  - candidate runtime launches: `1.0/call`, `10.595556640625 us/call`
+  - device duration: unavailable in recorded GCU exporter
+- canonical_after_round: `triton_grouped_topk_003.py`
+- next_safe_action: `commit Round 004 no-improvement artifacts, then dispatch Round 005; stop after two more valid no-improvement rounds unless another stop condition occurs`
