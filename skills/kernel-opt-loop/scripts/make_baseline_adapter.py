@@ -55,6 +55,9 @@ def make_baseline_adapter(
 
     model = find_model_class(tree)
     model.name = "ModelNew"
+    for node in ast.walk(model):
+        if isinstance(node, ast.Name) and node.id == "Model":
+            node.id = "ModelNew"
     ast.fix_missing_locations(tree)
 
     try:

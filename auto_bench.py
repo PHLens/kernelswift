@@ -151,17 +151,21 @@ class _RewriteDeviceStr(ast.NodeTransformer):
 
 
 def _rewrite_device_for_backend(tree: ast.AST) -> None:
-    """In-place: remap 'npu' device strings to the available accelerator.
+    """In-place: remap device string literals to the available accelerator.
 
-    ks competition files are written against Ascend ('npu'); on other backends
-    (mlu/cuda) the literal is rejected by torch at runtime, so rewrite it
-    before exec. No-op on npu hosts or when no accelerator is present.
+    ks competition files are written against a specific backend ('npu' or the
+    device-neutral 'cuda' placeholder); on another backend the literal is
+    rejected by torch at runtime, so rewrite it before exec. The 'cuda'
+    placeholder is the shared cross-backend reference convention and must be
+    remapped to whatever accelerator is actually present; 'npu' is remapped on
+    non-Ascend hosts. No-op when no accelerator is present.
     """
     target = _auto_accel_name()
-    if target is None or target == "npu":
+    if target is None:
         return
-    _RewriteDeviceStr("npu", target).visit(tree)
-    if target == "gcu":
+    if target != "npu":
+        _RewriteDeviceStr("npu", target).visit(tree)
+    if target != "cuda":
         _RewriteDeviceStr("cuda", target).visit(tree)
     ast.fix_missing_locations(tree)
 
@@ -542,7 +546,81 @@ def profiler_activities():
     return activities
 
 
+def _is_npu_backend() -> bool:
+    """True when the available accelerator is Ascend NPU."""
+    return any(name == "npu" for name, _ in _iter_accelerators())
+
+
+def _export_profile_npu(targets, args):
+    """Profile on Ascend NPU with torch_npu.profiler + CANN msprof.
+
+    The stock torch.profiler path exposes only host-side cpu_op events on
+    Ascend; NPU AI Core kernel durations live in the CANN msprof sqlite output
+    (device_0/sqlite/ai_core_op_summary.db). torch_npu.profiler triggers that
+    capture, and its output directory is controlled by the ASCEND_WORK_PATH
+    environment variable.
+
+    The CANN sqlite accumulates tasks without any reference/candidate scope
+    field, and its start_time clock is unrelated to the chrome trace ts clock,
+    so a single combined capture cannot attribute kernels per scope. We
+    therefore profile each target (reference, candidate) in its own capture,
+    each writing to a distinct ASCEND_WORK_PATH subdirectory, so every
+    ai_core_op_summary.db belongs to exactly one scope.
+    """
+    import os
+
+    try:
+        import torch_npu  # noqa: F401
+        from torch_npu.profiler import (
+            ProfilerActivity as NpuActivity,
+            experimental_config as npu_ec,
+            profile as npu_profile,
+        )
+    except ImportError as exc:  # pragma: no cover - environment guard
+        raise KsCompareError(f"npu backend selected but torch_npu unavailable: {exc}") from exc
+
+    profile_parent = args.profile_output.parent
+    profile_parent.mkdir(parents=True, exist_ok=True)
+    previous_work_path = os.environ.get("ASCEND_WORK_PATH")
+
+    cann_dirs = {}
+    for label, model, inputs, output in targets:
+        call = make_profile_call(model, inputs, output, args.profile_mode, label)
+        # One CANN capture per scope.
+        scope_work = str((profile_parent / "profiling_data" / label).resolve())
+        os.environ["ASCEND_WORK_PATH"] = scope_work
+        prof = npu_profile(
+            activities=[NpuActivity.CPU, NpuActivity.NPU],
+            experimental_config=npu_ec._ExperimentalConfig(profiler_level="Level0"),
+        )
+        try:
+            with torch.no_grad():
+                for _ in range(args.profile_warmup):
+                    call()
+                sync_devices()
+                with prof:
+                    with torch.profiler.record_function(label):
+                        for _ in range(args.profile_iterations):
+                            call()
+                    sync_devices()
+        finally:
+            if previous_work_path is None:
+                os.environ.pop("ASCEND_WORK_PATH", None)
+            else:
+                os.environ["ASCEND_WORK_PATH"] = previous_work_path
+        prof.export_chrome_trace(str(args.profile_output))
+        cann_dirs[label] = Path(scope_work) / "profiling_data"
+
+    for label, cann_dir in cann_dirs.items():
+        print(f"cann_profiling_data[{label}]={cann_dir}")
+    print(f"profile={args.profile_output}")
+
+
 def export_profile(targets, args):
+    if _is_npu_backend():
+        _export_profile_npu(targets, args)
+        return
+
     calls = [
         (
             label,

@@ -1,8 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch_mlu
-from torch_mlu.utils import gpu_migration
 
 
 class Model(nn.Module):

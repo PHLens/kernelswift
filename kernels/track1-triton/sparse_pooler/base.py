@@ -2,9 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import torch_mlu
-import torch_mlu.utils.gpu_migration
-
 class Model(nn.Module):
     """SPLADESparsePooler: MLM head logits → ReLU log(1+x) pooled over sequence (max or sum)."""
 

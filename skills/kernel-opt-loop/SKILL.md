@@ -35,7 +35,7 @@ Resolve these before mutation:
    `speedup_vs_baseline`; otherwise leave it null.
 6. Absolute skill root containing this file, the target-profile registry, one
    matching complete profile, role contracts, templates, validators, helpers,
-   evaluator, and one runtime adapter.
+   and the evaluator.
 
 Repository layout convention: the operator's immutable reference is a shared,
 device-neutral `base.py` at `<operator>/base.py`, and a campaign root is
@@ -50,13 +50,33 @@ candidate.
 
 ## Runtime selection
 
-Choose in this exact order: Codex collaboration when exposed, Claude Code agent teams when enabled, then sequential fallback.
+This skill is runtime-agnostic. It requires only the following orchestration
+capabilities, which any runtime may satisfy:
 
-Load exactly one runtime adapter and use its common operations. Multi-agent
-availability changes orchestration mechanics, not artifacts, ownership, routing,
-or state semantics. Sequential fallback executes each role contract in the main
-session without nested agent processes and still respects every ownership and
-handoff gate.
+- **`start_role`** — spawn one role identity (`designer`, `coder`, `verifier`)
+  from a resolved bootstrap, with an independent context (parent history is not
+  inherited).
+- **`continue_idle_role`** — send a compact continuation delta to an existing
+  idle role identity; reuse the identity, do not respawn.
+- **`send_advisory`** — send advisory context to a role that is already running;
+  it cannot change ownership or bypass an artifact gate.
+- **`wait_for_completion`** — learn that a role has finished (message delivery /
+  idle notification); a role is complete only when its required durable artifact
+  passes its gate, never merely on a signal.
+- **`inspect_roles`** — occasional diagnostics only, never a poll loop and never
+  an artifact gate.
+- **`end_workflow`** — let finished roles terminate at a safe boundary; only
+  interrupt a stuck role, and never delete or rewrite its durable artifacts.
+
+A runtime that cannot provide these capabilities uses the **sequential fallback**:
+the main session executes each role contract in turn without nested agent
+processes, while still respecting every ownership and handoff gate.
+
+Multi-agent availability changes orchestration mechanics, not artifacts,
+ownership, routing, or state semantics. `adapters/` contains optional
+implementation references (e.g. `codex.md`, `claude-code.md`) for runtimes that
+map the operations above onto product-specific tools; an adapter is guidance,
+not a contract, and its absence never blocks the workflow.
 
 ## Agent bootstrap contract
 
@@ -69,7 +89,6 @@ You are the <role> for kernel-opt-loop.
 
 Before taking any action, read these files completely and follow them:
 - Role contract: <absolute-skill-root>/prompts/<role>.md
-- Runtime adapter: <absolute-skill-root>/adapters/<runtime>.md
 
 Skill root: <absolute-skill-root>
 Project root: <absolute-project-root>
@@ -80,7 +99,9 @@ Required outputs:
 - <absolute-output-path>
 
 Do not rely on parent conversation history. Do not write files outside your
-declared ownership. Report completion through the runtime adapter.
+declared ownership. Report completion when your required durable artifact is
+written and passes its gate, through whatever handoff mechanism this runtime
+provides (see adapters/ for optional implementation references).
 ```
 
 The role reads its full contract. State-changing role responses are advisory
@@ -159,7 +180,7 @@ second active round. Resolve `last_accepted_kernel` and
 
 `round_status_NNN.md` is updated at verification start, after correctness, after
 each timing pair, and at verification end. Completion notifications are
-preferred when the adapter supports them; Orchestrator does not poll a runtime
+preferred when the runtime supports them; Orchestrator does not poll a runtime
 that already delivers completion.
 
 ## Routing and state transitions
@@ -292,12 +313,14 @@ commit. Do not rewrite existing project histories.
 
 ## References
 
-- `adapters/claude-code.md` and `adapters/codex.md`: runtime lifecycle mappings.
+- `adapters/claude-code.md` and `adapters/codex.md`: optional implementation
+  references mapping the runtime operations in "Runtime selection" onto
+  product-specific tools; guidance only, not a contract.
 - `prompts/designer.md`, `prompts/coder.md`, and `prompts/verifier.md`: role
   behavior and ownership.
 - `prompts/coder_targets/<target_profile>.md`: the one complete profile selected
-  by the current runtime; this repository currently includes `triton_mlu` and
-  `triton_gcu`.
+  by the current runtime; this repository currently includes `triton_mlu`,
+  `triton_gcu`, and `triton_ascend`.
 - `references/decision-template.md`: normative decision schema.
 - `references/project-template.md`, `references/report-template.md`,
   `references/team-state-template.md`, and `references/role-context-template.md`:
