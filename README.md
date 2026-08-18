@@ -10,7 +10,7 @@ KernelSwift 算子创新大赛（上海人工智能实验室 + 沐曦 + DeepLink
 kernels/                  # 全部算子优化 campaign（算子优先：<算子>/<后端>/）
 ├── track1-triton/        #   赛道一：Triton 算子优化
 │   └── README.md         #   10 算子 × 后端 进度/加速比矩阵（先看这里）
-└── track2-clike/         #   赛道二：C-like（预留，含 fused_moe bangc 探针）
+└── track2-clike/         #   赛道二：C-like（3 个算子 base 已就绪）
 auto_bench.py             # 共享评测 harness（v0/v1 对比 + profiler），所有 campaign 引用它
 docs/
 ├── competition/          #   比赛规则与算子清单（按赛道）
@@ -24,7 +24,7 @@ skills/kernel-opt-loop/   # 优化循环技能（Designer/Coder/Verifier 契约 
 | 赛道 | 内容 | 状态 | 文档 |
 |---|---|---|---|
 | 赛道一 | Triton 算子优化：10 算子 × 多国产芯片 | 进行中 | [track1-triton](docs/competition/track1-triton.md) |
-| 赛道二 | Clike（C-like，如 BANG C）算子优化 | 预留 | [track2-clike](docs/competition/track2-clike.md) |
+| 赛道二 | Clike（C-like，如 BANG C）算子优化：3 个算子 | 进行中 | [track2-clike](docs/competition/track2-clike.md) |
 | 赛道三 | AI4S / 新型模型架构（太初 TECOO） | 未开始 | — |
 
 官方飞书文档（需登录）：[赛道一](https://aicarrier.feishu.cn/wiki/YS3OwsOEGiKz2jkaMh9cyGVvngb) ·
