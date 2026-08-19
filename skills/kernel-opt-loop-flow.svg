@@ -36,7 +36,7 @@
   <rect width="1600" height="1120" fill="#f5f8fa"/>
   <rect x="0" y="0" width="1600" height="112" fill="url(#header)"/>
   <text x="70" y="54" class="title">Kernel Opt Skill 优化闭环</text>
-  <text x="70" y="84" class="subtitle">以 last_accepted_kernel 为唯一基线，以 Verifier 的 wall-time 证据驱动连续优化</text>
+  <text x="70" y="84" class="subtitle">以 last_accepted_kernel 为唯一基线，以官方 e2e wall time 采纳、以运行时证据指导优化</text>
 
   <text x="70" y="160" class="section">主流程：一轮优化 Round N</text>
 
@@ -119,7 +119,7 @@
   <circle cx="112" cy="542" r="7" fill="#247a5a"/>
   <text x="135" y="548" class="box-text">只有 accepted 才更新 last_accepted_kernel / last_accepted_report</text>
   <circle cx="112" cy="582" r="7" fill="#247a5a"/>
-  <text x="135" y="588" class="box-text">Benchmark wall time 决定采用，Profiler 只解释机制</text>
+  <text x="135" y="588" class="box-text">官方 e2e wall time 决定采用；kernel time、kernel count 与 host overhead 指导优化</text>
 
   <!-- Footer -->
   <text x="70" y="1070" class="small">角色边界：Designer 设计 · Coder 实现 · Verifier 测量 · Orchestrator 路由、状态和提交</text>

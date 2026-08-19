@@ -13,7 +13,7 @@
 - Phase 0 固化运行时、target profile、基线实现与 measurement fingerprint。
 - Designer 每轮只提出一个可证伪的优化假设；Coder 从当前 accepted implementation 实现候选；Verifier 独占真实设备进行正确性、wall-time 和 profiler 验证。
 - 只有 `accepted` 结果可推进 `last_accepted_kernel` 和 `last_accepted_report`。被拒绝或失败的候选保留为证据，不能作为下一轮基线。
-- 是否采用候选只由可比条件下的 benchmark wall time 决定；profiler 用于解释机制，不代替性能结论。
+- 是否采用候选由比赛定义的 e2e benchmark wall time 决定；kernel time、kernel count 与 host overhead 用于定位瓶颈和选择下一轮优化。
 - 每个终态 round 提交后，由策略评估决定继续、停止或因环境问题进入可恢复的 blocked 状态。
 
 详细的运行契约、角色边界和停止策略见 [`kernel-opt-loop/SKILL.md`](kernel-opt-loop/SKILL.md)。
