@@ -7,15 +7,15 @@ task 编号 ↔ 算子目录映射见 [docs/competition/track1-triton.md](../../
 | 算子 | `mlu`（寒武纪 MLU590） | `s60`（燧原 GCU） | `maca`（沐曦 C500） | `bi150`（天数智芯） | `ascend910b`（昇腾） |
 |---|---|---|---|---|---|
 | `groupedtopk` | ✅ **6.56x** · v4 · **0.840→0.128 ms** | ✅ **1.68x** · r003 · **0.459→0.274 ms** | ✅ **3.29x** · r001 · **0.225→0.068 ms** | ✅ **1.71x** · r009 · **0.475→0.277 ms** | ✅ **2.84x** · r002 · **0.760→0.267 ms** |
-| `flexattention` | ✅ **7.08x** · v3 · **1.006→0.140 ms** | ⛔ — · r000 baseline · **0.269→— ms** | — | — | ✅ **1.45x** · r002 · **0.409→0.282 ms** |
-| `fused_moe` | ✅ **50.4x** · v5 · **6.940→0.138 ms** | — | — | — | ✅ **19.4x** · r002 · **7.159→0.369 ms** |
+| `flexattention` | ✅ **7.08x** · v3 · **1.006→0.140 ms** | 🟡 **0.42x** · r001 · **0.269→0.64 ms**（correctness PASS，手写 causal SDPA，慢因 `tl.dot` 缺失） | — | — | ✅ **1.45x** · r002 · **0.409→0.282 ms** |
+| `fused_moe` | ✅ **50.4x** · v5 · **6.940→0.138 ms** | ✅ **13.8x** · r002（逐-token 路由 + selection 融合） | — | — | ✅ **19.4x** · r002 · **7.159→0.369 ms** |
 | `sparse_pooler` | ✅ **1.60x** · v4 · **0.910→0.567 ms** | 🟡 **0.79x** · r001 · **0.861→1.092 ms** | — | — | ✅ **1.51x** · r001 · **0.935→0.619 ms** |
-| `music_flamingo_rotary_embedding` | 📦 — · — · — | — | — | — | ✅ **1.86x** · r001 · **0.622→0.334 ms** |
-| `mm_encoder_attention` | 📦 — · — · — | — | — | — | 🟡 **1.03x** · r001 · **0.349→0.340 ms** |
-| `mhc_post_layer_mix` | 📦 — · — · — | — | — | — | ✅ **3.64x** · r001 · **3.198→0.880 ms** |
-| `mhc_head_compute_mix` | 📦 — · — · — | — | — | — | ✅ **9.00x** · r001 · **3.527→0.392 ms** |
-| `centre_random_augmentation` | 📦 — · — · — | — | — | — | ✅ **1.22x** · r001 · **2.463→2.024 ms** |
-| `mhc_head_compute_mix_backward` | 📦 — · — · — | — | — | — | 🟡 **1.03x** · r001 · **0.446→0.431 ms** |
+| `music_flamingo_rotary_embedding` | 📦 — · — · — | 🟡 **0.9x** · r002（elementwise 融合，measurement-bound） | — | — | ✅ **1.86x** · r001 · **0.622→0.334 ms** |
+| `mm_encoder_attention` | 📦 — · — · — | 🟡 **0.27x** · r001（手写 SDPA，慢因 `tl.dot` 缺失） | — | — | 🟡 **1.03x** · r001 · **0.349→0.340 ms** |
+| `mhc_post_layer_mix` | 📦 — · — · — | 🟡 **0.56x** · r001（einsum 用 `tl.sum` 展开） | — | — | ✅ **3.64x** · r001 · **3.198→0.880 ms** |
+| `mhc_head_compute_mix` | 📦 — · — · — | ✅ **6.8x** · r001（Sinkhorn 迭代融合） | — | — | ✅ **9.00x** · r001 · **3.527→0.392 ms** |
+| `centre_random_augmentation` | 📦 — · — · — | 🟡 **0.95x** · r001（四元数旋转） | — | — | ✅ **1.22x** · r001 · **2.463→2.024 ms** |
+| `mhc_head_compute_mix_backward` | 📦 — · — · — | 🟡 **1.26x** · r001（sigmoid-backward 融合） | — | — | 🟡 **1.03x** · r001 · **0.446→0.431 ms** |
 
 ## 表项说明
 
