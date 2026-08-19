@@ -619,7 +619,7 @@ class RoleContractTests(unittest.TestCase):
             with self.subTest(evidence=evidence):
                 self.assertIn(evidence, profile)
 
-        self.assertIn("`tl.dot` | Unknown", profile)
+        self.assertIn("`tl.dot` | Supported", profile)
         self.assertIn("`fast_libentry` | Unknown", profile)
         self.assertIn("`num_warps` | Unknown", profile)
 
