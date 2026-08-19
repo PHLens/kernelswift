@@ -57,6 +57,7 @@ or a stable device-time interpretation until a local scoped export proves them.
 | `tl.where` | Supported | Boolean selection over `(8,)` and `(8,32)` float32 values. | `scripts/bi150_groupedtopk_probe.py` | Incorrect masking is implementation repair. |
 | `tl.broadcast_to` | Supported | `(8,1)` to `(8,32)` broadcast in the grouped probe. | `scripts/bi150_groupedtopk_probe.py` | Unsupported required shape is capability-miss. |
 | `tl.static_range` | Supported | Compile-time loop with four iterations in the grouped probe. | `scripts/bi150_groupedtopk_probe.py` | Unsupported required control construct is capability-miss. |
+| `tl.dot` | Supported | `(32,32) @ (32,32)` matmul with fp32 inputs → exact (`0.0` max abs err); bf16 inputs → fp32 accumulate with `9.5e-7` max abs err, `1.2e-6` max rel err. | `scripts/bi150_tl_dot_probe2.py`; `scripts/bi150_tl_dot_probe_bf16.py` | Unsupported required shape/dtype is capability-miss; incorrect result is implementation repair. |
 
 ## Constrained Primitives
 
@@ -65,7 +66,7 @@ or a stable device-time interpretation until a local scoped export proves them.
 | `masked elementwise indexing` | Constrained | The matched probe covers contiguous `(8,32)` masking and reshape-backed storage only; gather/scatter, arbitrary multidimensional indexing, and aliasing remain unproven. | `scripts/bi150_groupedtopk_probe.py` | An unproven normative indexing requirement is capability-miss. |
 | `argmax tie and repeated selection` | Constrained | The probe covers one unique maximum only; repeated top-k selection and PyTorch-compatible tie ordering remain to be established. | `scripts/bi150_groupedtopk_probe.py` | An unproven normative tie or selection requirement is capability-miss. |
 | `launch configuration` | Constrained | The matched probes use a one-dimensional grid and direct launch; no explicit `num_warps` or `num_stages` hint is established. | `scripts/bi150_triton_smoke.py`; `scripts/bi150_groupedtopk_probe.py` | An unavailable required launch requirement is capability-miss; an incorrect optional setting is implementation repair. |
-| `dtype and layout regime` | Constrained | Contiguous float32 vectors and `(8,32)` row layout are proven; mixed precision, non-contiguous inputs, and arbitrary layouts remain unproven. | `scripts/bi150_groupedtopk_probe.py` | An unproven normative shape, layout, or dtype requirement is capability-miss. |
+| `dtype and layout regime` | Constrained | Contiguous float32 vectors, `(8,32)` row layout, and `(32,32)` bf16 matmul inputs are proven; other mixed precision, non-contiguous inputs, and arbitrary layouts remain unproven. | `scripts/bi150_groupedtopk_probe.py`; `scripts/bi150_tl_dot_probe_bf16.py` | An unproven normative shape, layout, or dtype requirement is capability-miss. |
 | `torch.compile` | Constrained | File-backed CUDA add-one functions compile and execute through the CoreX Torch 2.7.1 runtime with default and `reduce-overhead` modes. Graph coverage, graph breaks, cache behavior, streams, and grouped-topk lowering remain unproven. | `scripts/bi150_torch_compile_probe.py`; `scripts/bi150_torch_compile_reduce_overhead_probe.py` | A missing required lifecycle or lowering property is capability-miss; compile/runtime failure is environment-blocked. |
 
 ## Unsupported Primitives
@@ -82,7 +83,6 @@ without matched local evidence.
 
 | Primitive | Status | Constraint | Evidence | Failure classification |
 |---|---|---|---|---|
-| `tl.dot` | Unknown | No qualifying probe for the required shape, dtype, or lowering path. | No qualifying BI150 probe | An unprovable normative use is capability-miss. |
 | `tl.make_block_ptr` | Unknown | Memory-placement and pointer semantics require a matched local probe. | No qualifying BI150 probe | An unprovable normative use is capability-miss. |
 | `vectorize` | Unknown | Accepted values and backend effect require a matched local probe. | No qualifying BI150 probe | An unprovable normative use is capability-miss. |
 | `async_copy` | Unknown | Availability, synchronization, and memory semantics require a matched local probe. | No qualifying BI150 probe | An unprovable normative use is capability-miss. |
@@ -115,7 +115,7 @@ deviation.
   harness, not a direct import alone.
 - No matched profiler export is recorded; do not plan mechanism observables that
   require unproven device-time fields.
-- `num_warps`, `num_stages`, `tl.dot`, block pointers, and mixed precision remain
+- `num_warps`, `num_stages`, block pointers, and mixed precision remain
   unproven on this profile revision; repeated argmax tie behavior remains
   constrained rather than proven.
 
@@ -129,4 +129,5 @@ deviation.
 | Grouped-topk-shaped reductions, reshape, argmax, exp, sum, where, broadcast, full, zeros, static-range, and masked stores execute with checked results on BI150. | `scripts/bi150_groupedtopk_probe.py` | One program over a contiguous float32 vector of length 256 reshaped to `(8,32)`; unique argmax maximum only. |
 | `torch.cuda.synchronize()` is the observed synchronization boundary for the matched probes. | `scripts/bi150_triton_smoke.py`; `scripts/bi150_groupedtopk_probe.py` | Same BI150 runtime and probe regime only. |
 | `torch.compile` compiles and executes file-backed CUDA add-one functions with exact output in default and `reduce-overhead` modes on the recorded BI150 runtime. | `scripts/bi150_torch_compile_probe.py`; `scripts/bi150_torch_compile_reduce_overhead_probe.py` | Basic compiler-mode availability only; grouped-topk graph coverage and lifecycle remain constrained. |
-| `tl.dot`, block pointers, explicit launch hints, stream/context lifecycle semantics, mixed precision, and profiler interpretation beyond the recorded CUDA trace remain unproven. | This profile and absence of a qualifying probe. | Unknown is not treated as Supported or Unsupported. |
+| `tl.dot` executes `(32,32) @ (32,32)` matmul with exact `fp32` results and near-exact `bf16`-input results (fp32 accumulate). | `scripts/bi150_tl_dot_probe2.py`; `scripts/bi150_tl_dot_probe_bf16.py` | One square-tile matmul shape on the recorded BI150 runtime; other shapes/layouts unproven. |
+| Block pointers, explicit launch hints, stream/context lifecycle semantics, mixed precision, and profiler interpretation beyond the recorded CUDA trace remain unproven. | This profile and absence of a qualifying probe. | Unknown is not treated as Supported or Unsupported. |
