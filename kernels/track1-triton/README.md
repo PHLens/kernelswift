@@ -28,15 +28,21 @@ task 编号 ↔ 算子目录映射见 [docs/competition/track1-triton.md](../../
 
 ## 横向对比分析
 
-### 1. `tl.dot` 可用性是最大的分水岭（GEMM 类算子）
+### 1. `tl.dot` 仍是最大的分水岭
 
-五个后端里，**只有 BI150 实测 `tl.dot` 可用**（fp32/bf16 精确、fp16 收缩 128/64 可用、M≥16 warp-tile 约束）。C500 / S60 / 910B 三个后端的 `tl.dot` 都是 Unknown，任何 GEMM 只能退化成 `tl.sum(a*b)` 标量 FMA：
+当前五个后端的 `tl.dot` 证据状态可分成四档：
 
-- **S60** 因此 attention 跌到 0.27x/0.42x、post_layer_mix 0.56x（标量 FMA vs CNNL 张量核心，差一个数量级）
-- **C500** 的 mm_encoder_attention 只 0.91x（同因）
-- **BI150** 的 fused_moe 能用 `tl.dot` 融合 per-expert GEMM，拿到 +79.98% device 收益——这是其它 `tl.dot`-Unknown 后端做不到的
+- **campaign-backed**：**MLU**（`fused_moe` / `flexattention` 已用 `tl.dot` 拿到实战收益）
+- **probe-backed + 部分 campaign 兑现**：**BI150**（`(32,32)@(32,32)` 的 fp32/bf16 `tl.dot` 已实测，`fused_moe` 已把 per-expert GEMM 融合转成显著 device 收益）
+- **已有小规模 probe**：**910B**（`(16,16)@(16,16)` fp32 probe 成功，`num_warps=1/2/4` 也已 probe；当前 attention/GEMM campaign 的主收益来源以 launch/fusion 路径为主，大 shape dot 路线仍待建立）
+- **Unknown**：**S60 / C500**
 
-### 2. attention 类算子的胜负 = base 库调用开销 vs Triton launch 成熟度
+因此：
+
+- **S60 / C500** 的 attention/GEMM 一旦离不开矩阵单元，通常会退化成 `tl.sum(a*b)` 标量 FMA，并被 CNNL / mcblas 压制；
+- **MLU / BI150 / 910B** 的上限更高，分析时需要区分“probe 可用”“候选可编译”“任务 shape 上可兑现收益”三个层级。
+
+### 2. attention 类算子的胜负 = base 库调用开销 × launch 成熟度 × dot 路径是否能兑现
 
 `F.scaled_dot_product_attention` 在所有后端都落到厂商专有 FlashAttention/SDPA，但结局差异极大：
 
@@ -48,9 +54,9 @@ task 编号 ↔ 算子目录映射见 [docs/competition/track1-triton.md](../../
 | BI150 | Ixmma FA（单 kernel 深度调优） | 极低 | 一般 | 🟡 0.55x/0.61x |
 | S60 | CNNL FA | 低 | 弱 | ❌ 0.27x/0.42x |
 
-**关键洞察**：910B 在 `tl.dot` 缺失的情况下，flexattention 仍拿到 1.45x——因为 base 的原生 FA 在 T=83 小 shape 下没吃饱、launch 开销占比高，而 910B 的 Triton launch 成熟，靠「减少 launch + 融合 causal mask/softmax」反而跑赢。BI150 没赢则是因为 base FA（`FlashAttnFwdF16Ixmma`）是单 kernel 且厂商深度调优，13~15 us device 已接近下限。
+**关键洞察**：910B 的 flexattention 1.45x 说明，attention 胜负同时受当前任务 shape 下的 **base 库调用开销、Triton launch 成熟度、以及可兑现的 dot 路径成熟度** 影响。910B 当前已有小 fp32 `tl.dot` probe，但现有 attention campaign 的主收益来源仍以 launch/fusion 为主；BI150 也已探明 `tl.dot`，不过 base FA（`FlashAttnFwdF16Ixmma`）是单 kernel 且厂商深度调优，13~15 us device 已接近下限，手写 Triton attention 仍难跑赢。
 
-**结论**：attention 胜负由「base 库调用开销 − Triton launch 开销」的差值决定，而非单纯 `tl.dot`；GEMM/大矩阵乘类算子的上限才真正由 `tl.dot` 决定。
+**结论**：attention 胜负由「base 库调用开销 − Triton launch/融合收益」与「任务 shape 下 dot 路径是否成熟」共同决定；GEMM/大矩阵乘类算子的上限则更直接受 `tl.dot` 覆盖面约束。
 
 ### 3. 收益主旋律高度一致：kernel fusion（省 launch + 省冗余）
 
@@ -68,28 +74,40 @@ Sinkhorn 融合是跨后端最稳定的大赢家（6.8x~14x）：它是纯 launc
 
 ### 4. 两个「超额」单点：MLU 的 launcher、C500 的 tiny-K GEMM
 
-- **MLU** 是唯一能「打赢厂商 attention 库」的后端（flexattention 7.08x），靠的是 `fast_libentry` 快速 launcher——base 的 CNNL SDPA 在 T=83 下 host 调用开销高，被 Triton 的轻量 launcher 反超。
+- **MLU** 仍是唯一明确打赢厂商 attention 库的后端（flexattention 7.08x），靠的是 `fast_libentry` 快速 launcher + 已兑现的 `tl.dot` 路线；base 的 CNNL SDPA 在 T=83 下 host 调用开销高，被 Triton 的轻量 launcher 反超。
 - **C500 的 mhc_post_layer_mix 31.66x** 是全赛道最大单算子加速：base 的 einsum（K=4）落到 `mcblas tf32gemm 64x64x128` tile，K 维浪费 ~97%，手写 kernel 用 4 次显式 fp32 MAC 替代并折叠 elementwise 尾，6→1 kernels。这是「识别厂商库 tile 浪费」的典型案例。
+
+### 5. 证据质量本身也是后端差异
+
+- **MLU / C500**：device kernel 证据相对直接，Designer/Verifier 更容易判断瓶颈；
+- **S60**：当前只有 `gcu_runtime` launch 事件，没有 `cat=kernel` device-duration，很多判断只能停留在 launch 诊断；
+- **910B**：device time 可得，但要走 `torch_npu.profiler` + CANN sqlite，不能把 raw `torch.profiler` 当成 device 证据；
+- **BI150**：campaign 已有 device 侧总结，但 target profile 对 profiler 字段仍偏保守，后续仍应补正式 probe / promote。
+
+这意味着 backend campaign 的难度，不只取决于 Triton 能不能写，还取决于 **能不能稳定观察 device bottleneck**。
 
 ## 后端能力矩阵
 
 | 维度 | MLU590 | S60 | C500 | BI150 | 910B |
 |---|---|---|---|---|---|
-| `tl.dot` | ✅ 可用 | ❌ Unknown | ❌ Unknown | ✅ Supported | ❌ Unknown |
-| `num_warps>1` | ⚠️ 不支持（回退 1） | ❌ | ❌ | ⚠️ Unknown | ⚠️ Unknown |
-| 快速 launch 机制 | ✅ `fast_libentry` | — | — | ⚠️（CUDA Graph） | ✅ 成熟 launch |
+| `tl.dot` | ✅ campaign-backed | ❌ Unknown | ❌ Unknown | ✅ probe-backed + `fused_moe` 已兑现 | ⚠️ `(16,16)` fp32 probe-backed，任务 shape 仍待验证 |
+| `num_warps>1` | ⚠️ `2` 已失败，当前 `1` 最稳 | ❌ 未建立 | ❌ 未建立 | ⚠️ Unknown | ✅ `1/2/4` 已 probe |
+| 快速 launch 机制 | ✅ `fast_libentry` | — | — | ⚠️ direct launch + `torch.compile(reduce-overhead)`，无已证明 fast launcher | ✅ 成熟 launch |
+| 设备侧 profiler 证据 | ✅ 相对成熟 | ❌ launch-only | ✅ 有 kernel events | ⚠️ campaign 有 summary，profile 仍待补齐 | ✅ 经 CANN/msprof 可得 |
 | 厂商库压制力 | 中（attention 可被超） | 强（CNNL） | 强（mcblas） | 强（Ixmma/TCU） | 强（原生 FA） |
 | 覆盖完整度 | 4/10 | 10/10 | 5/10 | **10/10** | 10/10 |
 
 ## 结论
 
-1. **BI150 是唯一 `tl.dot` 可用的后端**，这是它相对其它后端最独特的优势——虽因厂商库挡路未在 attention/大 GEMM 上兑现，但 fused_moe 的 +79.98% device 收益就是 `tl.dot` 的直接红利。
+1. **当前已有三类 `tl.dot` 证据**：MLU 属于 campaign-backed，BI150 属于 probe-backed 且已有 `fused_moe` 实战收益，910B 已有小 fp32 probe；S60 / C500 仍把 `tl.dot` 可用性列为第一优先级。
 
-2. **赛道主旋律是「kernel fusion 对抗厂商库」**：能绕开 GEMM/attention 的算子（Sinkhorn、逐-token 路由、elementwise 链），Triton 融合普遍拿到 6x~50x；撞上厂商张量核心的算子（大 GEMM、flash attention），在 `tl.dot` 不可用或库深度调优的后端上回退。
+2. **赛道主旋律仍是「kernel fusion 对抗厂商库」**：能绕开 GEMM/attention 主核的算子（Sinkhorn、逐-token 路由、elementwise 链），Triton 融合普遍拿到 6x~50x；撞上厂商张量核心主路径的算子（大 GEMM、flash attention），收益取决于 dot 路线成熟度和 baseline 库的接近下限程度。
 
-3. **`tl.dot` 是下一个全局杠杆点**：C500/S60/910B 不约而同把「实测 `tl.dot` 可用性」列为第一优先级。一旦补上，attention 和 post_layer_mix 的 0.27x~0.92x 都有翻盘空间，BI150 已经证明这条路是通的。
+3. **`tl.dot` 仍是全局杠杆点**：分析时需要区分三个层级——`probe 可用`、`候选可编译`、`任务 shape 上可兑现收益`。当前 S60 / C500 缺第一层，910B / BI150 还在补第三层，MLU 已证明部分路径。
 
-4. **两条独立的胜负线**：GEMM 类看 `tl.dot`，attention 类看「base 库调用开销 vs Triton launch 成熟度」。910B 证明了后者可以在 `tl.dot` 缺失时仍赢 attention（flexattention 1.45x）。
+4. **两条独立的胜负线**：GEMM 类看矩阵单元能力与 `tl.dot` 覆盖面；attention 类还要看「base 库调用开销 vs Triton launch/融合收益」。910B 当前的 flexattention 1.45x 主要体现后者，现有证据对应的小规模 `tl.dot` probe 仍不足以外推出全面替代厂商 FA 的结论。
+
+5. **可观察性也是 backend 能力的一部分**：S60 当前的主要短板是 device-duration 证据缺失；910B 和 BI150 则仍有 profile、summary、campaign 三层证据同步吸收的工程工作量。
 
 ## 各后端详细总结
 

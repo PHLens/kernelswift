@@ -23,7 +23,7 @@ MLU 是唯一「打赢厂商 attention 库」的后端（flexattention 7.08x）�
 
 ### 独有经验（可复用）
 
-- **`fast_libentry` 调用形式**：是 `fast_libentry()(_kernel)`（工厂调用），不是 `fast_libentry(_kernel)`，写错会静默不生效。
+- **`fast_libentry` 调用形式**：`fast_libentry()(_kernel)`（工厂调用）；`fast_libentry(_kernel)` 在现有 MLU 经验中未建立为可用形式，写错会静默不生效。
 - **`tl.argmax` selection sort**：Triton 无内置 top-K，靠「找 max → mask → 重复 K 趟」实现，groupedtopk 的 K=8+K=4 共 12 趟 reduction 是 device 大头。
 - **`torch.cuda.is_available()` 在 MLU 机返回 True**：`sync_devices` 会同步 cuda stub + mlu 两边，每次 forward 多 ~66 us，属 harness 固定成本。
 - **tmo 库 op 上界对比**：`moe_softmax_topk` / `flash_attention` 单 op 在 device 上优于手写（groupedtopk 9.86 vs 20 us、flexattention 8.77 vs 50.5 us），但 wall 上不一定（tmo launcher 在小 shape 下重一个数量级），仅作工程上界参考，不作 canonical。
@@ -90,7 +90,7 @@ base 的 einsum `'abmn,abmc->abnc'`（K=4）落到 `mcblas tf32gemm 64x64x128` t
 
 ## 四、BI150（天数智芯）
 
-10/10 算子全部覆盖，**唯一 `tl.dot` 可用的后端**。
+10/10 算子全部覆盖；当前 profile / campaign 证据显示，BI150 的 `tl.dot` 已有 probe-backed 记录，并在 `fused_moe` 上兑现了实战收益。
 
 ### 1. 成果总表
 
@@ -169,15 +169,15 @@ device 提升远大于 wall 提升，正说明这是 kernel 优化成果（融�
 
 ### 关键洞察
 
-- **`flexattention` 1.45x**：910B 在 `tl.dot` 缺失下仍赢 attention——base 原生 FA 在 T=83 小 shape 下没吃饱、launch 开销占比高，Triton launch 成熟，靠减少 launch + 融合 causal mask/softmax 反超。
+- **`flexattention` 1.45x**：现有结果主要来自小 shape 下的 launch/fusion 收益——base 原生 FA 在 T=83 下没吃饱、launch 开销占比高，Triton launch 成熟，靠减少 launch + 融合 causal mask/softmax 反超。当前 profile 已有小 fp32 `tl.dot` probe，但这条能力尚未在现有 attention campaign 中形成主收益路径。
 - **多数算子 host-bound**：device_ratio 0.07~0.33（groupedtopk 0.131、flexattention 0.19、fused_moe 0.07、sparse_pooler 0.33），wall 主要由 host launch/dispatch 主导。
-- **`mm_encoder_attention` 0.92x**：`tl.dot` Unknown，手写 SDPA 无法利用矩阵单元，base 原生 FA 已接近最优。
+- **`mm_encoder_attention` 0.92x**：当前 task shape 上，手写 SDPA 仍未建立可兑现的矩阵单元收益路径，base 原生 FA 已接近最优。
 
 ### 可优化方向
 
-1. 验证 `tl.dot` / `fast_libentry` 在 triton_ascend 的可用性（attention/GEMM 有明确双收益）
+1. 扩展 `tl.dot` 到 attention / GEMM 相关 shape、dtype 与 tile 路径的 probe，并补 `fast_libentry` 的正式证据（attention/GEMM 都有明确收益空间）
 2. 压缩 host launch 开销（~107-232 us/call 是小 shape 算子的最大单点）
-3. 增大 tile / num_warps 提升 occupancy（但追平库算子仍需矩阵单元）
+3. 增大 tile / `num_warps` 提升 occupancy（追平库算子仍需矩阵单元收益在任务 shape 上可兑现）
 
 ---
 
@@ -185,8 +185,9 @@ device 提升远大于 wall 提升，正说明这是 kernel 优化成果（融�
 
 | 维度 | MLU590 | S60 | C500 | BI150 | 910B |
 |---|---|---|---|---|---|
-| `tl.dot` | ✅ 可用 | ❌ Unknown | ❌ Unknown | ✅ Supported | ❌ Unknown |
-| `num_warps>1` | ⚠️ 不支持（回退 1） | ❌ | ❌ | ⚠️ Unknown | ⚠️ Unknown |
-| 快速 launch 机制 | ✅ `fast_libentry` | — | — | ⚠️（CUDA Graph） | ✅ 成熟 launch |
+| `tl.dot` | ✅ campaign-backed | ❌ Unknown | ❌ Unknown | ✅ probe-backed + `fused_moe` 已兑现 | ⚠️ `(16,16)` fp32 probe-backed，任务 shape 仍待验证 |
+| `num_warps>1` | ⚠️ `2` 已失败，当前 `1` 最稳 | ❌ 未建立 | ❌ 未建立 | ⚠️ Unknown | ✅ `1/2/4` 已 probe |
+| 快速 launch 机制 | ✅ `fast_libentry` | — | — | ⚠️ direct launch + `torch.compile(reduce-overhead)`，无已证明 fast launcher | ✅ 成熟 launch |
+| 设备侧 profiler 证据 | ✅ 相对成熟 | ❌ launch-only | ✅ 有 kernel events | ⚠️ campaign 有 summary，profile 仍待补齐 | ✅ 经 CANN/msprof 可得 |
 | 厂商库压制力 | 中（attention 可被超） | 强（CNNL） | 强（mcblas） | 强（Ixmma/TCU） | 强（原生 FA） |
 | 覆盖完整度 | 4/10 | 10/10 | 5/10 | **10/10** | 10/10 |
