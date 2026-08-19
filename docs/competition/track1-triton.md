@@ -19,10 +19,10 @@
 | 2 | `flexattention` | 因果 SDPA 融合（已完结：mlu 7.08x） |
 | 3 | `fused_moe` | MoE 路由 + per-expert GEMM（已完结：mlu 50.4x） |
 | 4 | `sparse_pooler` | SPLADE 稀疏池化（已完结：mlu 1.60x） |
-| 5 | `music_flamingo_rotary_embedding` | 音乐位置编码（batch 时间 + 序列时间，输出 cos/sin） |
-| 6 | `mm_encoder_attention` | MMEncoderAttention：多模态编码器注意力（view/transpose + `F.scaled_dot_product_attention`） |
-| 7 | `mhc_post_layer_mix` | MHC 后层混合：einsum(`abmn,abmc→abnc`) + post_layer_mix 加权 |
-| 8 | `mhc_head_compute_mix` | sigmoid pre/post + comb 矩阵 Sinkhorn 归一化（20 轮迭代） |
+| 5 | `music_flamingo_rotary_embedding` | 音乐位置编码（batch 时间 + 序列时间，输出 cos/sin）（已完结：maca 2.38x） |
+| 6 | `mm_encoder_attention` | MMEncoderAttention：多模态编码器注意力（view/transpose + `F.scaled_dot_product_attention`）（已完结：maca Triton MHA 提交，flash-attn 基线已最优） |
+| 7 | `mhc_post_layer_mix` | MHC 后层混合：einsum(`abmn,abmc→abnc`) + post_layer_mix 加权（已完结：maca 31.66x） |
+| 8 | `mhc_head_compute_mix` | sigmoid pre/post + comb 矩阵 Sinkhorn 归一化（20 轮迭代）（已完结：maca 14.07x） |
 | 9 | `centre_random_augmentation` | 蛋白坐标中心化 + 随机刚体增广（四元数旋转矩阵） |
 | 10 | `mhc_head_compute_mix_backward` | mhc_head_compute_mix 手动反向（grad_input/scale/base） |
 

@@ -10,10 +10,10 @@ task 编号 ↔ 算子目录映射见 [docs/competition/track1-triton.md](../../
 | `flexattention` | ✅ **7.08x** · v3 · **1.006→0.140 ms** | 🟡 **0.42x** · r001 · **0.269→0.64 ms**（correctness PASS，手写 causal SDPA，慢因 `tl.dot` 缺失） | — | — | ✅ **1.45x** · r002 · **0.409→0.282 ms** |
 | `fused_moe` | ✅ **50.4x** · v5 · **6.940→0.138 ms** | ✅ **13.8x** · r002（逐-token 路由 + selection 融合） | — | — | ✅ **19.4x** · r002 · **7.159→0.369 ms** |
 | `sparse_pooler` | ✅ **1.60x** · v4 · **0.910→0.567 ms** | 🟡 **0.79x** · r001 · **0.861→1.092 ms** | — | — | ✅ **1.51x** · r001 · **0.935→0.619 ms** |
-| `music_flamingo_rotary_embedding` | 📦 — · — · — | 🟡 **0.9x** · r002（elementwise 融合，measurement-bound） | — | — | ✅ **1.86x** · r001 · **0.622→0.334 ms** |
-| `mm_encoder_attention` | 📦 — · — · — | 🟡 **0.27x** · r001（手写 SDPA，慢因 `tl.dot` 缺失） | — | — | 🟡 **1.03x** · r001 · **0.349→0.340 ms** |
-| `mhc_post_layer_mix` | 📦 — · — · — | 🟡 **0.56x** · r001（einsum 用 `tl.sum` 展开） | — | — | ✅ **3.64x** · r001 · **3.198→0.880 ms** |
-| `mhc_head_compute_mix` | 📦 — · — · — | ✅ **6.8x** · r001（Sinkhorn 迭代融合） | — | — | ✅ **9.00x** · r001 · **3.527→0.392 ms** |
+| `music_flamingo_rotary_embedding` | 📦 — · — · — | 🟡 **0.9x** · r002（elementwise 融合，measurement-bound） | ✅ **2.38x** · r001 · **0.191→0.080 ms** | — | ✅ **1.86x** · r001 · **0.622→0.334 ms** |
+| `mm_encoder_attention` | 📦 — · — · — | 🟡 **0.27x** · r001（手写 SDPA，慢因 `tl.dot` 缺失） | 🟡 **0.91x** · r002 · **0.116→0.128 ms**（手写 Triton MHA，flash-attn 已最优） | — | 🟡 **1.03x** · r001 · **0.349→0.340 ms** |
+| `mhc_post_layer_mix` | 📦 — · — · — | 🟡 **0.56x** · r001（einsum 用 `tl.sum` 展开） | ✅ **31.66x** · r001 · **7.636→0.241 ms** | — | ✅ **3.64x** · r001 · **3.198→0.880 ms** |
+| `mhc_head_compute_mix` | 📦 — · — · — | ✅ **6.8x** · r001（Sinkhorn 迭代融合） | ✅ **14.07x** · r001 · **1.515→0.118 ms** | — | ✅ **9.00x** · r001 · **3.527→0.392 ms** |
 | `centre_random_augmentation` | 📦 — · — · — | 🟡 **0.95x** · r001（四元数旋转） | — | — | ✅ **1.22x** · r001 · **2.463→2.024 ms** |
 | `mhc_head_compute_mix_backward` | 📦 — · — · — | 🟡 **1.26x** · r001（sigmoid-backward 融合） | — | — | 🟡 **1.03x** · r001 · **0.446→0.431 ms** |
 
@@ -32,10 +32,10 @@ task 编号 ↔ 算子目录映射见 [docs/competition/track1-triton.md](../../
 | `flexattention` | [base.py](flexattention/base.py)（设备无关共享） | [mlu](flexattention/mlu/) · [s60](flexattention/s60/) · [ascend](flexattention/ascend/) | [mlu outcome](flexattention/mlu/outcome.md) · [s60 project](flexattention/s60/project.md) · [ascend r002 report](flexattention/ascend/rounds/report_002.md) |
 | `fused_moe` | [base.py](fused_moe/base.py) | [mlu](fused_moe/mlu/) · [ascend](fused_moe/ascend/) | [mlu outcome](fused_moe/mlu/outcome.md)（bangc 探针见 track2） · [ascend r002 report](fused_moe/ascend/rounds/report_002.md) |
 | `sparse_pooler` | [base.py](sparse_pooler/base.py)（设备无关共享） | [mlu](sparse_pooler/mlu/) · [s60](sparse_pooler/s60/) · [ascend](sparse_pooler/ascend/) | [mlu project](sparse_pooler/mlu/project.md) · [s60 project](sparse_pooler/s60/project.md) · [ascend r001 report](sparse_pooler/ascend/rounds/report_001.md) |
-| `music_flamingo_rotary_embedding` | [base.py](music_flamingo_rotary_embedding/base.py) | [ascend](music_flamingo_rotary_embedding/ascend/) | [ascend r001 report](music_flamingo_rotary_embedding/ascend/rounds/report_001.md) |
-| `mm_encoder_attention` | [base.py](mm_encoder_attention/base.py) | [ascend](mm_encoder_attention/ascend/) | [ascend r001 report](mm_encoder_attention/ascend/rounds/report_001.md) |
-| `mhc_post_layer_mix` | [base.py](mhc_post_layer_mix/base.py) | [ascend](mhc_post_layer_mix/ascend/) | [ascend r001 report](mhc_post_layer_mix/ascend/rounds/report_001.md) |
-| `mhc_head_compute_mix` | [base.py](mhc_head_compute_mix/base.py) | [ascend](mhc_head_compute_mix/ascend/) | [ascend r001 report](mhc_head_compute_mix/ascend/rounds/report_001.md) |
+| `music_flamingo_rotary_embedding` | [base.py](music_flamingo_rotary_embedding/base.py) | [ascend](music_flamingo_rotary_embedding/ascend/) · [maca](music_flamingo_rotary_embedding/maca/) | [ascend r001 report](music_flamingo_rotary_embedding/ascend/rounds/report_001.md) · [maca final summary](music_flamingo_rotary_embedding/maca/final_summary.md) |
+| `mm_encoder_attention` | [base.py](mm_encoder_attention/base.py) | [ascend](mm_encoder_attention/ascend/) · [maca](mm_encoder_attention/maca/) | [ascend r001 report](mm_encoder_attention/ascend/rounds/report_001.md) · [maca final summary](mm_encoder_attention/maca/final_summary.md) |
+| `mhc_post_layer_mix` | [base.py](mhc_post_layer_mix/base.py) | [ascend](mhc_post_layer_mix/ascend/) · [maca](mhc_post_layer_mix/maca/) | [ascend r001 report](mhc_post_layer_mix/ascend/rounds/report_001.md) · [maca final summary](mhc_post_layer_mix/maca/final_summary.md) |
+| `mhc_head_compute_mix` | [base.py](mhc_head_compute_mix/base.py) | [ascend](mhc_head_compute_mix/ascend/) · [maca](mhc_head_compute_mix/maca/) | [ascend r001 report](mhc_head_compute_mix/ascend/rounds/report_001.md) · [maca final summary](mhc_head_compute_mix/maca/final_summary.md) |
 | `centre_random_augmentation` | [base.py](centre_random_augmentation/base.py) | [ascend](centre_random_augmentation/ascend/) | [ascend r001 report](centre_random_augmentation/ascend/rounds/report_001.md) |
 | `mhc_head_compute_mix_backward` | [base.py](mhc_head_compute_mix_backward/base.py) | [ascend](mhc_head_compute_mix_backward/ascend/) | [ascend r001 report](mhc_head_compute_mix_backward/ascend/rounds/report_001.md) |
 
