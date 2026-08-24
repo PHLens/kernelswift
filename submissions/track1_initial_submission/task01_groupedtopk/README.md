@@ -13,13 +13,22 @@
 
 ## 后端实现映射
 
-- `mlu` -> `impls/triton_grouped_topk_004.py`
-- `s60` -> `impls/triton_grouped_topk_003.py`
-- `maca` -> `impls/triton_grouped_topk_001.py`
-- `bi150` -> `impls/triton_grouped_topk_009.py`
-- `ascend` -> `impls/triton_grouped_topk_002.py`
+- `mlu` -> `impls/mlu__triton_grouped_topk_004.py`
+- `s60` -> `impls/s60__triton_grouped_topk_003.py`
+- `maca` -> `impls/maca__triton_grouped_topk_001.py`
+- `bi150` -> `impls/bi150__triton_grouped_topk_009.py`
+- `ascend` -> `impls/ascend__triton_grouped_topk_002.py`
 
-当前未纳入本初版提交的后端：无。
+当前没有专项优化版本的后端：无。
+
+## 通用 Triton fallback
+
+当检测到的后端没有专项优化版本时，`submission.py` 会退回到：
+
+- 通用 fallback 后端：`bi150`
+- 通用 fallback 文件：`impls/bi150__triton_grouped_topk_009.py`
+
+这条 fallback 仍然执行 Triton 实现，不会退回到纯 PyTorch 内置路径规避评测。
 
 ## 分发规则
 
@@ -30,8 +39,6 @@
 - `torch.npu.is_available()` -> `ascend`
 - `torch.cuda.is_available()` 且 `COREX_VERSION`/device name 命中 BI150 特征 -> `bi150`
 - 其余 CUDA-compatible 情况 -> `maca`
-
-若当前后端没有已验证实现，代码会显式报错，不会回退到纯 PyTorch 内置算子路径规避自定义算子执行。
 
 ## 运行方式
 
