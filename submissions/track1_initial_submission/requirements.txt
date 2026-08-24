@@ -1,0 +1,11 @@
+# Recommended Python version: 3.10
+# Core dependencies
+torch
+triton
+
+# Backend-specific runtime packages are environment-dependent and should be
+# provided by the target platform. Common examples:
+# - torch_gcu, triton_gcu          (S60 / Enflame GCU)
+# - torch_npu                      (Ascend 910B)
+# - torch_mlu, torch_mlu_ops       (Cambricon MLU)
+# - CoreX / MACA vendor runtime    (BI150 / C500 CUDA-compatible stacks)
