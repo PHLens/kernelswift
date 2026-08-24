@@ -6,12 +6,12 @@
 |---|---|---|
 | `mlu` | ✅ 50.4x | `triton_fused_moe_005.py` |
 | `s60` | ✅ 13.1x | `triton_fused_moe_002.py` |
-| `maca` | — | `未纳入本初版提交` |
+| `maca` | — | `通用 Triton fallback` |
 | `bi150` | ✅ 6.60x | `triton_fused_moe_002.py` |
 | `ascend` | ✅ 19.4x | `triton_fused_moe_003.py` |
 
 ## 说明
 
 - 本文件记录的是当前已验证结果与本次提交选择的实现文件对应关系。
-- 对于尚未纳入本初版提交的后端，表中记为 `—`。
+- 对于没有专项优化版本的后端，`submission.py` 会退回到该赛题的通用 Triton fallback。
 - 统一入口 `submission.py` 会按照后端分发到相应实现文件。

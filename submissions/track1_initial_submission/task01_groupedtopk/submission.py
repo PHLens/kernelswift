@@ -10,7 +10,8 @@ from base import get_init_inputs as _base_get_init_inputs
 from base import get_inputs as _base_get_inputs
 
 
-_BACKEND_TO_FILE = {'mlu': 'triton_grouped_topk_004.py', 's60': 'triton_grouped_topk_003.py', 'maca': 'triton_grouped_topk_001.py', 'bi150': 'triton_grouped_topk_009.py', 'ascend': 'triton_grouped_topk_002.py'}
+_BACKEND_TO_FILE = {'mlu': 'mlu__triton_grouped_topk_004.py', 's60': 's60__triton_grouped_topk_003.py', 'maca': 'maca__triton_grouped_topk_001.py', 'bi150': 'bi150__triton_grouped_topk_009.py', 'ascend': 'ascend__triton_grouped_topk_002.py'}
+_FALLBACK_BACKEND = 'bi150'
 
 
 def _backend_available(name: str) -> bool:
@@ -45,26 +46,33 @@ def _detect_backend() -> str:
     raise RuntimeError('No supported accelerator backend detected for this submission entry.')
 
 
+def _resolve_backend_file(backend: str) -> tuple[str, str]:
+    if backend in _BACKEND_TO_FILE:
+        return backend, _BACKEND_TO_FILE[backend]
+    if _FALLBACK_BACKEND in _BACKEND_TO_FILE:
+        return _FALLBACK_BACKEND, _BACKEND_TO_FILE[_FALLBACK_BACKEND]
+    supported = ', '.join(sorted(_BACKEND_TO_FILE))
+    raise RuntimeError(
+        f'Backend {backend!r} is not implemented for this task and no Triton fallback is available. Supported backends: {supported}'
+    )
+
+
 def _load_impl_module(backend: str):
-    try:
-        filename = _BACKEND_TO_FILE[backend]
-    except KeyError as exc:
-        supported = ', '.join(sorted(_BACKEND_TO_FILE))
-        raise RuntimeError(f'Backend {backend!r} is not implemented for this task. Supported backends: {supported}') from exc
+    resolved_backend, filename = _resolve_backend_file(backend)
     path = Path(__file__).resolve().parent / 'impls' / filename
-    spec = importlib.util.spec_from_file_location(f'_submission_impl_{backend}_{path.stem}', path)
+    spec = importlib.util.spec_from_file_location(f'_submission_impl_{resolved_backend}_{path.stem}', path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f'Failed to load backend implementation from {path}')
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return module
+    return resolved_backend, module
 
 
 class ModelNew(nn.Module):
     def __init__(self, topk: int, renormalize: bool, num_expert_group: int, topk_group: int, scoring_func: str = "softmax", routed_scaling_factor: float = 1.0):
         super().__init__()
         self.backend = _detect_backend()
-        self._impl_module = _load_impl_module(self.backend)
+        self.impl_backend, self._impl_module = _load_impl_module(self.backend)
         self.impl = self._impl_module.ModelNew(topk, renormalize, num_expert_group, topk_group, scoring_func, routed_scaling_factor)
 
     def forward(self, hidden_states: torch.Tensor, gating_output: torch.Tensor):

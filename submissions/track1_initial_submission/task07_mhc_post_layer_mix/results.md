@@ -4,7 +4,7 @@
 
 | Backend | Current result | Selected submission file |
 |---|---|---|
-| `mlu` | — | `未纳入本初版提交` |
+| `mlu` | — | `通用 Triton fallback` |
 | `s60` | 🟡 0.56x | `triton_mhc_post_layer_mix_001.py` |
 | `maca` | ✅ 31.66x | `triton_mhc_001.py` |
 | `bi150` | ✅ 1.20x | `triton_mhc_post_layer_mix_001.py` |
@@ -13,5 +13,5 @@
 ## 说明
 
 - 本文件记录的是当前已验证结果与本次提交选择的实现文件对应关系。
-- 对于尚未纳入本初版提交的后端，表中记为 `—`。
+- 对于没有专项优化版本的后端，`submission.py` 会退回到该赛题的通用 Triton fallback。
 - 统一入口 `submission.py` 会按照后端分发到相应实现文件。
