@@ -1,17 +1,9 @@
 # 赛题5：music_flamingo_rotary_embedding 性能测试结果
 
-当前整理自仓库中已验证的 campaign / final summary / outcome 记录，作为本初版提交附带的性能结果。
-
-| Backend | Current result | Selected submission file |
+| Backend | Speedup | Implementation |
 |---|---|---|
-| `mlu` | — | `通用 Triton fallback` |
-| `s60` | 🟡 0.90x | `triton_rotary_002.py` |
-| `maca` | ✅ 2.38x | `triton_rotary_001.py` |
-| `bi150` | ✅ 1.95x | `triton_music_flamingo_rotary_embedding_001.py` |
-| `ascend` | ✅ 1.86x | `triton_rotary_001.py` |
-
-## 说明
-
-- 本文件记录的是当前已验证结果与本次提交选择的实现文件对应关系。
-- 对于没有专项优化版本的后端，`submission.py` 会退回到该赛题的通用 Triton fallback。
-- 统一入口 `submission.py` 会按照后端分发到相应实现文件。
+| `mlu` | — | `generic__triton_music_flamingo_rotary_embedding_001.py` |
+| `s60` | 0.90x | `s60__triton_rotary_002.py` |
+| `maca` | 2.38x | `maca__triton_rotary_001.py` |
+| `bi150` | 1.95x | `bi150__triton_music_flamingo_rotary_embedding_001.py` |
+| `ascend` | 1.86x | `ascend__triton_rotary_001.py` |

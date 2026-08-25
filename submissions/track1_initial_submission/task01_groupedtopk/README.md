@@ -4,12 +4,12 @@
 
 ## 文件说明
 
-- `base.py`：参考实现副本，用于本地/平台复现实测；
+- `base.py`：参考实现；
 - `submission.py`：正式提交入口，暴露 `ModelNew` / `get_init_inputs` / `get_inputs`；
-- `impls/`：按后端整理的 Triton 实现；
+- `impls/`：各后端 Triton 实现；
 - `requirements.txt`：环境配置文件；
 - `run.sh`：运行脚本；
-- `results.md`：当前性能测试结果。
+- `results.md`：性能测试结果。
 
 ## 后端实现映射
 
@@ -19,7 +19,7 @@
 - `bi150` -> `impls/bi150__triton_grouped_topk_009.py`
 - `ascend` -> `impls/ascend__triton_grouped_topk_002.py`
 
-当前没有专项优化版本的后端：无。
+无专项优化版本的后端：无。
 
 ## 通用 Triton fallback
 
