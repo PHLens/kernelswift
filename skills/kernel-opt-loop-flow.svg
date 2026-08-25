@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
-  <title id="title">Triton 算子优化闭环</title>
-  <desc id="desc">展示初始化、Designer、方案校验、Coder、Verifier、结果采用和继续停止恢复路径。</desc>
+  <title id="title">算子优化闭环</title>
+  <desc id="desc">展示与实现语言无关的初始化、Designer、方案校验、Coder、Verifier、结果采用和继续停止恢复路径。</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#f7fafc"/>
@@ -37,7 +37,7 @@
 
   <rect width="1600" height="1000" fill="url(#bg)"/>
   <rect width="1600" height="118" fill="url(#header)"/>
-  <text x="70" y="55" class="title">Triton 算子优化闭环</text>
+  <text x="70" y="55" class="title">算子优化闭环</text>
   <text x="70" y="88" class="subtitle">正确性是前提 · 端到端耗时决定采用 · Profiler 证据指导下一轮</text>
 
   <text x="70" y="165" class="section">初始化：固定可比较的评测基础</text>
@@ -74,7 +74,7 @@
   <text x="415" y="458" class="box-text"><tspan x="415" dy="0">语义与边界条件</tspan><tspan x="415" dy="25">Unified Sketch</tspan><tspan x="415" dy="25">目标后端能力</tspan><tspan x="415" dy="25">Evaluation Contract</tspan></text>
 
   <text x="730" y="425" class="box-title">Coder</text>
-  <text x="730" y="458" class="box-text"><tspan x="730" dy="0">实现 Triton 候选</tspan><tspan x="730" dy="25">保持公共接口不变</tspan><tspan x="730" dy="25">完成语法与编译冒烟</tspan><tspan x="730" dy="25">记录实现偏差</tspan></text>
+  <text x="730" y="458" class="box-text"><tspan x="730" dy="0">实现目标语言候选</tspan><tspan x="730" dy="25">保持公共接口不变</tspan><tspan x="730" dy="25">完成构建与运行冒烟</tspan><tspan x="730" dy="25">记录实现偏差</tspan></text>
 
   <text x="1045" y="425" class="box-title">Verifier</text>
   <text x="1045" y="458" class="box-text"><tspan x="1045" dy="0">正确性验证</tspan><tspan x="1045" dy="25">交错端到端计时</tspan><tspan x="1045" dy="25">Profiler 机制验证</tspan><tspan x="1045" dy="25">给出可归因结论</tspan></text>

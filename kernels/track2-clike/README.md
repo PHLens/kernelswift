@@ -13,4 +13,5 @@
 - base.py 均为纯 torch + `device="cuda"` 字符串，harness 自动搬运/重写设备。
 - task2 模板的模块级 `args = ModelArgs(...)` 会被 harness AST 过滤器剥离，
   已移入 `get_inputs` / `get_init_inputs` 内部；`.cuda()` 统一改为 `device="cuda"`。
-- 优化实现（C-like / Triton）由对应 skill 流程生成，后端目录在建 campaign 时创建。
+- 三个 `base.py` 已就绪；C-like 正式优化还需要原生构建、runner、ABI 和 profiler adapter。
+- Skill 扩展方案见 [`../../skills/track2-clike-roadmap.md`](../../skills/track2-clike-roadmap.md)。
