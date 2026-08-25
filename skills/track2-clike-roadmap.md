@@ -6,6 +6,8 @@
 
 当前 v1 契约仍是赛道一实现：Python `ModelNew` 候选、单个 `.py` 文件、`auto_bench.py` 加载，以及 Triton target profile。赛道二尚不能直接启动正式优化轮次。
 
+![赛道二 C-like Skill 架构](assets/track2-clike-architecture.png)
+
 ## 当前赛题形态
 
 | Task | 算子 | 目标输入 | 主要实现难点 |
@@ -180,6 +182,8 @@ skills/kernel-opt-loop/
 为保持兼容，现有 `prompts/coder_targets/triton_*.md` 可以先继续使用；等 C-like runner 完成后再迁移到 `implementation_profiles/`，避免一次性破坏赛道一 campaign。
 
 ## 实施里程碑
+
+![赛道二 C-like 实施路线](assets/track2-clike-roadmap.png)
 
 | Milestone | 产出 | 完成条件 |
 |---|---|---|
