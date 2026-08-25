@@ -11,7 +11,7 @@ from base import get_inputs as _base_get_inputs
 
 
 _BACKEND_TO_FILE = {'mlu': 'mlu__triton_grouped_topk_004.py', 's60': 's60__triton_grouped_topk_003.py', 'maca': 'maca__triton_grouped_topk_001.py', 'bi150': 'bi150__triton_grouped_topk_009.py', 'ascend': 'ascend__triton_grouped_topk_002.py'}
-_FALLBACK_BACKEND = 'bi150'
+_FALLBACK_FILE = 'generic__triton_grouped_topk_002.py'
 
 
 def _backend_available(name: str) -> bool:
@@ -49,12 +49,7 @@ def _detect_backend() -> str:
 def _resolve_backend_file(backend: str) -> tuple[str, str]:
     if backend in _BACKEND_TO_FILE:
         return backend, _BACKEND_TO_FILE[backend]
-    if _FALLBACK_BACKEND in _BACKEND_TO_FILE:
-        return _FALLBACK_BACKEND, _BACKEND_TO_FILE[_FALLBACK_BACKEND]
-    supported = ', '.join(sorted(_BACKEND_TO_FILE))
-    raise RuntimeError(
-        f'Backend {backend!r} is not implemented for this task and no Triton fallback is available. Supported backends: {supported}'
-    )
+    return 'generic', _FALLBACK_FILE
 
 
 def _load_impl_module(backend: str):

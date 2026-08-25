@@ -24,10 +24,10 @@
 
 当检测到的后端没有专项优化版本时，`submission.py` 会退回到：
 
-- 通用 fallback 后端：`bi150`
-- 通用 fallback 文件：`impls/bi150__triton_music_flamingo_rotary_embedding_001.py`
+- 通用 fallback 类型：`generic`
+- 通用 fallback 文件：`impls/generic__triton_music_flamingo_rotary_embedding_001.py`
 
-这条 fallback 仍然执行 Triton 实现，不会退回到纯 PyTorch 内置路径规避评测。
+这条 fallback 只依赖标准 `torch + triton`，仍会执行 Triton kernel，不会退回到纯 PyTorch 内置路径规避评测。
 
 ## 分发规则
 
