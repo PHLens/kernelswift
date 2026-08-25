@@ -1,34 +1,46 @@
 ---
 name: kernel-opt-loop
-description: Coordinate a bounded, continuous Triton kernel or operator optimization campaign against an auto_bench-style harness using durable Designer, Coder, and Verifier artifacts.
+description: Coordinate bounded, continuous kernel or operator optimization using durable Designer, Coder, and Verifier evidence plus an implementation profile.
 ---
 
 # Kernel Optimization Loop
 
-This skill coordinates a bounded Triton optimization workflow. The Orchestrator
-manages state, validates handoffs, selects the accepted implementation, records
-Git checkpoints, and handles stopping or recovery. Designer, Coder, and Verifier
-have separate responsibilities and may modify only the files assigned to their
-roles. A live run has one active candidate, and performance measurements have one
-exclusive owner.
+This skill coordinates a bounded kernel or operator optimization workflow. The
+Orchestrator manages state, validates handoffs, selects the accepted
+implementation, records Git checkpoints, and handles stopping or recovery.
+Designer, Coder, and Verifier have separate responsibilities and may modify only
+the files assigned to their roles. A live run has one active candidate, and
+performance measurements have one exclusive owner.
 
 ## Deliverable requirement
 
-The deliverable is a runnable, correctness-PASS Triton implementation for the
-target backend. Performance determines whether a new candidate replaces the
-current accepted implementation; it does not determine whether valid Triton code
-is delivered. If an optimized candidate does not beat the baseline, preserve the
-best correctness-PASS Triton implementation and report the measured result
-without leaving the target empty. A terminal optimization result such as
-`aborted`, `no-improvement`, or `screened-out` must not delete an already valid
-deliverable.
+The deliverable is a runnable, correctness-PASS implementation in the selected
+implementation language for the target backend. Performance determines whether a
+new candidate replaces the current accepted implementation; it does not
+determine whether valid target-language code is delivered. If an optimized
+candidate does not beat the baseline, preserve the best correctness-PASS
+implementation and report the measured result without leaving the target empty.
+A terminal optimization result such as `aborted`, `no-improvement`, or
+`screened-out` must not delete an already valid deliverable.
+
+## Current implementation scope
+
+The v1 contract currently supports the competition's Python `ModelNew` interface
+loaded by an `auto_bench.py`-style harness, with one Python candidate file and a
+complete Triton target profile. C-like candidates, native compilation, multi-file
+artifacts, shared-library or executable ABIs, and native profiler adapters are
+not supported yet. Add those through an implementation-profile and runner layer;
+do not bypass the existing correctness, measurement, or adoption gates. See
+`../track2-clike-roadmap.md`.
 
 ## When to use
 
-Use this skill when a project has an immutable PyTorch-style `base.py`, an
-`auto_bench.py`-style harness, and a request for iterative Triton operator or
-kernel optimization. It preserves correctness, benchmark wall time, and
-attributable profiler evidence across bounded continuous rounds.
+Use this skill when a project has an immutable reference implementation, a
+reproducible benchmark harness, a complete implementation profile, and a request
+for iterative operator or kernel optimization. The current v1 runner additionally
+requires a PyTorch-style `base.py`, an `auto_bench.py`-style harness, and a Triton
+candidate. It preserves correctness, benchmark wall time, and attributable
+profiler evidence across bounded continuous rounds.
 
 Do not use it for a one-shot bug fix, a non-iterative refactor, a workflow that
 may modify reference or harness semantics, or a target without a complete
@@ -112,8 +124,8 @@ Perform initialization in this order:
    `team-state.md`, and `state/designer_context.md`, `state/coder_context.md`,
    and `state/verifier_context.md` from their templates. Only Orchestrator
    writes the manifest and project overview.
-4. Discover implementation language, backend, target profile, Triton
-   distribution/version, active backend target/version when available, and
+4. Discover implementation language, backend, target profile, implementation
+   toolchain distribution/version (Triton in v1), active backend target/version when available, and
    device architecture. Select exactly one matching complete profile from
    `prompts/coder_targets/`; never fall back across backends. A missing runtime,
    missing profile, or identity mismatch is an environment block.
@@ -152,8 +164,8 @@ second active round. Resolve `last_accepted_kernel` and
 2. Run `scripts/validate_decision.py` with the manifest target profile. Record
    decision hash. A proceeding decision is immutable before coding.
 3. A valid abort form produces terminal result `aborted` without dispatching
-   Coder or Verifier for that decision. Preserve any previously validated Triton
-   deliverable. If no correctness-PASS Triton implementation exists yet, the
+   Coder or Verifier for that decision. Preserve any previously validated
+   target-language deliverable. If no correctness-PASS implementation exists yet, the
    overall submission objective remains incomplete and requires a separate
    implementation round rather than silently ending with an empty target.
 4. Set `phase: coding`. Dispatch Coder with immutable decision and canonical

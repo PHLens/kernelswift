@@ -16,7 +16,7 @@ docs/
 ├── competition/          #   比赛规则与算子清单（按赛道）
 ├── backend-registry.md   #   后端编码 ↔ 芯片/软件栈/target profile 映射
 └── superpowers/          #   内部设计文档（kernel-opt-loop 技能 specs/plans）
-skills/kernel-opt-loop/   # 优化循环技能（Designer/Coder/Verifier 契约 + target profiles）
+skills/kernel-opt-loop/   # 语言无关的优化闭环；当前 v1 为 Triton，赛道二 C-like 适配规划中
 ```
 
 ## 赛道
@@ -39,7 +39,9 @@ skills/kernel-opt-loop/   # 优化循环技能（Designer/Coder/Verifier 契约 
    创建专属 run 分支 `kernel-opt/<算子>-<后缀>`（worktree 方式运行，避免与 dev 冲突）。
 2. 更新 `kernels/track1-triton/README.md` 矩阵表对应格子。
 3. 后端首次出现时，确认 `skills/kernel-opt-loop/prompts/coder_targets/` 下存在匹配的
-   target profile（目前只有 `triton_mlu` / `triton_gcu`）。
+   target profile（当前包括 `triton_mlu` / `triton_gcu` / `triton_cuda` /
+   `triton_maca` / `triton_ascend`）。赛道二 C-like 接入路线见
+   [`skills/track2-clike-roadmap.md`](skills/track2-clike-roadmap.md)。
 
 ## 约定
 

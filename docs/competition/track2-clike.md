@@ -29,5 +29,6 @@ kernels/track2-clike/<算子>/<后端>/    # campaign（baseline_adapter / proje
 - base.py 均为纯 torch + `device="cuda"` 字符串（harness 自动搬运/重写设备）。
 - task2 模板的模块级 `args = ModelArgs(...)` 会被 harness AST 过滤器剥离，已移入
   `get_inputs` / `get_init_inputs` 内部。
-- 后端首次出现时，确认存在对应的 C-like target profile
-  （`skills/kernel-opt-loop/prompts/coder_targets/`，目前仅 triton 系列，C-like 待建）。
+- 当前 `kernel-opt-loop` v1 runner 只支持 Python `ModelNew` + Triton 单文件候选；
+  C-like 所需的多文件 manifest、原生构建、runner、ABI 和 profiler adapter 尚待实现。
+- Skill 扩展方案和实施顺序见 [`../../skills/track2-clike-roadmap.md`](../../skills/track2-clike-roadmap.md)。

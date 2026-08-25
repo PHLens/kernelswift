@@ -9,13 +9,14 @@
 | `s60` | 燧原 Enflame GCU（S60 板卡） | Triton-GCU（torch_gcu / triton_gcu） | `gcu:0` | `triton_gcu` | triton 3.6.0 + triton_gcu 3.6.0+1.0.20260722；device arch major=3 minor=0 |
 | `maca` | 沐曦 MetaX C500 | MACA 兼容面（对上层暴露 `cuda:0`） | `cuda:0` | `triton_maca` | triton + MACA 栈（`/data/kernelswift-c500`） |
 | `bi150` | 天数智芯 Iluvatar BI-V150 | CoreX 4.4.0（CUDA 兼容运行时，`COREX_VERSION` bootstrap） | `cuda:0` | `triton_cuda` | triton 3.1.0 + torch 2.7.1（CoreX 发行版） |
-| `ascend910b` | 华为昇腾 Ascend 910B | （规划中） | （规划中） | （待建 `triton_ascend`） | — |
+| `ascend910b` | 华为昇腾 Ascend 910B | torch_npu + Triton Ascend backend | `npu:0` | `triton_ascend` | torch_npu 2.7.1.post4 + triton 3.2.0（Ascend910B4 probe） |
 
 ## 说明
 
-- `skills/kernel-opt-loop/prompts/coder_targets/` 目前只有 `triton_mlu.md` 与
-  `triton_gcu.md` 两个 profile。`maca`/`bi150` 的 campaign 需要各自的完整 profile
-  （`triton_maca`、`triton_cuda`）才能按技能 Phase 0 正规运行——当前这两端的工作
-  在 run 分支/worktree 上进行，尚未建立 dev 上可复现的 profile。
+- `skills/kernel-opt-loop/prompts/coder_targets/` 当前包含 `triton_mlu`、
+  `triton_gcu`、`triton_cuda`、`triton_maca` 和 `triton_ascend`。每个 profile 的能力
+  证据只适用于其记录的运行时与设备指纹，正式 campaign 仍须在 Phase 0 重新发现并匹配。
+- 赛道二 C-like 不应复用 Triton profile；需要独立的 implementation/build/runner/
+  profiler profile。规划见 [`../skills/track2-clike-roadmap.md`](../skills/track2-clike-roadmap.md)。
 - 同一算子在多后端之间的结果**不可直接外推**（技能 KernelWiki 规则）：加速比、能力
   边界均以各后端自己的测量指纹为准。

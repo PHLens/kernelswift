@@ -1,17 +1,17 @@
-# Triton Optimization Skills
+# Operator Optimization Skills
 
-本目录提供可复用的 Triton 算子优化流程。`SKILL.md` 定义执行规则，角色契约明确职责边界，target profile 描述后端能力，辅助脚本负责校验、测量与状态推进。
+本目录提供可复用的算子优化流程。`SKILL.md` 定义执行规则，角色契约明确职责边界，implementation profile 描述语言、后端和工具链能力，辅助脚本负责校验、测量与状态推进。
 
 ## kernel-opt-loop
 
-[`kernel-opt-loop/`](kernel-opt-loop/SKILL.md) 面向具有参考实现和 benchmark harness 的 Triton 算子优化任务。流程将工作拆分为四个明确角色：
+[`kernel-opt-loop/`](kernel-opt-loop/SKILL.md) 面向具有参考实现和 benchmark harness 的算子优化任务。流程将工作拆分为四个明确角色：
 
 - **Designer**：分析语义与性能证据，每轮提出一个可验证的优化方案；
-- **Coder**：按照已确认的方案和目标后端能力实现 Triton 候选；
+- **Coder**：按照已确认的方案和 implementation profile 实现目标语言候选；
 - **Verifier**：在目标设备上完成正确性、端到端耗时和 profiler 验证；
 - **Orchestrator**：管理流程状态、角色交接、结果采用与恢复。
 
-![Triton 算子优化闭环](kernel-opt-loop-flow.png)
+![算子优化闭环](kernel-opt-loop-flow.png)
 
 ### 流程原则
 
@@ -33,6 +33,12 @@ Unified Sketch 将优化意图转换为结构化的实现约束，使 Designer�
 
 ![Unified Sketch 结构](unified-sketch.png)
 
-Unified Sketch 不是伪代码，也不是性能结果。它是连接优化假设、Triton 实现和验证指标的可检查契约：Coder 据此实现，Verifier 根据对应的 Evaluation Contract 判断机制是否生效。
+Unified Sketch 不是伪代码，也不是性能结果。它是连接优化假设、目标语言实现和验证指标的可检查契约：Coder 据此实现，Verifier 根据对应的 Evaluation Contract 判断机制是否生效。
 
-详细的执行规则、角色边界、状态转换和停止条件见 [`kernel-opt-loop/SKILL.md`](kernel-opt-loop/SKILL.md)。
+## 当前支持与赛道二扩展
+
+当前 v1 执行契约面向赛道一：候选是实现 `ModelNew` 的 Python 文件，核心算子使用 Triton，评测由 `auto_bench.py` 完成。赛道二的 C-like 实现需要复用相同的优化闭环，同时新增多文件构建、原生 ABI、运行适配和设备侧 profiler 能力。
+
+具体缺口、建议架构和实施顺序见 [`track2-clike-roadmap.md`](track2-clike-roadmap.md)。
+
+详细的现行执行规则、角色边界、状态转换和停止条件见 [`kernel-opt-loop/SKILL.md`](kernel-opt-loop/SKILL.md)。
