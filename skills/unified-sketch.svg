@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="940" viewBox="0 0 1600 940" role="img" aria-labelledby="title desc">
+  <title id="title">Unified Sketch 结构</title>
+  <desc id="desc">说明 Unified Sketch 如何用 D、O、C、H 四个部分把优化意图转换为可实现、可验证的 Triton 约束。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7fafc"/>
+      <stop offset="1" stop-color="#edf5f6"/>
+    </linearGradient>
+    <linearGradient id="head" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#173a56"/>
+      <stop offset="1" stop-color="#176d72"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#17324d" flood-opacity="0.14"/>
+    </filter>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0 0 L12 6 L0 12 Z" fill="#416b7d"/>
+    </marker>
+    <style>
+      .title{font:700 38px -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;fill:#fff}
+      .subtitle{font:400 17px -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;fill:#dceff1}
+      .section{font:700 23px -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;fill:#17324d}
+      .letter{font:800 42px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#fff}
+      .box-title{font:700 21px -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;fill:#17324d}
+      .box-text{font:400 16px -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;fill:#365466}
+      .code{font:500 14px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#294b5e}
+      .footer-title{font:700 20px -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;fill:#fff}
+      .footer-text{font:400 15px -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;fill:#e8f5f6}
+      .label{font:600 15px -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;fill:#416b7d}
+    </style>
+  </defs>
+
+  <rect width="1600" height="940" fill="url(#bg)"/>
+  <rect width="1600" height="118" fill="url(#head)"/>
+  <text x="70" y="55" class="title">Unified Sketch：从优化意图到可验证实现</text>
+  <text x="70" y="88" class="subtitle">结构化描述 kernel/dataflow，不替代代码，也不承载性能结论</text>
+
+  <g filter="url(#shadow)">
+    <rect x="70" y="160" width="300" height="118" rx="16" fill="#ffffff" stroke="#b8cdd7" stroke-width="2"/>
+    <rect x="650" y="160" width="300" height="118" rx="16" fill="#ffffff" stroke="#b8cdd7" stroke-width="2"/>
+    <rect x="1230" y="160" width="300" height="118" rx="16" fill="#ffffff" stroke="#b8cdd7" stroke-width="2"/>
+  </g>
+  <text x="100" y="202" class="box-title">Optimization Intent</text>
+  <text x="100" y="235" class="box-text"><tspan x="100" dy="0">瓶颈是什么？</tspan><tspan x="100" dy="25">准备改变什么？</tspan></text>
+  <text x="680" y="202" class="box-title">Unified Sketch</text>
+  <text x="680" y="235" class="box-text"><tspan x="680" dy="0">实现必须遵循什么结构？</tspan><tspan x="680" dy="25">哪些内容可以静态校验？</tspan></text>
+  <text x="1260" y="202" class="box-title">Evaluation Contract</text>
+  <text x="1260" y="235" class="box-text"><tspan x="1260" dy="0">如何证明机制生效？</tspan><tspan x="1260" dy="25">正确性与性能如何判定？</tspan></text>
+  <line x1="370" y1="219" x2="645" y2="219" stroke="#416b7d" stroke-width="3" marker-end="url(#arrow)"/>
+  <line x1="950" y1="219" x2="1225" y2="219" stroke="#416b7d" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="454" y="205" class="label">约束实现</text>
+  <text x="1038" y="205" class="label">绑定验证</text>
+
+  <text x="70" y="340" class="section">四个有序部分</text>
+
+  <g filter="url(#shadow)">
+    <rect x="70" y="375" width="350" height="340" rx="18" fill="#eef5fa" stroke="#86adc1" stroke-width="2"/>
+    <rect x="440" y="375" width="350" height="340" rx="18" fill="#eef8f1" stroke="#88ba9e" stroke-width="2"/>
+    <rect x="810" y="375" width="350" height="340" rx="18" fill="#fff6e6" stroke="#d8b36c" stroke-width="2"/>
+    <rect x="1180" y="375" width="350" height="340" rx="18" fill="#f5edf8" stroke="#b895c7" stroke-width="2"/>
+  </g>
+
+  <circle cx="125" cy="435" r="34" fill="#3d7b9c"/>
+  <text x="111" y="449" class="letter">D</text>
+  <text x="180" y="428" class="box-title">Declarations</text>
+  <text x="180" y="454" class="box-text">声明数据与资源</text>
+  <text x="100" y="505" class="box-text"><tspan x="100" dy="0">• tensor / tile / scalar</tspan><tspan x="100" dy="27">• shape 与 dtype</tspan><tspan x="100" dy="27">• layout 与 memory</tspan></text>
+  <rect x="100" y="610" width="290" height="70" rx="10" fill="#ffffff" stroke="#c3d5df"/>
+  <text x="116" y="638" class="code">tensor x shape=[N]</text>
+  <text x="116" y="661" class="code">dtype=fp32 memory=global</text>
+
+  <circle cx="495" cy="435" r="34" fill="#3b8b67"/>
+  <text x="480" y="449" class="letter">O</text>
+  <text x="550" y="428" class="box-title">Operations</text>
+  <text x="550" y="454" class="box-text">描述数据流与计算</text>
+  <text x="470" y="505" class="box-text"><tspan x="470" dy="0">• alloc / load</tspan><tspan x="470" dy="27">• compute</tspan><tspan x="470" dy="27">• store</tspan></text>
+  <rect x="470" y="610" width="290" height="70" rx="10" fill="#ffffff" stroke="#c8dccf"/>
+  <text x="486" y="638" class="code">load value &lt;- x[index]</text>
+  <text x="486" y="661" class="code">store y[index] &lt;- value</text>
+
+  <circle cx="865" cy="435" r="34" fill="#c08b31"/>
+  <text x="850" y="449" class="letter">C</text>
+  <text x="920" y="428" class="box-title">Control</text>
+  <text x="920" y="454" class="box-text">定义执行与边界</text>
+  <text x="840" y="505" class="box-text"><tspan x="840" dy="0">• parallel 映射</tspan><tspan x="840" dy="27">• for / if / else</tspan><tspan x="840" dy="27">• guard 边界保护</tspan></text>
+  <rect x="840" y="610" width="290" height="70" rx="10" fill="#ffffff" stroke="#e2cfaa"/>
+  <text x="856" y="638" class="code">parallel index over N</text>
+  <text x="856" y="661" class="code">guard index &lt; N</text>
+
+  <circle cx="1235" cy="435" r="34" fill="#8d68a1"/>
+  <text x="1219" y="449" class="letter">H</text>
+  <text x="1290" y="428" class="box-title">Target Hints</text>
+  <text x="1290" y="454" class="box-text">绑定目标后端能力</text>
+  <text x="1210" y="505" class="box-text"><tspan x="1210" dy="0">• target profile</tspan><tspan x="1210" dy="27">• 已验证编译提示</tspan><tspan x="1210" dy="27">• 每行一个 name=value</tspan></text>
+  <rect x="1210" y="610" width="290" height="70" rx="10" fill="#ffffff" stroke="#d7c7df"/>
+  <text x="1226" y="638" class="code">target=triton_mlu</text>
+  <text x="1226" y="661" class="code">num_warps=1</text>
+
+  <g filter="url(#shadow)">
+    <rect x="150" y="780" width="1300" height="105" rx="18" fill="#173f55"/>
+  </g>
+  <text x="190" y="820" class="footer-title">统一理解，分工验证</text>
+  <text x="190" y="852" class="footer-text">Designer 定义结构与不变量 · Coder 按目标 profile 实现 · Verifier 用正确性、端到端耗时和机制观测验证</text>
+</svg>

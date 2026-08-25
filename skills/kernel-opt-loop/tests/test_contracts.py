@@ -627,11 +627,20 @@ class RoleContractTests(unittest.TestCase):
         targets = PROMPTS / "coder_targets"
         for name in (
             "triton_hip.md",
-            "triton_ascend.md",
             "tilelang.md",
         ):
             with self.subTest(name=name):
                 self.assertFalse((targets / name).exists())
+
+        for name in (
+            "triton_mlu.md",
+            "triton_gcu.md",
+            "triton_cuda.md",
+            "triton_maca.md",
+            "triton_ascend.md",
+        ):
+            with self.subTest(active_profile=name):
+                self.assertTrue((targets / name).exists())
 
         profile = (targets / "triton_mlu.md").read_text(encoding="utf-8")
         self.assertNotRegex(profile.lower(), r"tl\.make_block_ptr.*register tile")
@@ -1035,7 +1044,6 @@ class CrossFileContractTests(unittest.TestCase):
 
         for name in (
             "triton_hip.md",
-            "triton_ascend.md",
             "tilelang.md",
         ):
             self.assertFalse((PROMPTS / "coder_targets" / name).exists())

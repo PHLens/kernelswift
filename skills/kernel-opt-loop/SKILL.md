@@ -5,21 +5,23 @@ description: Coordinate a bounded, continuous Triton kernel or operator optimiza
 
 # Kernel Optimization Loop
 
-This skill is the runtime-neutral Orchestrator contract. It owns workflow state,
-artifact gates, deterministic routing, canonical pointers, project overview
-updates, Git commits, global termination, and recovery. Designer, Coder, and
-Verifier own only the files declared in their role contracts. One live campaign
-has one active candidate and a measurement-exclusive shared machine.
+This skill coordinates a bounded Triton optimization workflow. The Orchestrator
+manages state, validates handoffs, selects the accepted implementation, records
+Git checkpoints, and handles stopping or recovery. Designer, Coder, and Verifier
+have separate responsibilities and may modify only the files assigned to their
+roles. A live run has one active candidate, and performance measurements have one
+exclusive owner.
 
 ## Deliverable requirement
 
-The deliverable is a Triton implementation. A campaign must always produce a
-correctness-PASS Triton candidate as its committed deliverable. Never leave a
-target empty because its Triton candidate does not beat the baseline: a correct
-but non-winning Triton implementation is still the required submission, and the
-final summary must record it as the canonical deliverable rather than an empty
-result. `aborted`, `no-improvement`, and `screened-out` are workflow-terminal
-states, not a license to omit the candidate source.
+The deliverable is a runnable, correctness-PASS Triton implementation for the
+target backend. Performance determines whether a new candidate replaces the
+current accepted implementation; it does not determine whether valid Triton code
+is delivered. If an optimized candidate does not beat the baseline, preserve the
+best correctness-PASS Triton implementation and report the measured result
+without leaving the target empty. A terminal optimization result such as
+`aborted`, `no-improvement`, or `screened-out` must not delete an already valid
+deliverable.
 
 ## When to use
 
@@ -149,11 +151,11 @@ second active round. Resolve `last_accepted_kernel` and
    guidance. Designer writes one `decision_NNN.md`.
 2. Run `scripts/validate_decision.py` with the manifest target profile. Record
    decision hash. A proceeding decision is immutable before coding.
-3. A valid abort form produces terminal result `aborted` without Coder or
-   Verifier. An `aborted` result does not erase the deliverable requirement: if
-   a correctness-PASS Triton candidate already exists, keep it as the canonical
-   deliverable; if none exists, the Orchestrator must still dispatch a minimal
-   correctness-PASS Triton implementation before ending the run.
+3. A valid abort form produces terminal result `aborted` without dispatching
+   Coder or Verifier for that decision. Preserve any previously validated Triton
+   deliverable. If no correctness-PASS Triton implementation exists yet, the
+   overall submission objective remains incomplete and requires a separate
+   implementation round rather than silently ending with an empty target.
 4. Set `phase: coding`. Dispatch Coder with immutable decision and canonical
    source. Require `coder_result_NNN.md` and, for `candidate-ready`, matching
    candidate hashes and compile-smoke evidence.
@@ -309,8 +311,8 @@ commit. Do not rewrite existing project histories.
 - `prompts/designer.md`, `prompts/coder.md`, and `prompts/verifier.md`: role
   behavior and ownership.
 - `prompts/coder_targets/<target_profile>.md`: the one complete profile selected
-  by the current runtime; this repository currently includes `triton_mlu`,
-  `triton_gcu`, and `triton_cuda`.
+  by the current runtime; this repository includes `triton_mlu`, `triton_gcu`,
+  `triton_cuda`, `triton_maca`, and `triton_ascend`.
 - `references/decision-template.md`: normative decision schema.
 - `references/project-template.md`, `references/report-template.md`,
   `references/team-state-template.md`, and `references/role-context-template.md`:

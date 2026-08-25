@@ -1,19 +1,38 @@
-# Skills
+# Triton Optimization Skills
 
-本目录存放仓库内可复用的 Agent 技能。技能目录中的 `SKILL.md`、角色契约、target profile 和辅助脚本共同定义可执行流程；项目 campaign 产生的状态、候选代码和测量记录则保留在 `kernels/` 下。
+本目录提供可复用的 Triton 算子优化流程。`SKILL.md` 定义执行规则，角色契约明确职责边界，target profile 描述后端能力，辅助脚本负责校验、测量与状态推进。
 
 ## kernel-opt-loop
 
-[`kernel-opt-loop/`](kernel-opt-loop/SKILL.md) 用于对具有不可变 `base.py` 和既有 benchmark harness 的 Triton 算子开展有边界的连续优化。它将职责拆分为 Designer、Coder、Verifier 和 Orchestrator，并通过持久化 artifact 和 Git 提交保持每轮可恢复、可审计。
+[`kernel-opt-loop/`](kernel-opt-loop/SKILL.md) 面向具有参考实现和 benchmark harness 的 Triton 算子优化任务。流程将工作拆分为四个明确角色：
 
-![Kernel Opt Skill 优化闭环](kernel-opt-loop-flow.svg)
+- **Designer**：分析语义与性能证据，每轮提出一个可验证的优化方案；
+- **Coder**：按照已确认的方案和目标后端能力实现 Triton 候选；
+- **Verifier**：在目标设备上完成正确性、端到端耗时和 profiler 验证；
+- **Orchestrator**：管理流程状态、角色交接、结果采用与恢复。
 
-流程要点：
+![Triton 算子优化闭环](kernel-opt-loop-flow.png)
 
-- Phase 0 固化运行时、target profile、基线实现与 measurement fingerprint。
-- Designer 每轮只提出一个可证伪的优化假设；Coder 从当前 accepted implementation 实现候选；Verifier 独占真实设备进行正确性、wall-time 和 profiler 验证。
-- 只有 `accepted` 结果可推进 `last_accepted_kernel` 和 `last_accepted_report`。被拒绝或失败的候选保留为证据，不能作为下一轮基线。
-- 是否采用候选由比赛定义的 e2e benchmark wall time 决定；kernel time、kernel count 与 host overhead 用于定位瓶颈和选择下一轮优化。
-- 每个终态 round 提交后，由策略评估决定继续、停止或因环境问题进入可恢复的 blocked 状态。
+### 流程原则
 
-详细的运行契约、角色边界和停止策略见 [`kernel-opt-loop/SKILL.md`](kernel-opt-loop/SKILL.md)。
+1. 初始化阶段固定参考实现、评测方式、目标后端和性能基线。
+2. 每轮只验证一个清晰、可证伪的优化假设。
+3. 候选实现必须先通过正确性验证，再比较端到端性能。
+4. 只有通过正确性且达到采用阈值的候选才替换当前最佳实现。
+5. 未被采用的候选及其测量结果保留为后续优化依据。
+6. 环境异常不会被误判为实现失败，修复后可以从安全步骤继续。
+
+## Unified Sketch
+
+Unified Sketch 将优化意图转换为结构化的实现约束，使 Designer、Coder 和 Verifier 对同一方案保持一致理解。它由四个有序部分组成：
+
+- **D — Declarations**：输入输出、shape、dtype、layout、memory 和 tile；
+- **O — Operations**：load、compute、store 等数据流与计算步骤；
+- **C — Control**：并行映射、循环、条件和边界保护；
+- **H — Target Hints**：目标 profile 以及已验证的编译提示。
+
+![Unified Sketch 结构](unified-sketch.png)
+
+Unified Sketch 不是伪代码，也不是性能结果。它是连接优化假设、Triton 实现和验证指标的可检查契约：Coder 据此实现，Verifier 根据对应的 Evaluation Contract 判断机制是否生效。
+
+详细的执行规则、角色边界、状态转换和停止条件见 [`kernel-opt-loop/SKILL.md`](kernel-opt-loop/SKILL.md)。
