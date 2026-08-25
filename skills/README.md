@@ -37,7 +37,7 @@ Unified Sketch 不是伪代码，也不是性能结果。它是连接优化假�
 
 ## 当前支持与赛道二扩展
 
-当前 v1 执行契约面向赛道一：候选是实现 `ModelNew` 的 Python 文件，核心算子使用 Triton，评测由 `auto_bench.py` 完成。赛道二的 C-like 实现需要复用相同的优化闭环，同时新增多文件构建、原生 ABI、运行适配和设备侧 profiler 能力。
+当前 v1 执行契约面向赛道一：候选是实现 `ModelNew` 的 Python 文件，核心算子使用 Triton，评测由 `auto_bench.py` 完成。赛道二的 C-like 实现以 Ascend 为首个后端，首个 profile id 为 `ascendc`；它复用相同的优化闭环，同时新增多文件构建、原生 ABI、运行适配和设备侧 profiler 能力。
 
 ![赛道二 C-like Skill 架构](assets/track2-clike-architecture.png)
 

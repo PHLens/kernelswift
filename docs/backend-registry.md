@@ -16,7 +16,9 @@
 - `skills/kernel-opt-loop/prompts/coder_targets/` 当前包含 `triton_mlu`、
   `triton_gcu`、`triton_cuda`、`triton_maca` 和 `triton_ascend`。每个 profile 的能力
   证据只适用于其记录的运行时与设备指纹，正式 campaign 仍须在 Phase 0 重新发现并匹配。
-- 赛道二 C-like 不应复用 Triton profile；需要独立的 implementation/build/runner/
-  profiler profile。规划见 [`../skills/track2-clike-roadmap.md`](../skills/track2-clike-roadmap.md)。
+- 赛道二 C-like 的首个后端是 Ascend，implementation profile id 为 `ascendc`
+  （`language=ascendc`、`backend=ascend`）。它不复用 `triton_ascend` 的语言能力表，
+  但可以复用经过重新验证的 Ascend 运行时身份和 profiler 事实。implementation/build/
+  runner/profiler 规划见 [`../skills/track2-clike-roadmap.md`](../skills/track2-clike-roadmap.md)。
 - 同一算子在多后端之间的结果**不可直接外推**（技能 KernelWiki 规则）：加速比、能力
   边界均以各后端自己的测量指纹为准。
