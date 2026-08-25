@@ -8,6 +8,18 @@
 
 ![赛道二 C-like Skill 架构](assets/track2-clike-architecture.png)
 
+首个后端约定：
+
+| 字段 | 值 |
+|---|---|
+| `language` | `ascendc` |
+| `backend` | `ascend` |
+| `implementation_profile` | `ascendc` |
+| profile 文件 | `implementation_profiles/ascendc.md` |
+| 目标 SoC、CANN 与编译器版本 | Phase 0 在实际 Ascend 环境中发现，不提前写死 |
+
+`ascendc` 与 `triton_ascend` 是两个独立的语言能力 profile。可以复用经过重新验证的运行时身份、设备信息和 profiler 事实，但不能继承 Triton primitive 或 lowering 结论。
+
 ## 当前赛题形态
 
 | Task | 算子 | 目标输入 | 主要实现难点 |
@@ -24,7 +36,7 @@
 
 当前 canonical 指针是 `last_accepted_kernel`，Coder 从一个 Python 文件复制下一轮候选。C-like 候选通常至少包括：
 
-- 设备 kernel 源文件，例如 `.mlu` / `.cpp` / `.cc`；
+- Ascend C kernel 与 host 源文件，例如 `.cpp` / `.h`；
 - host launcher 或 Python binding；
 - 头文件；
 - `CMakeLists.txt` 或确定性的构建脚本；
@@ -66,10 +78,10 @@ v1 runner 是 `python_modelnew`，继续调用现有 `auto_bench.py`。赛道二
 
 ### 4. Target profile 需要拆成 implementation profile
 
-当前 `triton_mlu`、`triton_gcu` 等 profile 同时混合了语言、后端和工具链。赛道二建议显式记录：
+当前 `triton_ascend`、`triton_mlu` 等 profile 同时混合了语言、后端和工具链。赛道二建议显式记录：
 
-- `language`: `triton` / `bangc` / 其他官方 C-like 语言；
-- `backend`: `mlu` / 其他目标设备；
+- `language`: `triton` / `ascendc` / 其他官方 C-like 语言；
+- `backend`: `ascend` / 其他目标设备；
 - `compiler`: 编译器路径、版本和 target arch；
 - `sdk`: SDK 路径和版本；
 - `build_adapter`: 构建方式；
@@ -78,7 +90,7 @@ v1 runner 是 `python_modelnew`，继续调用现有 `auto_bench.py`。赛道二
 - `submission_abi`: 输入输出、参数、stream、workspace 和错误处理约定；
 - `capabilities`: memory hierarchy、DMA、barrier、vector/matrix primitive、core/grid mapping。
 
-建议首个 profile 为 `bangc_mlu`，但只有在目标机器上完成编译、执行、数值和 profiler probe 后才能标记为 complete。
+首个 profile 确定为 `ascendc`。只有在匹配的 Ascend 目标机器上发现并记录 CANN、Ascend C 编译工具链、SoC 版本和运行时身份，并完成编译、执行、数值与 profiler probe 后，才能将该 profile 标记为 complete。
 
 ### 5. Unified Sketch 需要覆盖原生 kernel 信息
 
@@ -104,7 +116,7 @@ Host Plan 对原生候选通常应为必填，至少描述 allocation、workspac
 - profiler 数据按每次 forward 归一化，且 reference/candidate 分 scope；
 - 编译失败、设备丢失、SDK 不匹配和 profiler 缺失仍分类为环境问题，而不是性能失败。
 
-对 BANG C，可优先调查 CNRT notifier、厂商 profiler 或官方 harness 提供的设备计时；在 probe 证明前，不得把 host launcher 时间冒充 kernel 时间。
+对 Ascend C，可优先调查官方 harness 的设备计时、CANN profiler 及其可归因的 AI Core 任务时间；在目标环境 probe 证明计时边界前，不得把 host launcher 时间冒充 kernel 时间。
 
 ## 三个算子的建议接入顺序
 
@@ -165,14 +177,14 @@ Host Plan 对原生候选通常应为必填，至少描述 allocation、workspac
 skills/kernel-opt-loop/
 ├── implementation_profiles/
 │   ├── triton_<backend>.md
-│   └── bangc_mlu.md
+│   └── ascendc.md
 ├── runners/
 │   ├── python_modelnew.md
 │   └── native_clike.md
 ├── build_adapters/
-│   └── bangc_cmake.md
+│   └── ascendc.md
 ├── profiler_adapters/
-│   └── bangc_mlu.md
+│   └── ascendc.md
 └── scripts/
     ├── validate_candidate_manifest.py
     ├── build_native_candidate.py
@@ -190,7 +202,7 @@ skills/kernel-opt-loop/
 | M0 规则确认 | Track 2 evaluation contract | 上述 12 个官方问题均有明确答案 |
 | M1 Candidate Manifest v2 | 多文件 source/build/ABI schema + validator | 缺文件、哈希漂移和 ABI 缺失可确定性失败 |
 | M2 Native Runner | build/load/correctness/timing 接口 | 可比较一个原生 add/sinkhorn probe 与 PyTorch reference |
-| M3 `bangc_mlu` Profile | 编译器、SDK、memory/intrinsic/profiler 能力表 | 匹配机器上 probe 编译、执行、数值检查通过 |
+| M3 `ascendc` Profile | CANN、Ascend C 工具链、SoC、memory/intrinsic/profiler 能力表 | 匹配 Ascend 机器上的 probe 编译、执行和数值检查通过 |
 | M4 Sinkhorn Pilot | 第一条完整赛道二 round | Phase 0、Coder、Verifier、采用策略和恢复均通过 |
 | M5 Profiler Normalization | 原生 device evidence | 可按 forward 归一化并区分 reference/candidate scope |
 | M6 Sparse Attention | 第二个算子 | gather、sink softmax 和大输入路径通过 |
@@ -198,4 +210,4 @@ skills/kernel-opt-loop/
 
 ## 推荐的下一步
 
-先完成 M0，不要直接写正式 BANG C 优化代码。官方 ABI 和构建规则确认后，从 `sinkhorn_normalize` 建一个最小原生 runner probe；只有该 probe 能稳定完成编译、正确性、计时和 profiler，才把 `bangc_mlu` 标记为 complete 并允许 `kernel-opt-loop` 自动启动赛道二轮次。
+先完成 M0，不要直接写正式 Ascend C 优化代码。官方 ABI 和构建规则确认后，从 `sinkhorn_normalize` 建一个最小原生 runner probe；只有该 probe 能在匹配 Ascend 环境中稳定完成编译、正确性、计时和 profiler，才把 `ascendc` 标记为 complete 并允许 `kernel-opt-loop` 自动启动赛道二轮次。

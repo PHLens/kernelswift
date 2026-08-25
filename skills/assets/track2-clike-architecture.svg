@@ -89,5 +89,5 @@
   <text x="155" y="865" class="white-text">只有 correctness-PASS 且 wall-time 达到采用阈值的 candidate manifest 才更新当前最佳实现</text>
 
   <rect x="250" y="925" width="1100" height="48" rx="12" fill="#eaf6ef" stroke="#83b99d" stroke-width="2"/>
-  <text x="355" y="956" class="box-text">首个建议 profile：bangc_mlu　·　首个基础设施验证算子：sinkhorn_normalize</text>
+  <text x="355" y="956" class="box-text">首个 profile：ascendc　·　首个基础设施验证算子：sinkhorn_normalize</text>
 </svg>

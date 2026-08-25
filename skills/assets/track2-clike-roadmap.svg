@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="960" viewBox="0 0 1600 960" role="img" aria-labelledby="title desc">
   <title id="title">赛道二 C-like 实施路线</title>
-  <desc id="desc">展示从官方规则确认、候选 manifest、native runner、bangc profile 到三个赛题依次接入的里程碑。</desc>
+  <desc id="desc">展示从官方规则确认、候选 manifest、native runner、Ascend C profile 到三个赛题依次接入的里程碑。</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#f7fafc"/>
@@ -35,7 +35,7 @@
   <text x="70" y="88" class="subtitle">先确认官方契约和原生基础设施，再按复杂度接入三个算子</text>
 
   <rect x="170" y="150" width="1260" height="58" rx="14" fill="#fff0ef" stroke="#d58e89" stroke-width="2"/>
-  <text x="320" y="187" class="warn">M0 未完成前，不启动正式 BANG C 优化轮次，也不从赛道一推断 ABI、计时或允许的库调用</text>
+  <text x="320" y="187" class="warn">M0 未完成前，不启动正式 Ascend C 优化轮次，也不从赛道一推断 ABI、计时或允许的库调用</text>
 
   <text x="70" y="260" class="section">基础设施阶段</text>
   <line x1="160" y1="385" x2="1440" y2="385" stroke="#8aa5b2" stroke-width="5"/>
@@ -61,8 +61,8 @@
   <text x="720" y="380" class="box-text"><tspan x="720" dy="0">compile / link / load</tspan><tspan x="720" dy="25">输入与参数传递</tspan><tspan x="720" dy="25">correctness / timing</tspan><tspan x="720" dy="25">错误与资源清理</tspan></text>
 
   <circle cx="1040" cy="335" r="25" fill="#8d68a1"/><text x="1023" y="344" class="num">M3</text>
-  <text x="1080" y="340" class="box-title">bangc_mlu Profile</text>
-  <text x="1025" y="380" class="box-text"><tspan x="1025" dy="0">compiler / SDK / arch</tspan><tspan x="1025" dy="25">memory / DMA / intrinsic</tspan><tspan x="1025" dy="25">device timer / profiler</tspan><tspan x="1025" dy="25">目标机器 probe</tspan></text>
+  <text x="1080" y="340" class="box-title">ascendc Profile</text>
+  <text x="1025" y="380" class="box-text"><tspan x="1025" dy="0">CANN / Ascend C / SoC</tspan><tspan x="1025" dy="25">memory / DMA / intrinsic</tspan><tspan x="1025" dy="25">device timer / profiler</tspan><tspan x="1025" dy="25">目标 Ascend probe</tspan></text>
 
   <circle cx="1345" cy="335" r="25" fill="#397f83"/><text x="1328" y="344" class="num">M4</text>
   <text x="1385" y="340" class="box-title">Pilot</text>

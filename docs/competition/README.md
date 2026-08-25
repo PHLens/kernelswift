@@ -7,7 +7,7 @@ KernelSwift 算子创新大赛（上海人工智能实验室 + 沐曦 + DeepLink
 | 赛道 | 文档 | 状态 |
 |---|---|---|
 | 赛道一：Triton 算子优化 | [track1-triton.md](track1-triton.md) | 进行中 |
-| 赛道二：Clike 算子优化 | [track2-clike.md](track2-clike.md) | 3 个 base 已就绪；官方 ABI 与原生 runner 待确认 |
+| 赛道二：Clike 算子优化 | [track2-clike.md](track2-clike.md) | 首个后端 Ascend；3 个 base 已就绪，ABI 与 runner 待确认 |
 | 赛道三：AI4S / 新型模型架构 | （未整理） | 未开始 |
 
 ## 外部参考

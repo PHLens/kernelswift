@@ -9,7 +9,7 @@ kernels/
 │   │   ├── base.py    # 算子级共享参考（一份，设备无关）
 │   │   └── <后端>/    # 各后端优化目录（skill Phase 0 生成）
 │   └── README.md      # 算子 × 后端 进度矩阵
-└── track2-clike/      # 赛道二：C-like（3 个 base 已就绪，原生 runner 待建）
+└── track2-clike/      # 赛道二：C-like（首个后端 Ascend，3 个 base 已就绪）
 ```
 
 ## base.py：算子级共享参考（不按后端重复）
