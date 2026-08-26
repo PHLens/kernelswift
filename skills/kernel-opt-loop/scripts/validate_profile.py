@@ -70,7 +70,7 @@ def load_profile(path: Path) -> dict[str, Any]:
     _validate_configuration_constraints(profile.get("configuration_constraints", {}))
     _validate_probe_catalog(profile["probe_catalog"], path.parent)
     _validate_schema_copies(profile, path.parent)
-    _validate_evidence_scopes(profile["capability_matrix"], path.parent)
+    _validate_evidence_scopes(profile, path.parent)
     profile["_profile_path"] = path
     profile["_profile_sha256"] = sha256_file(path)
     return profile
@@ -257,8 +257,10 @@ def _validate_schema_copies(profile: Mapping[str, Any], profile_root: Path) -> N
         raise _error("profile-schema-invalid", f"vendored schema is not a JSON object: {error.message}")
 
 
-def _validate_evidence_scopes(capability_matrix: list[Any], profile_root: Path) -> None:
-    for entry in capability_matrix:
+def _validate_evidence_scopes(profile: Mapping[str, Any], profile_root: Path) -> None:
+    from validate_probe import validate_archived_evidence  # lazy: avoids circular import
+
+    for entry in profile["capability_matrix"]:
         for item in entry.get("evidence") or []:
             archived = require_relative_artifact(profile_root, item["archived_result_ref"])
             archived_sha = sha256_file(archived)
@@ -266,10 +268,7 @@ def _validate_evidence_scopes(capability_matrix: list[Any], profile_root: Path) 
                 raise _error("profile-evidence-hash-mismatch", f"archived result {item['archived_result_ref']} hash mismatch")
             if item["archived_result_sha256"] != item["result_sha256"]:
                 raise _error("profile-evidence-hash-mismatch", f"evidence {item['evidence_id']!r} archived hash must equal result hash")
-            try:
-                load_json_document(archived, artifact="archived probe result")
-            except ContractValidationError as error:
-                raise _error("profile-evidence-invalid", f"archived result {item['archived_result_ref']} is not a JSON object: {error.message}")
+            validate_archived_evidence(entry, item, profile, archived)
 
 
 def _match_capability(

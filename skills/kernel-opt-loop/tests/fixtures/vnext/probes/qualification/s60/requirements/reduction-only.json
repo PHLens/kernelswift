@@ -1,0 +1,9 @@
+{
+  "primary_contract": "reduction.sum",
+  "primary_signature": {
+    "axis": "k",
+    "dtype": "fp32"
+  },
+  "probe_policy": "optional",
+  "requirement_id": "reduction-only"
+}

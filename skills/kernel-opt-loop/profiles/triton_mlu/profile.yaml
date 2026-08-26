@@ -319,7 +319,13 @@
   },
   "implementation_profile_id": "triton_mlu",
   "implementation_profile_version": 1,
-  "probe_catalog": [],
+  "probe_catalog": [
+    {
+      "definition_path": "probes/basic-memory.json",
+      "definition_sha256": "7a79b905c9b299e99fbde192e3cc349f58d25f189ff13f9fe07ec9478cfeb369",
+      "probe_id": "triton-mlu-basic-memory-001"
+    }
+  ],
   "profile_schema_ref": "schema/profile.schema.json",
   "profile_schema_sha256": "4ce1a4f8fbc36428808012b5e0f54af2b71fb81a7a746eaa2ff334f89ed5b436",
   "profile_status": "partial",
