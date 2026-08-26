@@ -1,5 +1,12 @@
 # Target Profile: triton_mlu
 
+> **Machine-readable authority**: this Markdown page is an explanatory rendering
+> of the target. The canonical machine-readable implementation profile is
+> `profiles/triton_mlu/profile.yaml` under `skills/kernel-opt-loop/`. Its
+> `capability_matrix`, `probe_catalog`, and reviewed `evidence/` records are the
+> authoritative capability facts; descriptions below are historical human
+> context and are never treated as approved probe evidence.
+
 This is the MLU target profile. It records capabilities observed in this
 repository and the checks required before using them. A run selects exactly one
 matching profile; this profile is not a fallback for other backends. Absence from Supported is
