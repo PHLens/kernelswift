@@ -1172,6 +1172,16 @@ class VNextContractTests(unittest.TestCase):
         self.assertNotIn("skills/backend-probe", (REPO_ROOT / "README.md").read_text(encoding="utf-8"))
         self.assertIn("implementation profile", (REPO_ROOT / "docs" / "competition" / "track2-clike.md").read_text(encoding="utf-8").lower())
 
+    def test_reviewed_rule_table_and_schema_branches_are_unambiguous(self):
+        plan = (REPO_ROOT / "docs" / "superpowers" / "plans" / "2026-08-19-kernel-opt-loop-vnext-semantic-attribution.md").read_text(encoding="utf-8")
+        spec = (REPO_ROOT / "docs" / "superpowers" / "specs" / "2026-08-19-kernel-opt-loop-vnext-semantic-attribution-design.md").read_text(encoding="utf-8")
+        self.assertIn("first `oneOf` branch is for ordinary campaign rounds", plan)
+        self.assertIn("finalization requires `artifact_kind` plus `artifact_index` and forbids campaign `round`", plan)
+        self.assertIn("their table `terminal_result` and `failed_attempt_effect` values must not be applied to the first repair route", plan)
+        normalized_spec = re.sub(r"\s+", " ", spec)
+        self.assertIn("cause override is `design-error`/`design-rejected`/increment", normalized_spec)
+        self.assertIn("`LOWERING.EXPECTED.ABSENT`", spec)
+
     def test_attribution_effects_are_explicit_in_the_evaluator(self):
         policy = (SCRIPTS / "evaluate_run_policy.py").read_text(encoding="utf-8")
         self.assertIn("ATTRIBUTIONS", policy)
