@@ -62,7 +62,7 @@ def validate_binding(
         "valid": True,
         "source_analyzer": analyzer_name,
         "binding_model": binding_model,
-        "coverage": _coverage(normalized),
+        "coverage": sorted(_coverage(normalized)),
         "source_symbols": source_symbols,
         "required_hint_bindings": required_hint_bindings,
         "bindings": normalized,
