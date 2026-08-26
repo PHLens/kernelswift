@@ -5,6 +5,7 @@ from pathlib import Path
 
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
+SCRIPTS = SKILL_ROOT / "scripts"
 REPO_ROOT = SKILL_ROOT.parents[1]
 REFERENCES = SKILL_ROOT / "references"
 ADAPTERS = SKILL_ROOT / "adapters"
@@ -1086,6 +1087,64 @@ class CrossFileContractTests(unittest.TestCase):
 
         validator = SKILL_ROOT / "scripts/validate_decision.py"
         self.assertTrue(os.access(validator, os.X_OK))
+class VNextContractTests(unittest.TestCase):
+    def test_vnext_artifact_ownership_boundaries_are_exact(self):
+        skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+        designer = (PROMPTS / "designer.md").read_text(encoding="utf-8")
+        coder = (PROMPTS / "coder.md").read_text(encoding="utf-8")
+        verifier = (PROMPTS / "verifier.md").read_text(encoding="utf-8")
+
+        import re as _re
+
+        def normalize(value: str) -> str:
+            return _re.sub(r"\s+", " ", value)
+
+        for text, phrase in (
+            (skill, "runs one bounded pre-campaign probe lifecycle"),
+            (skill, "stop without entering Phase 0"),
+            (skill, "unrelated Unknowns are ignored and ambiguous matches fail"),
+            (skill, "stops as `promotion-pending`"),
+            (skill, "materializes the project capability claim"),
+            (skill, "freezes the implementation-profile snapshot"),
+            (skill, "validates `verdict_NNN.json`; it may route one `code-error` repair"),
+            (skill, "`lowering-unknown` terminates as `design-rejected` with unchanged failed"),
+            (skill, "`resolve_finalization_slot()`"),
+            (skill, "submission-ready|blocked` through the separate finalization verdict branch"),
+            (skill, "never calls `evaluate_terminal()`"),
+            (skill, "no runtime/online `@triton.autotune`"),
+            (designer, "without writing a Decision, Sketch, or campaign file"),
+            (designer, "never equates an Unknown capability with unavailable"),
+            (designer, "reuses the accepted Sketch"),
+            (coder, "passes the deterministic conformance checker before `candidate-ready`"),
+            (coder, "at most one pinned candidate derived from the accepted source"),
+            (coder, "never owns pre-campaign qualification"),
+            (verifier, "without assigning design or code blame"),
+            (verifier, "without a persisted selection artifact"),
+            (verifier, "atomically writes the sealed report once"),
+            (verifier, "Search measurements never authorize a submission"),
+        ):
+            with self.subTest(text=text[:40]):
+                self.assertIn(phrase, normalize(text))
+
+    def test_finalization_uses_existing_families_and_no_new_state(self):
+        normalize = lambda value: re.sub(r"\s+", " ", value)
+        team_state = normalize(read_reference("team-state-template.md"))
+        skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("contract_version: 3", team_state)
+        self.assertIn("No finalization-specific state field is added", team_state)
+        self.assertIn("artifact_kind: submission-finalization", normalize(read_reference("report-template.md")))
+        self.assertIn("last_accepted_round", skill)
+        self.assertNotIn("final-tuning.json", team_state)
+
+    def test_attribution_effects_are_explicit_in_the_evaluator(self):
+        policy = (SCRIPTS / "evaluate_run_policy.py").read_text(encoding="utf-8")
+        self.assertIn("ATTRIBUTIONS", policy)
+        self.assertIn("FAILED_ATTEMPT_EFFECTS", policy)
+        self.assertIn("lowering-unknown", policy)
+        self.assertIn("_apply_failed_attempt_effect", policy)
+        self.assertIn("must be supplied together", policy)
+
+
 
 if __name__ == "__main__":
     unittest.main()
