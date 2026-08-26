@@ -1,3 +1,4 @@
+import json
 import unittest
 import os
 import re
@@ -1139,6 +1140,25 @@ class VNextContractTests(unittest.TestCase):
         self.assertIn("artifact_kind: submission-finalization", normalize(read_reference("report-template.md")))
         self.assertIn("last_accepted_round", skill)
         self.assertNotIn("final-tuning.json", team_state)
+
+    def test_vnext_fixture_documents_and_scripts_are_loadable(self):
+        for path in (SKILL_ROOT / "tests" / "fixtures" / "vnext").rglob("*.json"):
+            with self.subTest(path=path.relative_to(SKILL_ROOT)):
+                json.loads(path.read_text(encoding="utf-8"))
+        for path in (SKILL_ROOT / "profiles").rglob("*.yaml"):
+            with self.subTest(path=path.relative_to(SKILL_ROOT)):
+                json.loads(path.read_text(encoding="utf-8"))
+        for name in (
+            "run_profile_probe.py",
+            "validate_probe.py",
+            "render_profile_promotion.py",
+            "validate_sketch.py",
+            "validate_profile.py",
+            "validate_binding.py",
+            "validate_verdict.py",
+        ):
+            with self.subTest(script=name):
+                self.assertTrue((SKILL_ROOT / "scripts" / name).is_file())
 
     def test_profile_registry_and_human_docs_agree(self):
         canonical = SKILL_ROOT / "profiles" / "triton_mlu" / "profile.yaml"

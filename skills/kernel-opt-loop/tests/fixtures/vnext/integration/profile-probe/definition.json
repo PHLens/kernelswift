@@ -1,0 +1,50 @@
+{
+  "capability_ids": [
+    "memory.load.contiguous-fp32",
+    "memory.store.contiguous-fp32"
+  ],
+  "family": "core-primitives",
+  "implementation_profile_id": "fixture_profile",
+  "input_artifacts": [
+    {
+      "path": "probes/payload.py",
+      "run_path": "payload.py",
+      "sha256": "__PAYLOAD_SHA256__"
+    }
+  ],
+  "probe_id": "integration-memory-001",
+  "purpose": "integration profile probe",
+  "required_runtime_fields": [
+    "interpreter",
+    "device",
+    "toolchain",
+    "device_arch",
+    "runner_adapter",
+    "bootstrap_modules",
+    "synchronize_api"
+  ],
+  "runner": {
+    "argv": [
+      "{interpreter}",
+      "{probe_inputs_root}/payload.py",
+      "--result-json",
+      "{result_payload_path}",
+      "--target-id",
+      "{target_id}",
+      "--runtime-snapshot",
+      "{runtime_snapshot_path}"
+    ],
+    "cwd": "{probe_run_dir}",
+    "kind": "command",
+    "timeout_seconds": 30
+  },
+  "schema_version": 1,
+  "scope_kind": "device-family",
+  "scope_template": {
+    "dtype": "fp32",
+    "layout": "contiguous",
+    "shape": [
+      "N"
+    ]
+  }
+}

@@ -90,7 +90,7 @@
   "comparison_metric": "median-wall-time-ms",
   "tie_rule": "first-in-declared-order",
   "pin_selected_config": true
-  
+
 }
 ```
 

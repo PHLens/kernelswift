@@ -1,0 +1,117 @@
+{
+  "causal_nodes": [],
+  "control": [
+    {
+      "domain": "0 <= token < T",
+      "id": "ctrl.token",
+      "kind": "parallel",
+      "variable": "token"
+    },
+    {
+      "condition": "expert < E",
+      "id": "guard.expert",
+      "kind": "guard"
+    }
+  ],
+  "declarations": [
+    {
+      "dtype": "fp32",
+      "id": "scores",
+      "kind": "tensor",
+      "layout": "row_major",
+      "memory": "global",
+      "shape": [
+        "T",
+        "E"
+      ]
+    },
+    {
+      "dtype": "fp32",
+      "id": "topk_values",
+      "kind": "tensor",
+      "layout": "row_major",
+      "memory": "global",
+      "shape": [
+        "T",
+        "E"
+      ]
+    },
+    {
+      "dtype": "fp32",
+      "id": "row",
+      "kind": "tile",
+      "layout": "contiguous",
+      "memory": "register",
+      "shape": [
+        "BLOCK_E"
+      ]
+    }
+  ],
+  "effects": {
+    "aliases": [],
+    "mutations": [],
+    "outputs": [
+      "topk_values"
+    ]
+  },
+  "hints": [
+    {
+      "modality": "preferred",
+      "name": "num_warps",
+      "value": 1
+    },
+    {
+      "modality": "exploratory",
+      "name": "num_stages",
+      "value": 2
+    }
+  ],
+  "operations": [
+    {
+      "effects": {
+        "reads": [
+          "scores"
+        ],
+        "writes": []
+      },
+      "id": "op.load.row",
+      "index_domain": "token x expert",
+      "inputs": [
+        "scores"
+      ],
+      "kind": "load",
+      "mask": "expert < E",
+      "outputs": [
+        "row"
+      ]
+    },
+    {
+      "effects": {
+        "reads": [],
+        "writes": [
+          "topk_values"
+        ]
+      },
+      "id": "op.store.output",
+      "index_domain": "token x expert",
+      "inputs": [
+        "row"
+      ],
+      "kind": "store",
+      "mask": "expert < E",
+      "outputs": [
+        "topk_values"
+      ]
+    }
+  ],
+  "round": "001",
+  "schema_version": 1,
+  "scope": {
+    "entrypoints": [
+      "kernel"
+    ],
+    "kind": "changed-computation-boundary",
+    "unchanged_boundary": []
+  },
+  "sketch_id": "sketch-load-store"
+}

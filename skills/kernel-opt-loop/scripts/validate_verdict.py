@@ -341,7 +341,13 @@ def validate_verdict(verdict_path: Path, *, inputs: Mapping[str, Any]) -> dict[s
     verdict = load_json_document(Path(verdict_path), artifact="verdict")
     if verdict.get("schema_version") != 1:
         raise _error("verdict-schema-version", "verdict schema_version must be 1")
-    for field in ("decision_sha256", "sketch_sha256", "binding_sha256", "profile_sha256", "report_fact_pack_sha256"):
+    finalization = verdict.get("artifact_kind") == "submission-finalization" or verdict.get("route") in {"submission-ready", "blocked"}
+    required_hash_fields = (
+        ("decision_sha256", "binding_sha256", "profile_sha256", "report_fact_pack_sha256")
+        if finalization
+        else ("decision_sha256", "sketch_sha256", "binding_sha256", "profile_sha256", "report_fact_pack_sha256")
+    )
+    for field in required_hash_fields:
         if not isinstance(verdict.get(field), str) or not re.fullmatch(r"[0-9a-f]{64}", verdict[field]):
             raise _error("verdict-hash-invalid", f"verdict requires {field}")
     _validate_verdict_hashes(verdict, inputs)
@@ -349,7 +355,7 @@ def validate_verdict(verdict_path: Path, *, inputs: Mapping[str, Any]) -> dict[s
     if not isinstance(facts, dict):
         raise _error("verdict-inputs", "verdict validation requires the fact pack input")
 
-    if verdict.get("artifact_kind") == "submission-finalization" or verdict.get("route") in {"submission-ready", "blocked"}:
+    if finalization:
         return _validate_finalization_verdict(verdict, inputs, facts)
     return _validate_campaign_verdict(verdict, inputs, facts)
 

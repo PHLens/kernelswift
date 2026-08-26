@@ -139,7 +139,7 @@
 - Produces `create_exclusive_directory(path: Path) -> Path` and `write_json_atomic(path: Path, value: Mapping[str, Any]) -> None` for run-local probe artifacts.
 - Later validators and the runner import only these helpers; no component duplicates path traversal, exclusive-create, atomic-write, or hash logic.
 
-- [ ] **Step 1: Write failing common-helper tests**
+- [x] **Step 1: Write failing common-helper tests**
 
 Create `test_vnext_common.py` using `sys.path.insert(0, str(SCRIPTS))`. Add isolated temporary-directory tests for JSON object loading, JSON-compatible YAML loading, SHA-256 stability, canonical `submission_snapshot_id`, root confinement, exclusive directory creation, atomic sorted-JSON writes, and source spans. The snapshot helper requires exactly accepted candidate/binding, Sketch, profile, claim, runtime snapshot, official measurement fingerprint, harness, and base/reference hashes; Decision hash and artifact index are invalid inputs.
 
@@ -201,7 +201,7 @@ class VNextCommonTests(unittest.TestCase):
             validate_source_span("first\n", {"start": [2, 1], "end": [2, 2]})
 ```
 
-- [ ] **Step 2: Run the helper test to verify it fails**
+- [x] **Step 2: Run the helper test to verify it fails**
 
 Run:
 
@@ -211,7 +211,7 @@ python3 -m unittest skills/kernel-opt-loop/tests/test_vnext_common.py -v
 
 Expected: FAIL with `ModuleNotFoundError: No module named 'vnext_common'`.
 
-- [ ] **Step 3: Implement common document and reference helpers**
+- [x] **Step 3: Implement common document and reference helpers**
 
 Create `vnext_common.py` with the public surface below. Treat a missing, non-UTF-8, malformed, non-object, absolute, escaping, or absent reference as a stable `ContractValidationError`; never allow a raw `OSError`, `UnicodeDecodeError`, or `JSONDecodeError` out of a public validator.
 
@@ -328,7 +328,7 @@ For example, `schemas/binding.schema.json` must declare the stable fields used b
 }
 ```
 
-- [ ] **Step 4: Run common tests and schema JSON parsing**
+- [x] **Step 4: Run common tests and schema JSON parsing**
 
 Run:
 
@@ -341,7 +341,7 @@ done
 
 Expected: PASS; every schema parses as JSON and every helper rejects malformed inputs through `ContractValidationError`.
 
-- [ ] **Step 5: Commit artifact primitives**
+- [x] **Step 5: Commit artifact primitives**
 
 ```bash
 git add skills/kernel-opt-loop/scripts/vnext_common.py \
@@ -369,7 +369,7 @@ git commit -m "skills: add vnext artifact primitives"
 - The normalized result contains `statement_index`, `value_definitions`, `effect_outputs`, `required_hints`, `preferred_hints`, `exploratory_hints`, and `causal_node_ids`.
 - `validate_decision.py` and `validate_binding.py` consume the normalized validation result as their Sketch contract input.
 
-- [ ] **Step 1: Write failing semantic tests**
+- [x] **Step 1: Write failing semantic tests**
 
 Create a valid fixture with two tensor declarations, a register tile, a `load`, `compute`, and `store` operation, one `parallel` domain, a connected `guard`, declared output effect, a `required` `num_warps` hint, and one causal mechanism node. Add these tests:
 
@@ -405,7 +405,7 @@ class ValidateSketchTests(unittest.TestCase):
 
 Add separate assertions for undefined operation input, undeclared output alias/mutation, missing operation effect declaration, unknown hint modality, duplicate statement ID, and a causal node referenced by no operation or output observable.
 
-- [ ] **Step 2: Run the Sketch module to verify it fails**
+- [x] **Step 2: Run the Sketch module to verify it fails**
 
 Run:
 
@@ -415,7 +415,7 @@ python3 -m unittest skills/kernel-opt-loop/tests/test_validate_sketch.py -v
 
 Expected: FAIL with `ModuleNotFoundError: No module named 'validate_sketch'`.
 
-- [ ] **Step 3: Implement the checker in explicit semantic passes**
+- [x] **Step 3: Implement the checker in explicit semantic passes**
 
 Create `validate_sketch.py`. Keep each pass pure and take only normalized mappings; do not import Triton or execute kernels.
 
@@ -464,7 +464,7 @@ Apply these concrete rules in the named helpers:
 
 Use stable error codes such as `sketch-duplicate-definition`, `sketch-undefined-value`, `sketch-index-unbounded`, `sketch-effect-undeclared`, and `sketch-hint-modality-invalid`.
 
-- [ ] **Step 4: Run semantic tests and legacy decision tests**
+- [x] **Step 4: Run semantic tests and legacy decision tests**
 
 Run:
 
@@ -475,7 +475,7 @@ python3 -m unittest skills/kernel-opt-loop/tests/test_validate_decision.py -v
 
 Expected: PASS. The module accepts the typed JSON fixtures, and schema-v1 Decision validation continues to pass.
 
-- [ ] **Step 5: Commit the typed Sketch gate**
+- [x] **Step 5: Commit the typed Sketch gate**
 
 ```bash
 git add skills/kernel-opt-loop/scripts/validate_sketch.py \
@@ -524,7 +524,7 @@ git commit -m "skills: validate typed unified sketches"
 - `validate_project_claim()` validates normalized primary/fallback contracts and exact signatures, `fallback_kind: semantic-accommodation|algorithm-substitution`, `probe_policy: optional|before-fallback|must-resolve`, and embedded `qualification_dispositions`. Each disposition contains the full normalized requirement and `sha256_canonical_json(requirement)` hash, onboarding outcome, promotion disposition, `fallback_authorized`, reason, maintainer confirmation identity, UTC RFC 3339 timestamp, and method `explicit-user-instruction|maintainer-reviewed-commit`, optional probe id/definition/result hashes, and `primary_remains_unknown`; raw probe-result refs are forbidden. `qualification_disposition_sha256` is `sha256_canonical_json()` of the complete embedded disposition object, including id, requirement/hash, outcomes, authorization, reason, confirmation, optional probe hashes, and Unknown marker; the object contains no self-hash field. A silent algorithm substitution, unresolved `before-fallback`, or unconfirmed fallback is invalid.
 - A profile declares `source_conformance.analyzer` and `binding_model`. The schema accepts non-Triton implementations even though Task 6 initially implements only `python-ast-triton`.
 
-- [ ] **Step 1: Write failing profile and claim tests**
+- [x] **Step 1: Write failing profile and claim tests**
 
 Add profile tests covering a structurally complete partial Triton profile, a structurally complete C-like profile with no `tl.*` symbols, all five capability statuses, profile-selected source-conformance metadata, status-specific required-hint behavior, target/profile/runtime scope matching, run-local claims, valid embedded maintainer-authorized fallback disposition, finite legal configuration fields/values and cross-field exclusions, and rejection of silent/unresolved substitutions, missing confirmation, requirement-hash mismatch, any raw probe-result reference, disposition-hash mismatch after changing confirmation, reason, outcome, or an optional probe hash, Unknown/prohibited tuning values, duplicate configurations, open-ended ranges, and an exact-scope mismatch.
 
@@ -556,7 +556,7 @@ class ValidateProfileTests(unittest.TestCase):
 
 Add tests that a profile requires `implementation_profile_id`, `implementation_profile_version`, `profile_schema_ref`, `profile_schema_sha256`, `shared_profile_schema_ref`, `shared_profile_schema_version`, `shared_profile_schema_sha256`, `implementation`, `identity_match`, `source_conformance`, `runtime_launcher`, `capability_matrix`, `probe_catalog`, `fallback_and_unknown_policy`, and `profiler_evidence`; permits optional `resource_constraints`, `configuration_constraints`, and `host_lifecycle`; rejects duplicated semantic capability IDs; and requires every evidence item to declare target, toolchain, device, signature, launcher/runner context, definition/result hashes, `review_status: approved`, a root-confined `archived_result_ref`, its SHA-256, and `observed|inferred|unknown` provenance. The Task 3 gate validates archived paths and hashes. Probe-result semantics and approved-scope conservation are Task 4 gates implemented through `validate_probe.py`. The C-like fixture uses semantic contracts such as `memory.copy` with an implementation symbol such as `DataCopy` and proves the schema does not require Triton.
 
-- [ ] **Step 2: Run the profile test to verify it fails**
+- [x] **Step 2: Run the profile test to verify it fails**
 
 Run:
 
@@ -566,7 +566,7 @@ python3 -m unittest skills/kernel-opt-loop/tests/test_validate_profile.py -v
 
 Expected: FAIL with `ModuleNotFoundError: No module named 'validate_profile'`.
 
-- [ ] **Step 3: Implement profile and claim validation**
+- [x] **Step 3: Implement profile and claim validation**
 
 Create `validate_profile.py` using `load_json_yaml_document`; it must not import `yaml`. `_validate_probe_catalog()` validates unique probe ids, root-confined relative definition paths, file existence, and recorded SHA-256. An empty catalog is valid for a `partial` profile. Semantic definition validation belongs to `validate_probe_definition()` in Task 4, where the first runnable catalog entry, payload, and runner are added as one unit.
 
@@ -608,7 +608,7 @@ Set `probe_catalog` to an empty array in Task 3. Task 4 adds the definition, pay
 
 Update `triton_mlu.md` to say the Markdown page is explanatory and that machine-readable authority is `profiles/triton_mlu/profile.yaml`; retain its historical evidence descriptions.
 
-- [ ] **Step 4: Run profile tests and JSON parsing checks**
+- [x] **Step 4: Run profile tests and JSON parsing checks**
 
 Run:
 
@@ -619,7 +619,7 @@ python3 -m json.tool skills/kernel-opt-loop/profiles/triton_mlu/profile.yaml >/d
 
 Expected: PASS. A partial profile loads; required implementation needs and final-tuning fields must match exact-scope supported/constrained profile facts, and canonical profiles carry no unreviewed configuration legality.
 
-- [ ] **Step 5: Commit the profile seam**
+- [x] **Step 5: Commit the profile seam**
 
 ```bash
 git add skills/kernel-opt-loop/scripts/validate_profile.py \
@@ -680,7 +680,7 @@ git commit -m "skills: add machine readable implementation profiles"
 - `target_id` and explicit `run_id` accept only `[A-Za-z0-9._-]+`. When `run_id` is omitted, generate UTC `YYYYMMDDTHHMMSSffffffZ`; any collision fails without retry, overwrite, or reuse.
 - Normal execution summaries are exactly `evidence-ready|partial|environment-blocked|probe-failed`; these are not campaign terminal results.
 
-- [ ] **Step 1: Write failing probe-runner and promotion tests**
+- [x] **Step 1: Write failing probe-runner and promotion tests**
 
 Use complete co-located fixture profile trees only. The S60-named qualification tree is routing-only and uses fixture evidence/payloads; it proves the contract without claiming that a real S60 run occurred. The generic runner tree catalog points to `profile/probes/basic-memory.json`, whose declared input is `fake-success.py`; timeout/nonzero/malformed cases materialize a temporary definition variant and recompute both definition and catalog hashes before launch. The success fixture writes the result payload path supplied by the runner and exits zero. Tests must prove:
 
@@ -722,7 +722,7 @@ class RunProfileProbeTests(unittest.TestCase):
         self.assertTrue(note_path.is_file())
 ```
 
-- [ ] **Step 2: Run the new tests to verify they fail**
+- [x] **Step 2: Run the new tests to verify they fail**
 
 Run:
 
@@ -735,7 +735,7 @@ python3 -m unittest skills/kernel-opt-loop/tests/test_profile_promotion.py -v
 
 Expected: FAIL with missing runner, validator, renderer, payload, and fixture errors.
 
-- [ ] **Step 3: Implement probe validation, bounded execution, and the real profile payload**
+- [x] **Step 3: Implement probe validation, bounded execution, and the real profile payload**
 
 Add `basic-memory.json`, `basic_memory.py`, and the matching path/hash entry to `triton_mlu/profile.yaml` together. The declarative definition invokes the payload directly:
 
@@ -774,7 +774,7 @@ The payload result contains the same probe/profile/target ids, observed scope, a
 
 Create `profiles/triton_mlu/probes/basic_memory.py` as a real file-backed MLU probe that accepts `--result-json`, imports the matched MLU runtime, compiles and executes masked contiguous fp32 load/store/indexing, checks output numerically, and writes the normalized payload. Unit tests never execute this hardware payload and no committed evidence claims that it passed.
 
-- [ ] **Step 4: Implement promotion rendering and run all probe tests**
+- [x] **Step 4: Implement promotion rendering and run all probe tests**
 
 `render_profile_promotion.py` first calls `validate_probe_run()`, rejects `environment-blocked` and `probe-failed` runs plus partial runs with no observed fact, loads the unchanged canonical profile, and derives recommendations by capability id. It records current status, recommended status, exact source scope, probe-definition hash, result hash, evidence refs, rationale, unresolved gaps, and `review_status: proposed`. The v1 renderer may recommend only `constrained`, unchanged status, or additional evidence; it never recommends `supported`. It rejects a recommendation whose target/toolchain/device/shape/dtype/layout/launcher scope is broader than the validated result. Render the Markdown note from the candidate JSON so the JSON remains authoritative. When the run contains a `before-fallback` qualification requirement and produces eligible observed success, return the onboarding disposition `promotion-pending`; this disposition stops before Phase 0 and cannot be converted into fallback eligibility without an explicit maintainer decline/defer record.
 
@@ -792,7 +792,7 @@ python3 skills/kernel-opt-loop/scripts/render_profile_promotion.py --help >/dev/
 
 Expected: PASS without accelerator access. The fixture runner produces the documented layout and no test mutates a canonical profile or creates campaign state.
 
-- [ ] **Step 5: Commit the profile-probe lifecycle**
+- [x] **Step 5: Commit the profile-probe lifecycle**
 
 ```bash
 git add skills/kernel-opt-loop/scripts/validate_probe.py \
@@ -835,7 +835,7 @@ git commit -m "skills: add implementation profile probes"
 - For schema-v2, returns `decision_kind`, `sketch_ref`, `sketch_sha256`, `implementation_profile_snapshot_ref`, `implementation_profile_snapshot_sha256`, `project_capability_claim_ref`, `project_capability_claim_sha256`, optional normalized `fallback_provenance`, optional normalized `final_tuning_contract`, and `causal_graph` fields. Phase 0 copies the entire validated canonical profile directory to `state/implementation_profile_snapshot/`; the snapshot ref points to its `profile.yaml`, and all local schema, probe definition/input, and approved evidence/attachment references must remain inside that copied root and validate by hash.
 - Schema-v1 uses the D/O/C/H parser. Schema-v2 requires the JSON Sketch reference and treats Markdown rendering as non-authoritative.
 
-- [ ] **Step 1: Write failing legacy-safe and vNext Decision tests**
+- [x] **Step 1: Write failing legacy-safe and vNext Decision tests**
 
 Add a helper that creates a temporary project root with `rounds/`, `state/`, `baseline_adapter.py`, `project.md`, `rounds/report_000.md`, a frozen implementation-profile snapshot closure, claim, and Sketch fixture. Fixture tests materialize every referenced file and hash. Add a closure test that loads the copied snapshot with no canonical profile path available and proves every schema, probe catalog/input, and approved evidence reference resolves under `state/implementation_profile_snapshot/`.
 
@@ -876,7 +876,7 @@ def test_vnext_decision_requires_existing_hashed_sketch(self):
 
 Add negative tests for missing reference file, wrong SHA-256, missing `project.md#runtime-fingerprint` heading, schema-v2 using a legacy text Sketch as authority, profile-snapshot mismatch, invalid causal edge, an algorithm-substitution fallback missing primary/fallback signatures or onboarding disposition, an unresolved/`promotion-pending` fallback, and a v1 fixture continuing to normalize as before. Final-tuning fixtures cover immutable accepted candidate/binding/Sketch/profile/claim/measurement/harness/base hashes, a finite deterministically ordered domain, accepted-config fallback, budget, warmup/repeat, mutation reset, selection/tie rules, and rejection of open-ended ranges, duplicate configurations, missing/profile-illegal/Unknown legality, stale anchors, missing control, and fields that alter algorithm, dataflow, precision, effects, aliases, Host Plan, public interface, or semantic layout.
 
-- [ ] **Step 2: Run Decision tests to verify failures**
+- [x] **Step 2: Run Decision tests to verify failures**
 
 Run:
 
@@ -886,7 +886,7 @@ python3 -m unittest skills/kernel-opt-loop/tests/test_validate_decision.py -v
 
 Expected: FAIL with missing `project_root`, referenced-file, hash, anchor, and vNext artifact validation.
 
-- [ ] **Step 3: Extend Decision validation without changing v1 behavior**
+- [x] **Step 3: Extend Decision validation without changing v1 behavior**
 
 Use `parse_sketch()` as the schema-v1 code path and add a schema-version branch after Metadata parsing:
 
@@ -958,7 +958,7 @@ Keep `team-state.md` free of finalization bookkeeping fields. Finalization is di
 
 Use only `state/designer_context.md`, `state/coder_context.md`, and `state/verifier_context.md` in `invariants.md`, templates, and tests. Delete references to `*_state.md`; do not create compatibility aliases.
 
-- [ ] **Step 4: Run Decision and durable-contract tests**
+- [x] **Step 4: Run Decision and durable-contract tests**
 
 Run:
 
@@ -969,7 +969,7 @@ python3 -m unittest skills/kernel-opt-loop/tests/test_contracts.py -v
 
 Expected: PASS. Schema-v1 fixture behavior remains unchanged; schema-v2 validates ordinary and final-autotune Decisions, rejects stale/mismatched anchors, and admits only finite profile-legal config-only domains.
 
-- [ ] **Step 5: Commit Decision and durable-state integration**
+- [x] **Step 5: Commit Decision and durable-state integration**
 
 ```bash
 git add skills/kernel-opt-loop/scripts/validate_decision.py \
@@ -1005,7 +1005,7 @@ git commit -m "skills: gate vnext decisions on typed artifacts"
 - Supports `implemented-by`, `fused-into`, `expanded-into`, and `elided-by`; all multi-source or multi-statement relationships require nonempty `reason`.
 - Selects the analyzer from `profile.source_conformance`. The first production adapter is `python-ast-triton`; an unavailable declared analyzer fails as `profile-source-analyzer-unavailable`, not as a Python syntax or candidate error.
 
-- [ ] **Step 1: Write failing source-analyzer and binding tests**
+- [x] **Step 1: Write failing source-analyzer and binding tests**
 
 Use a fixture candidate that is syntactically ordinary Python and does not import Triton at test time:
 
@@ -1044,7 +1044,7 @@ def test_valid_many_to_many_binding_covers_every_required_statement(self):
     self.assertIn("tl.load", result["source_symbols"])
 ```
 
-- [ ] **Step 2: Run the binding tests to verify they fail**
+- [x] **Step 2: Run the binding tests to verify they fail**
 
 Run:
 
@@ -1054,7 +1054,7 @@ python3 -m unittest skills/kernel-opt-loop/tests/test_validate_binding.py -v
 
 Expected: FAIL with `ModuleNotFoundError: No module named 'validate_binding'`.
 
-- [ ] **Step 3: Implement source-level conformance only**
+- [x] **Step 3: Implement source-level conformance only**
 
 Create `validate_binding.py` with a small analyzer dispatch selected from `profile["source_conformance"]["analyzer"]`. Implement only `python-ast-triton` in vNext: it parses the candidate with `ast.parse` and collects dotted call names with one-based `(lineno, col_offset + 1, end_lineno, end_col_offset + 1)` spans. Do not import, compile, run, or profile the candidate. Unknown analyzers fail before reading candidate syntax and leave the profile incomplete for automatic binding.
 
@@ -1095,7 +1095,7 @@ Implement exact behavior:
 - reject bindings to `base.py`, the harness, decision artifacts, or paths outside candidate ownership;
 - for final tuning, require `artifact_kind: submission-finalization` and Decision-matching `artifact_index` with no campaign `round`; compare accepted and pinned candidates with a profile/analyzer-selected normalized source diff so only Decision-authorized launch/meta values may change, while implementation symbols, calls, control/dataflow structure, signatures, effects, and bound statement coverage remain identical.
 
-- [ ] **Step 4: Run binding, Sketch, and profile tests**
+- [x] **Step 4: Run binding, Sketch, and profile tests**
 
 Run:
 
@@ -1107,7 +1107,7 @@ python3 -m unittest skills/kernel-opt-loop/tests/test_validate_profile.py -v
 
 Expected: PASS. The checker proves source conformance and config-only pinning against fresh hashes; observed compiled structure remains a Verifier claim.
 
-- [ ] **Step 5: Commit the Coder conformance gate**
+- [x] **Step 5: Commit the Coder conformance gate**
 
 ```bash
 git add skills/kernel-opt-loop/scripts/validate_binding.py \
@@ -1142,7 +1142,7 @@ git commit -m "skills: check sketch source bindings"
 - Produces `validate_verdict(verdict_path: Path, *, inputs: Mapping[str, Any]) -> dict[str, Any]`.
 - `inputs` contains normalized Decision, Sketch, binding, profile, and fact-pack results; no verdict function opens candidate code or profiler traces directly.
 
-- [ ] **Step 1: Write failing attribution-rule tests**
+- [x] **Step 1: Write failing attribution-rule tests**
 
 Add fixtures whose `## vNext Fact Pack` contains exactly one `json` fence. Test each deterministic rule and its terminal/counter mapping.
 
@@ -1188,7 +1188,7 @@ Add tests that:
 - finalization-slot tests cover fresh allocation, same-ID Decision-only resume, same-ID Decision plus sealed report resume, invalid/incomplete report block, conflicting Decision hash block, completed input-ID rejection, and current accepted candidate/binding matching a prior final output;
 - submission-promotion tests prove an improved winner atomically changes both accepted kernel/report pointers, fallback-retained changes neither, `last_accepted_round` and campaign counters remain byte-for-byte unchanged, and any partial pair update is rejected.
 
-- [ ] **Step 2: Run verdict tests to verify they fail**
+- [x] **Step 2: Run verdict tests to verify they fail**
 
 Run:
 
@@ -1198,7 +1198,7 @@ python3 -m unittest skills/kernel-opt-loop/tests/test_validate_verdict.py -v
 
 Expected: FAIL with `ModuleNotFoundError: No module named 'validate_verdict'`.
 
-- [ ] **Step 3: Implement structured facts and rule-precondition validation**
+- [x] **Step 3: Implement structured facts and rule-precondition validation**
 
 Add this exact fact-pack shape to `report-template.md` under `## vNext Fact Pack`:
 
@@ -1256,7 +1256,7 @@ Entries with `repairable: true` define the post-repair terminal branch only. A f
 
 A `final-autotune` verdict uses a separate schema branch with `route: submission-ready|blocked`; it rejects `classification`, `terminal_result`, `failed_attempt_effect`, and every run-policy projection field. `submission-ready` requires deterministic selection, no derived source in temporary storage, config-only pin conformance or accepted-source confirmation, validated binding, full correctness, required promotion evidence, and official competition evidence on the exact final hash. Improved and fallback-retained selections use the same pure submission-promotion predicate. The former atomically advances `last_accepted_kernel` and `last_accepted_report` to the exact final source and sealed report while preserving `last_accepted_round`; the latter changes neither pointer, and a partial pair update is invalid. `resolve_finalization_slot()` rejects a prior matching `submission_snapshot_id` and a current accepted candidate/binding already recorded as final output under unchanged anchors.
 
-- [ ] **Step 4: Run verdict and report-template tests**
+- [x] **Step 4: Run verdict and report-template tests**
 
 Run:
 
@@ -1267,7 +1267,7 @@ python3 -m unittest skills/kernel-opt-loop/tests/test_contracts.py -v
 
 Expected: PASS. Ordinary reports/verdicts retain deterministic attribution; finalization uses a separate counter-free verdict branch for bounded selection and exact-source submission verification.
 
-- [ ] **Step 5: Commit deterministic attribution**
+- [x] **Step 5: Commit deterministic attribution**
 
 ```bash
 git add skills/kernel-opt-loop/scripts/validate_verdict.py \
@@ -1296,7 +1296,7 @@ git commit -m "skills: add deterministic attribution verdicts"
 - New vNext campaign-terminal calls require the verdict's `failed_attempt_effect`; finalization verdicts never call this interface, and legacy calls retain current `FAILED_RESULTS` behavior when both optional arguments are omitted.
 - `evaluate_terminal()` output includes `attribution` and `failed_attempt_effect` when supplied.
 
-- [ ] **Step 1: Write failing policy and contract assertions**
+- [x] **Step 1: Write failing policy and contract assertions**
 
 Add tests to `test_run_policy.py` for the explicit exception to the legacy `design-rejected` rule:
 
@@ -1333,7 +1333,7 @@ Add contract assertions that profile onboarding and each campaign role name exac
 - Final tuning begins only after normal campaign termination with an accepted fingerprint-stable submission snapshot and reviewed exact-scope configuration legality. Designer freezes one config-only Decision; Verifier evaluates injected configurations against one accepted source and returns normalized trials without a persisted selection artifact; Orchestrator selects; Coder pins once or confirms fallback; Verifier seals the report after final official verification; Orchestrator reselects and routes.
 - `submission_snapshot_id` uses the complete canonical anchor set. Finalization allocates or resumes an artifact-slot index without changing campaign-round pointers, terminal fields, attribution, or counters. `team-state.md` gains no finalization-specific field, and temporary storage contains no derived candidate source.
 
-- [ ] **Step 2: Run policy and contract tests to verify failures**
+- [x] **Step 2: Run policy and contract tests to verify failures**
 
 Run:
 
@@ -1344,7 +1344,7 @@ python3 -m unittest skills/kernel-opt-loop/tests/test_contracts.py -v
 
 Expected: FAIL with missing attribution arguments and vNext artifact-gate declarations.
 
-- [ ] **Step 3: Implement explicit counter effect and routing text**
+- [x] **Step 3: Implement explicit counter effect and routing text**
 
 Update the policy evaluator without changing the legacy CLI contract. Validate the optional pair together: if either attribution or effect is supplied, both must be supplied and must be one of the defined values.
 
@@ -1388,7 +1388,7 @@ Update `SKILL.md` routing in this order:
 
 Update role contracts with exact file ownership, required hashes, measurement exclusivity, temporary configuration injection, non-persistent selection handoff, one-time config pinning, sealed-report timing, and the profile/fact boundaries defined above. Update `team-state-template.md` to state that `last_attribution` and `last_completed_verdict` refer only to terminal campaign verdicts; finalization never overwrites them and is discovered through artifact scanning. `last_accepted_kernel` and `last_accepted_report` form one atomic submission pair, while `last_accepted_round` remains campaign-owned. No finalization-specific state field is added.
 
-- [ ] **Step 4: Run policy, contract, and validator suites**
+- [x] **Step 4: Run policy, contract, and validator suites**
 
 Run:
 
@@ -1401,7 +1401,7 @@ python3 -m unittest skills/kernel-opt-loop/tests/test_validate_verdict.py -v
 
 Expected: PASS. Attribution effects remain explicit; final tuning has deterministic role sequencing, persists only existing artifact families, and cannot affect campaign counters.
 
-- [ ] **Step 5: Commit vNext orchestration contracts**
+- [x] **Step 5: Commit vNext orchestration contracts**
 
 ```bash
 git add skills/kernel-opt-loop/scripts/evaluate_run_policy.py \
@@ -1438,7 +1438,7 @@ git commit -m "skills: route vnext attribution outcomes"
 - Documents one offline bounded config-only finalization for each eligible Triton submission snapshot, with exact-source confirmation and post-pin official verification. A profile missing reviewed exact-scope configuration legality is `profile-legality-unavailable` and cannot be described as submission-finalization ready. The submitted candidate contains one fixed configuration and no runtime autotune, first-use search, or cache-dependent selection.
 - Documents that the schema accepts future C-like profiles while no Track 2 profile is complete until its build/runner/profiler and source-analyzer contracts are implemented and probed.
 
-- [ ] **Step 1: Write failing consistency tests**
+- [x] **Step 1: Write failing consistency tests**
 
 Add table-driven `test_contracts.py` assertions that every implementation profile named as machine-readable authority has a matching canonical file under `profiles/`, every migrated Markdown page points to that canonical source, target ids and implementation-profile ids remain distinct in the registry, repository docs place pre-campaign profile onboarding under the kernel-opt-loop profile subsystem, final tuning is documented as offline/bounded/config-only with exact-source confirmation and post-pin official verification, the submitted candidate contains no runtime autotune or cache-dependent selector, and Track 2 docs do not claim a complete profile before its adapters and probes exist.
 
@@ -1456,7 +1456,7 @@ def test_profile_registry_and_human_docs_agree(self):
     self.assertIn("implementation profile", (REPO_ROOT / "docs" / "competition" / "track2-clike.md").read_text(encoding="utf-8").lower())
 ```
 
-- [ ] **Step 2: Run the consistency test to verify it fails**
+- [x] **Step 2: Run the consistency test to verify it fails**
 
 Run:
 
@@ -1466,7 +1466,7 @@ python3 -m unittest skills/kernel-opt-loop/tests/test_contracts.py -v
 
 Expected: FAIL on implementation-profile registry and machine-readable coverage assertions.
 
-- [ ] **Step 3: Update exact documentation boundaries**
+- [x] **Step 3: Update exact documentation boundaries**
 
 Update repository README and backend registry to list the human-readable `triton_mlu`, `triton_gcu`, `triton_cuda`, `triton_maca`, and `triton_ascend` documents accurately, but state only `triton_mlu` has a vNext canonical implementation profile until each other profile receives its own reviewed `profile.yaml`, executable versioned probe suite, and approved evidence. Show concrete target ids such as `bi150` or `ascend910b` separately from profile ids such as `triton_cuda` or `triton_ascend`.
 
@@ -1491,7 +1491,7 @@ first-use search, or cache-dependent configuration selection.
 
 Update `docs/competition/track2-clike.md` to state that C-like backends reuse this implementation-profile qualification lifecycle with their own build/runner/profiler payloads and source analyzer; they do not require a copied skill. Update the four unconverted Triton Markdown profiles with their own migration status without inventing nonexistent canonical paths. In `triton_gcu.md`, state explicitly that groupedtopk-derived evidence proves only its observed capabilities: it does not establish negative evidence for `tl.dot`, and a future S60 attention/MoE algorithm substitution must use demand-scoped dot qualification before treating `tl.sum` as the fallback.
 
-- [ ] **Step 4: Run documentation contract checks and full Markdown fence check**
+- [x] **Step 4: Run documentation contract checks and full Markdown fence check**
 
 Run:
 
@@ -1506,7 +1506,7 @@ PY
 
 Expected: PASS. Public documentation does not overstate vNext profile coverage.
 
-- [ ] **Step 5: Commit documentation and registry alignment**
+- [x] **Step 5: Commit documentation and registry alignment**
 
 ```bash
 git add README.md docs/backend-registry.md docs/competition/track2-clike.md skills/README.md \
@@ -1549,7 +1549,7 @@ git commit -m "docs: describe vnext semantic contract"
 - An S60-shaped demand-qualification flow starts from groupedtopk-derived reduction evidence plus Unknown `matrix.dot`, selects only the exact dot probe before a sum algorithm substitution, and stops as `promotion-pending` or requires explicit fallback disposition.
 - The submission-finalization flow reuses the accepted Sketch/profile/claim, validates one finite profile-legal config-only Decision, evaluates one accepted source through temporary injection, selects deterministically, pins or confirms one final source, revalidates binding, requires post-pin correctness/lowering/promotion/official evidence, and emits a counter-free submission route through the existing verdict family.
 
-- [ ] **Step 1: Write the failing pre-campaign profile-probe integration test**
+- [x] **Step 1: Write the failing pre-campaign profile-probe integration test**
 
 Create a fixture profile/definition/runtime/payload, recompute definition and profile hashes, invoke the public runner, validate the run, and render the proposed promotion artifacts.
 
@@ -1606,7 +1606,7 @@ def test_s60_unknown_dot_is_selected_before_sum_substitution(self):
 
 Add variants proving unrelated Unknowns are not selected, an ambiguous second dot definition is rejected, and failure leaves dot Unknown. For the authorized-fallback variant, embed the complete requirement, canonical requirement hash, failed outcome, promotion disposition, `fallback_authorized: true`, reason, maintainer confirmation, optional probe hashes, and `primary_remains_unknown: true` in the project claim; forbid any raw result ref. Delete the entire pre-campaign run directory before materializing the campaign, then prove the frozen claim, profile snapshot, and sum-fallback Decision still validate. The Decision carries only disposition id/hash plus causal consequence and is rejected when confirmation or hashes are missing. Mutating the embedded confirmation, reason, onboarding outcome, or optional probe hash after the Decision is written must invalidate `qualification_disposition_sha256`.
 
-- [ ] **Step 2: Write campaign and submission-finalization integration flows**
+- [x] **Step 2: Write campaign and submission-finalization integration flows**
 
 Materialize a separate fake campaign whose frozen implementation-profile snapshot already contains explicitly approved fixture evidence. Recompute all copied SHA-256 fields and invoke public validators in workflow order.
 
@@ -1677,7 +1677,7 @@ python3 -m unittest skills/kernel-opt-loop/tests/test_validate_verdict.py -v
 
 Expected: FAIL until the profile-probe, campaign, and submission-finalization flows satisfy all hashes, role boundaries, and post-pin gates.
 
-- [ ] **Step 3: Complete fixture materialization and public script contract checks**
+- [x] **Step 3: Complete fixture materialization and public script contract checks**
 
 Implement `materialized_profile_probe()`, `materialized_integration_campaign()`, and `materialized_final_tuning()` with temporary directories, copy-only fixture setup, and recomputed hashes. The campaign helper must first archive a reviewed evidence record into a canonical fixture profile, then copy that entire profile closure—`profile.yaml`, vendored schema, probe definitions/inputs, and reviewed evidence/attachments—to `state/implementation_profile_snapshot/`; it may not consume the raw run directory directly. Delete or rename the canonical fixture copy and delete any pre-campaign raw run before campaign validation; prove the frozen profile snapshot, embedded project-claim disposition, and Decision still load without external dependencies. Resolve failures by correcting schemas, validators, or fixtures, never by weakening target/profile identity, closure, scope, hash, source-span, or rule-precondition checks.
 
@@ -1705,7 +1705,7 @@ def test_vnext_fixture_documents_and_scripts_are_loadable(self):
 
 CLI-specific tests invoke `python3 <script> --help` where applicable; import-only validators are exercised through their public Python functions.
 
-- [ ] **Step 4: Run full regression, whitespace, and artifact checks**
+- [x] **Step 4: Run full regression, whitespace, and artifact checks**
 
 Run:
 
@@ -1722,7 +1722,7 @@ python3 -m json.tool skills/kernel-opt-loop/tests/fixtures/vnext/integration/fin
 
 Expected: PASS with no accelerator access. Confirm `git status --short` contains only vNext skill, tests, spec, plan, and documentation files; preserve but do not stage unrelated pre-existing files.
 
-- [ ] **Step 5: Commit integration verification**
+- [x] **Step 5: Commit integration verification**
 
 ```bash
 git add skills/kernel-opt-loop/tests \
