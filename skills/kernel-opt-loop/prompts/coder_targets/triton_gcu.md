@@ -1,5 +1,12 @@
 # Target Profile: triton_gcu
 
+> **Migration status**: this Markdown page is an explanatory rendering of the
+> target. It has no vNext canonical implementation profile yet — no reviewed
+> `profiles/<id>/profile.yaml`, executable versioned probe suite, or approved
+> evidence record exists under `skills/kernel-opt-loop/profiles/`. Claims below
+> are historical human context until a machine-readable profile is promoted.
+
+
 This profile records only capabilities observed on the available Triton-GCU
 runtime and probe configuration. Evidence is local to the recorded runtime,
 device architecture, shapes, dtypes, and compiler versions. Absence from

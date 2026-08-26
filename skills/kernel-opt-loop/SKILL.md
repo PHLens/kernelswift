@@ -396,3 +396,21 @@ campaigns remain historical and are never migrated. Routing is exact:
 20. The final candidate contains one fixed selected configuration and no
     runtime/online `@triton.autotune`, adaptive search, or autotune-cache
     selection dependency.
+
+
+## Profile onboarding and vNext new-run boundary
+
+Profile onboarding may run versioned probes, emit hashed run-local evidence and a
+proposed promotion candidate, and stop without creating a campaign. It never edits
+the canonical implementation profile.
+
+A vNext campaign records `contract_version: 3`, a frozen implementation-profile
+snapshot hash, a project capability claim, typed Sketch, binding ledger, and
+verdict artifact. Existing v1/v2 campaigns remain historical and are not migrated.
+
+Each Triton submission snapshot runs one offline bounded configuration-only search over
+profile-legal fields. The selected configuration is pinned into one candidate and
+must pass fresh binding, correctness, lowering, promotion, and official benchmark
+gates. The workflow adds no finalization-specific state or artifact family. The final
+candidate contains one fixed configuration and no runtime/online autotune,
+first-use search, or cache-dependent configuration selection.

@@ -667,11 +667,14 @@ class RoleContractTests(unittest.TestCase):
         targets = PROMPTS / "coder_targets"
         for name in (
             "triton_hip.md",
-            "triton_ascend.md",
             "tilelang.md",
         ):
             with self.subTest(name=name):
                 self.assertFalse((targets / name).exists())
+
+        ascend = (targets / "triton_ascend.md").read_text(encoding="utf-8")
+        self.assertIn("Migration status", ascend)
+        self.assertIn("no vNext canonical implementation profile", ascend)
 
         profile = (targets / "triton_mlu.md").read_text(encoding="utf-8")
         self.assertNotRegex(profile.lower(), r"tl\.make_block_ptr.*register tile")
@@ -1075,10 +1078,11 @@ class CrossFileContractTests(unittest.TestCase):
 
         for name in (
             "triton_hip.md",
-            "triton_ascend.md",
             "tilelang.md",
         ):
             self.assertFalse((PROMPTS / "coder_targets" / name).exists())
+        ascend = (PROMPTS / "coder_targets" / "triton_ascend.md").read_text(encoding="utf-8")
+        self.assertIn("Migration status", ascend)
 
     def test_markdown_fences_close_and_validator_is_executable(self):
         for path in SKILL_ROOT.rglob("*.md"):
@@ -1135,6 +1139,18 @@ class VNextContractTests(unittest.TestCase):
         self.assertIn("artifact_kind: submission-finalization", normalize(read_reference("report-template.md")))
         self.assertIn("last_accepted_round", skill)
         self.assertNotIn("final-tuning.json", team_state)
+
+    def test_profile_registry_and_human_docs_agree(self):
+        canonical = SKILL_ROOT / "profiles" / "triton_mlu" / "profile.yaml"
+        self.assertTrue(canonical.is_file())
+        mlu_doc = (PROMPTS / "coder_targets" / "triton_mlu.md").read_text(encoding="utf-8")
+        self.assertIn("profiles/triton_mlu/profile.yaml", mlu_doc)
+        self.assertIn("triton_cuda", (REPO_ROOT / "README.md").read_text(encoding="utf-8"))
+        registry = (REPO_ROOT / "docs" / "backend-registry.md").read_text(encoding="utf-8")
+        self.assertIn("triton_maca", registry)
+        self.assertIn("target id", registry.lower())
+        self.assertNotIn("skills/backend-probe", (REPO_ROOT / "README.md").read_text(encoding="utf-8"))
+        self.assertIn("implementation profile", (REPO_ROOT / "docs" / "competition" / "track2-clike.md").read_text(encoding="utf-8").lower())
 
     def test_attribution_effects_are_explicit_in_the_evaluator(self):
         policy = (SCRIPTS / "evaluate_run_policy.py").read_text(encoding="utf-8")
