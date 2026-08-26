@@ -9,6 +9,7 @@ sys.path.insert(0, str(SKILL_ROOT / "scripts"))
 
 from vnext_common import (
     ContractValidationError,
+    compute_submission_snapshot_id,
     create_exclusive_directory,
     load_json_document,
     load_json_yaml_document,
@@ -76,6 +77,24 @@ class VNextCommonTests(unittest.TestCase):
             path = Path(directory) / "blob.bin"
             path.write_bytes(b"kernel bytes")
             self.assertEqual(hashlib_sha256(b"kernel bytes"), sha256_file(path))
+
+    def test_submission_snapshot_id_requires_exactly_the_nine_anchors(self):
+        anchors = {
+            "candidate_sha256": "0" * 64,
+            "binding_sha256": "1" * 64,
+            "sketch_sha256": "2" * 64,
+            "profile_sha256": "3" * 64,
+            "claim_sha256": "4" * 64,
+            "runtime_snapshot_sha256": "5" * 64,
+            "measurement_fingerprint_sha256": "6" * 64,
+            "harness_sha256": "7" * 64,
+            "base_sha256": "8" * 64,
+        }
+        self.assertEqual(sha256_canonical_json(anchors), compute_submission_snapshot_id(anchors))
+        with self.assertRaisesRegex(ContractValidationError, "exactly"):
+            compute_submission_snapshot_id({"candidate_sha256": "0" * 64})
+        with self.assertRaisesRegex(ContractValidationError, "exactly"):
+            compute_submission_snapshot_id({**anchors, "decision_sha256": "9" * 64})
 
     def test_atomic_write_survives_directory_creation(self):
         with tempfile.TemporaryDirectory() as directory:

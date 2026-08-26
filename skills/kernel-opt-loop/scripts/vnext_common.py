@@ -14,6 +14,7 @@ import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
+import re
 from typing import Any
 
 
@@ -75,6 +76,36 @@ def require_relative_artifact(root: Path, reference: str) -> Path:
     if root not in (candidate, *candidate.parents) or not candidate.is_file():
         raise ContractValidationError("artifact-reference-invalid", "relative artifact reference must name an existing file")
     return candidate
+
+
+SUBMISSION_SNAPSHOT_ANCHORS = (
+    "candidate_sha256",
+    "binding_sha256",
+    "sketch_sha256",
+    "profile_sha256",
+    "claim_sha256",
+    "runtime_snapshot_sha256",
+    "measurement_fingerprint_sha256",
+    "harness_sha256",
+    "base_sha256",
+)
+
+
+def compute_submission_snapshot_id(anchors: Mapping[str, str]) -> str:
+    """Canonical submission identity over exactly the nine immutable anchors."""
+    if not isinstance(anchors, Mapping):
+        raise ContractValidationError("submission-snapshot-anchors", "submission snapshot anchors must be a mapping")
+    extra = set(anchors) - set(SUBMISSION_SNAPSHOT_ANCHORS)
+    missing = set(SUBMISSION_SNAPSHOT_ANCHORS) - set(anchors)
+    if extra or missing:
+        raise ContractValidationError(
+            "submission-snapshot-anchors",
+            f"submission snapshot requires exactly {sorted(SUBMISSION_SNAPSHOT_ANCHORS)}; missing {sorted(missing)}, extra {sorted(extra)}",
+        )
+    for key, value in anchors.items():
+        if not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{64}", value):
+            raise ContractValidationError("submission-snapshot-anchors", f"anchor {key} must be a SHA-256 hex digest")
+    return sha256_canonical_json(anchors)
 
 
 def validate_source_span(source: str, span: Mapping[str, Any]) -> None:

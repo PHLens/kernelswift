@@ -11,6 +11,17 @@ import re
 import sys
 from typing import Any, Sequence
 
+from vnext_common import (
+    ContractValidationError,
+    compute_submission_snapshot_id,
+    load_json_document,
+    require_relative_artifact,
+    sha256_canonical_json,
+    sha256_file,
+)
+from validate_sketch import SketchValidationError, validate_sketch
+from validate_profile import ProfileValidationError, load_profile, validate_configuration_domain
+
 
 REQUIRED_SECTIONS = (
     "Metadata",
@@ -578,8 +589,21 @@ def _validate_title(text: str, round_number: str) -> None:
         )
 
 
-def validate_decision(path: Path, expected_profile: str | None = None) -> dict[str, object]:
-    """Validate *path* and return its normalized machine-readable contract."""
+def validate_decision(
+    path: Path,
+    expected_profile: str | None = None,
+    *,
+    project_root: Path | None = None,
+    expected_implementation_profile: str | None = None,
+) -> dict[str, object]:
+    """Validate *path* and return its normalized machine-readable contract.
+
+    Schema-v1 keeps the legacy D/O/C/H parser and ``expected_profile``.
+    Schema-v2 requires ``expected_implementation_profile`` (and optional
+    ``project_root``) and validates the typed Sketch, frozen implementation
+    profile snapshot, project capability claim, causal graph, fallback
+    provenance, and finite final-tuning contract.
+    """
 
     path = Path(path)
     try:
@@ -595,16 +619,50 @@ def validate_decision(path: Path, expected_profile: str | None = None) -> dict[s
                 f"missing required H2 section {heading!r}",
                 1,
             )
-    unknown_sections = [heading for heading in sections if heading not in REQUIRED_SECTIONS]
-    if unknown_sections:
-        first = sections[unknown_sections[0]]
-        raise DecisionValidationError(
-            "section-unknown",
-            f"unknown H2 section {first.heading!r}",
-            first.line,
-        )
 
     metadata = parse_single_json_block(sections["Metadata"])
+    schema_version = metadata.get("schema_version")
+    if schema_version == 1:
+        if expected_implementation_profile is not None:
+            raise DecisionValidationError(
+                "implementation-profile-v1-invalid",
+                "schema-v1 uses expected_profile",
+                sections["Metadata"].line,
+            )
+        unknown_sections = [heading for heading in sections if heading not in REQUIRED_SECTIONS]
+        if unknown_sections:
+            first = sections[unknown_sections[0]]
+            raise DecisionValidationError(
+                "section-unknown",
+                f"unknown H2 section {first.heading!r}",
+                first.line,
+            )
+        return _validate_v1_decision(text, sections, metadata, expected_profile)
+    if schema_version == 2:
+        if expected_profile is not None or expected_implementation_profile is None:
+            raise DecisionValidationError(
+                "implementation-profile-v2-required",
+                "schema-v2 requires expected_implementation_profile only",
+                sections["Metadata"].line,
+            )
+        root = _resolve_project_root(path, project_root)
+        _validate_v2_section_set(sections, metadata)
+        _validate_metadata_v2(metadata, sections["Metadata"], path)
+        _validate_title_v2(text, metadata)
+        return _validate_vnext_decision(path, root, sections, metadata, expected_implementation_profile)
+    raise DecisionValidationError(
+        "metadata-schema-version",
+        "schema_version must be 1 or 2",
+        sections["Metadata"].line,
+    )
+
+
+def _validate_v1_decision(
+    text: str,
+    sections: dict[str, Section],
+    metadata: dict[str, Any],
+    expected_profile: str | None,
+) -> dict[str, object]:
     _validate_metadata(metadata, sections["Metadata"], expected_profile)
     _validate_title(text, metadata["round"])
 
@@ -683,14 +741,482 @@ def validate_decision(path: Path, expected_profile: str | None = None) -> dict[s
     }
 
 
+def _resolve_project_root(decision: Path, project_root: Path | None) -> Path:
+    if project_root is not None:
+        root = Path(project_root).resolve()
+    else:
+        root = decision.resolve().parents[1]
+    if not root.is_dir():
+        raise DecisionValidationError("project-root-invalid", f"project root {root} is not a directory", 1)
+    return root
+
+
+def _require_v2_artifact(root: Path, reference: str, section: Section) -> Path:
+    try:
+        return require_relative_artifact(root, reference)
+    except ContractValidationError as error:
+        raise DecisionValidationError("artifact-missing", error.message, section.line) from error
+
+
+def _validate_v2_section_set(sections: dict[str, Section], metadata: dict[str, Any]) -> None:
+    decision_kind = metadata.get("decision_kind")
+    for heading in sections:
+        if heading in REQUIRED_SECTIONS:
+            continue
+        if heading == "Final Configuration Tuning" and decision_kind == "final-autotune":
+            continue
+        section = sections[heading]
+        raise DecisionValidationError("section-unknown", f"unknown H2 section {heading!r}", section.line)
+    if decision_kind == "final-autotune" and "Final Configuration Tuning" not in sections:
+        raise DecisionValidationError(
+            "final-tuning-section-required",
+            "a final-autotune decision requires the Final Configuration Tuning section",
+            1,
+        )
+    if decision_kind == "optimization" and "Final Configuration Tuning" in sections:
+        raise DecisionValidationError(
+            "final-tuning-section-invalid",
+            "an optimization decision must not contain the Final Configuration Tuning section",
+            sections["Final Configuration Tuning"].line,
+        )
+
+
+def _validate_metadata_v2(metadata: dict[str, Any], section: Section, path: Path) -> None:
+    if metadata.get("decision") != "proceed":
+        raise DecisionValidationError("decision-enum-invalid", "schema-v2 requires decision proceed", section.line)
+    decision_kind = metadata.get("decision_kind")
+    if decision_kind not in {"optimization", "final-autotune"}:
+        raise DecisionValidationError("decision-kind-invalid", "decision_kind must be optimization or final-autotune", section.line)
+    if decision_kind == "optimization":
+        if "artifact_index" in metadata:
+            raise DecisionValidationError("artifact-index-invalid", "optimization decisions use round, not artifact_index", section.line)
+        if not isinstance(metadata.get("round"), str) or not re.fullmatch(r"[0-9]{3}", metadata["round"]):
+            raise DecisionValidationError("round-format-invalid", "round must contain exactly three decimal digits", section.line)
+    else:
+        if "round" in metadata:
+            raise DecisionValidationError("round-invalid", "final-autotune decisions must not carry a campaign round", section.line)
+        artifact_index = metadata.get("artifact_index")
+        if not isinstance(artifact_index, str) or not re.fullmatch(r"[0-9]{3}", artifact_index):
+            raise DecisionValidationError("artifact-index-invalid", "artifact_index must contain exactly three decimal digits", section.line)
+        expected_name = f"decision_{artifact_index}.md"
+        if path.name != expected_name:
+            raise DecisionValidationError("artifact-index-invalid", f"artifact_index must match the filename {expected_name!r}", section.line)
+
+    for field in ("reference_implementation", "reference_report", "language", "backend", "runtime_fingerprint_ref"):
+        if not isinstance(metadata.get(field), str) or not metadata[field].strip():
+            raise DecisionValidationError("metadata-field-required", f"missing required field {field!r}", section.line)
+    if metadata["change_scope"] not in {"kernel", "host", "mixed", "none"}:
+        raise DecisionValidationError("change-scope-enum-invalid", "change_scope must be kernel, host, mixed, or none", section.line)
+    if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", metadata.get("change_family", "")):
+        raise DecisionValidationError("metadata-change-family-invalid", "change_family must be a lowercase hyphen-separated slug", section.line)
+    for field in ("sketch_ref", "implementation_profile_snapshot_ref", "project_capability_claim_ref"):
+        if not isinstance(metadata.get(field), str) or not metadata[field]:
+            raise DecisionValidationError("metadata-reference-invalid", f"field {field!r} must be a relative artifact reference", section.line)
+    for field in ("sketch_sha256", "implementation_profile_snapshot_sha256", "project_capability_claim_sha256"):
+        value = metadata.get(field)
+        if not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{64}", value):
+            raise DecisionValidationError("metadata-hash-invalid", f"field {field!r} must be a SHA-256 hex digest", section.line)
+
+
+def _validate_title_v2(text: str, metadata: dict[str, Any]) -> None:
+    identifier = metadata.get("artifact_index") if metadata.get("decision_kind") == "final-autotune" else metadata.get("round")
+    lines = text.splitlines()
+    first_nonblank = next(((index, line) for index, line in enumerate(lines) if line.strip()), None)
+    if first_nonblank is None or first_nonblank[1].strip() != f"# Decision {identifier}":
+        line = first_nonblank[0] + 1 if first_nonblank else 1
+        raise DecisionValidationError(
+            "decision-title-invalid",
+            f"document must begin with # Decision {identifier}",
+            line,
+        )
+
+
+def _validate_vnext_decision(
+    path: Path,
+    root: Path,
+    sections: dict[str, Section],
+    metadata: dict[str, Any],
+    expected_implementation_profile: str,
+) -> dict[str, object]:
+    sketch_result = _validate_v2_sketch(sections, metadata, root)
+    profile = _validate_v2_profile_snapshot(sections, metadata, root, expected_implementation_profile)
+    claim = _validate_v2_claim(sections, metadata, root, expected_implementation_profile)
+
+    intent = parse_single_json_block(sections["Optimization Intent"])
+    host_plan = parse_single_json_block(sections["Host Plan"])
+    evaluation = parse_single_json_block(sections["Evaluation Contract"])
+
+    fallback_provenance: dict[str, Any] | None = None
+    final_tuning_contract: dict[str, Any] | None = None
+    if metadata["decision_kind"] == "optimization":
+        _validate_intent(intent, sections["Optimization Intent"], aborted=False)
+        _validate_v2_host_plan(host_plan, sections["Host Plan"], metadata["change_scope"])
+        causal_graph = _validate_v2_evaluation(evaluation, sections["Evaluation Contract"])
+        _validate_causal_connectivity(causal_graph, sketch_result, sections["Evaluation Contract"])
+        fallback_provenance = _validate_fallback_provenance(intent, claim, sections["Optimization Intent"])
+    else:
+        final_tuning_contract = _validate_final_tuning_contract(
+            sections, metadata, root, profile, sketch_result, claim
+        )
+
+    for heading in ("Pitfalls and Anti-pattern Consultation", "Rationale and Evidence"):
+        if not sections[heading].body.strip():
+            raise DecisionValidationError(
+                "section-content-required",
+                f"{heading} must not be empty",
+                sections[heading].line,
+            )
+
+    result: dict[str, object] = {
+        "valid": True,
+        "metadata": metadata,
+        "optimization_intent": intent,
+        "sketch": sketch_result,
+        "sketch_ref": metadata["sketch_ref"],
+        "sketch_sha256": metadata["sketch_sha256"],
+        "implementation_profile_snapshot_ref": metadata["implementation_profile_snapshot_ref"],
+        "implementation_profile_snapshot_sha256": metadata["implementation_profile_snapshot_sha256"],
+        "project_capability_claim_ref": metadata["project_capability_claim_ref"],
+        "project_capability_claim_sha256": metadata["project_capability_claim_sha256"],
+        "decision_kind": metadata["decision_kind"],
+        "host_plan": host_plan,
+        "evaluation_contract": evaluation,
+        "fallback_provenance": fallback_provenance,
+        "final_tuning_contract": final_tuning_contract,
+        "causal_graph": evaluation.get("causal_graph"),
+    }
+    return result
+
+
+def _validate_v2_sketch(
+    sections: dict[str, Section],
+    metadata: dict[str, Any],
+    root: Path,
+) -> dict[str, Any]:
+    section = sections["Unified Sketch"]
+    contract = parse_single_json_block(section)
+    if contract.get("artifact") != metadata["sketch_ref"] or contract.get("sha256") != metadata["sketch_sha256"]:
+        raise DecisionValidationError(
+            "sketch-contract-mismatch",
+            "Unified Sketch artifact/sha256 must match Metadata",
+            section.line,
+        )
+    sketch_path = _require_v2_artifact(root, metadata["sketch_ref"], section)
+    if sha256_file(sketch_path) != metadata["sketch_sha256"]:
+        raise DecisionValidationError("sketch-hash-mismatch", "referenced sketch hash does not match", section.line)
+    expected_round = metadata.get("round") if metadata.get("decision_kind") == "optimization" else None
+    try:
+        return validate_sketch(sketch_path, expected_round=expected_round)
+    except SketchValidationError as error:
+        raise DecisionValidationError("sketch-invalid", f"typed sketch is invalid: {error.message}", section.line) from error
+
+
+def _validate_v2_profile_snapshot(
+    sections: dict[str, Section],
+    metadata: dict[str, Any],
+    root: Path,
+    expected_implementation_profile: str,
+) -> dict[str, Any]:
+    section = sections["Metadata"]
+    snapshot_path = _require_v2_artifact(root, metadata["implementation_profile_snapshot_ref"], section)
+    if sha256_file(snapshot_path) != metadata["implementation_profile_snapshot_sha256"]:
+        raise DecisionValidationError("profile-snapshot-hash-mismatch", "implementation profile snapshot hash does not match", section.line)
+    try:
+        profile = load_profile(snapshot_path)
+    except ProfileValidationError as error:
+        raise DecisionValidationError("profile-snapshot-invalid", f"implementation profile snapshot is invalid: {error.message}", section.line) from error
+    if profile["implementation_profile_id"] != expected_implementation_profile:
+        raise DecisionValidationError(
+            "implementation-profile-mismatch",
+            f"snapshot profile {profile['implementation_profile_id']!r} does not match expected {expected_implementation_profile!r}",
+            section.line,
+        )
+    return profile
+
+
+def _validate_v2_claim(
+    sections: dict[str, Section],
+    metadata: dict[str, Any],
+    root: Path,
+    expected_implementation_profile: str,
+) -> dict[str, Any]:
+    section = sections["Metadata"]
+    claim_path = _require_v2_artifact(root, metadata["project_capability_claim_ref"], section)
+    if sha256_file(claim_path) != metadata["project_capability_claim_sha256"]:
+        raise DecisionValidationError("claim-hash-mismatch", "project capability claim hash does not match", section.line)
+    claim = load_json_document(claim_path, artifact="project capability claim")
+    if claim.get("implementation_profile_id") != expected_implementation_profile:
+        raise DecisionValidationError("claim-profile-mismatch", "project capability claim profile does not match", section.line)
+    _require_runtime_fingerprint_anchor(root, section)
+    return claim
+
+
+def _require_runtime_fingerprint_anchor(root: Path, section: Section) -> None:
+    project_md = root / "project.md"
+    if not project_md.is_file():
+        raise DecisionValidationError("runtime-fingerprint-anchor", "project.md must exist", section.line)
+    heading_pattern = re.compile(r"^##[ \t]+(.+?)[ \t]*$")
+    headings = []
+    for line in project_md.read_text(encoding="utf-8").splitlines():
+        match = heading_pattern.match(line)
+        if match:
+            headings.append(match.group(1).lower().replace("-", " ").strip())
+    if "runtime fingerprint" not in headings:
+        raise DecisionValidationError("runtime-fingerprint-anchor", "project.md must contain a ## Runtime Fingerprint heading", section.line)
+
+
+def _validate_v2_host_plan(host_plan: dict[str, Any], section: Section, change_scope: str) -> None:
+    if change_scope in {"host", "mixed"}:
+        _validate_required_host_plan(host_plan, section)
+    else:
+        if host_plan.get("applicability") != "not-applicable":
+            raise DecisionValidationError(
+                "kernel-host-plan-invalid",
+                "a kernel-only decision requires a not-applicable Host Plan",
+                section.line,
+            )
+        _require_nonempty_string(host_plan.get("reason"), "reason", "host-plan", section.line)
+
+
+def _validate_v2_evaluation(evaluation: dict[str, Any], section: Section) -> dict[str, Any]:
+    causal_graph = evaluation.get("causal_graph")
+    if not isinstance(causal_graph, dict):
+        raise DecisionValidationError("causal-graph-required", "Evaluation Contract requires a causal_graph object", section.line)
+    nodes = causal_graph.get("nodes")
+    edges = causal_graph.get("edges")
+    if not isinstance(nodes, list) or not nodes or any(not isinstance(node, str) or not node for node in nodes):
+        raise DecisionValidationError("causal-graph-invalid", "causal_graph.nodes must be a nonempty string list", section.line)
+    if len(set(nodes)) != len(nodes):
+        raise DecisionValidationError("causal-graph-invalid", "causal_graph.nodes must be unique", section.line)
+    if not isinstance(edges, list):
+        raise DecisionValidationError("causal-graph-invalid", "causal_graph.edges must be a list", section.line)
+    node_set = set(nodes)
+    for edge in edges:
+        if not isinstance(edge, list) or len(edge) != 2 or edge[0] not in node_set or edge[1] not in node_set:
+            raise DecisionValidationError("causal-graph-invalid", "each causal edge must name two existing nodes", section.line)
+    return causal_graph
+
+
+def _validate_causal_connectivity(
+    causal_graph: dict[str, Any],
+    sketch_result: dict[str, Any],
+    section: Section,
+) -> None:
+    graph_nodes = set(causal_graph.get("nodes") or [])
+    sketch_nodes = set(sketch_result.get("causal_node_ids") or [])
+    if sketch_nodes and not sketch_nodes.issubset(graph_nodes):
+        missing = sorted(sketch_nodes - graph_nodes)
+        raise DecisionValidationError(
+            "causal-graph-invalid",
+            f"Sketch causal nodes {missing} are not connected to the Evaluation Contract graph",
+            section.line,
+        )
+
+
+def _validate_fallback_provenance(
+    intent: dict[str, Any],
+    claim: dict[str, Any],
+    section: Section,
+) -> dict[str, Any] | None:
+    provenance = intent.get("fallback_provenance")
+    uses_substitution = intent.get("uses_algorithm_substitution") is True
+    if uses_substitution and provenance is None:
+        raise DecisionValidationError(
+            "fallback-provenance-required",
+            "an algorithm substitution requires explicit fallback provenance",
+            section.line,
+        )
+    if provenance is None:
+        return None
+    if not isinstance(provenance, dict):
+        raise DecisionValidationError("fallback-provenance-invalid", "fallback_provenance must be an object", section.line)
+    for field in ("fallback_from", "fallback_kind", "probe_policy"):
+        if not isinstance(provenance.get(field), str) or not provenance[field].strip():
+            raise DecisionValidationError("fallback-provenance-invalid", f"fallback_provenance requires nonempty {field}", section.line)
+    if provenance["fallback_kind"] != "algorithm-substitution":
+        raise DecisionValidationError("fallback-provenance-invalid", "fallback_kind must be algorithm-substitution", section.line)
+    if provenance["probe_policy"] not in {"optional", "before-fallback", "must-resolve"}:
+        raise DecisionValidationError("fallback-provenance-invalid", "probe_policy must be optional|before-fallback|must-resolve", section.line)
+    for field in ("primary_signature", "fallback_signature"):
+        if not isinstance(provenance.get(field), dict):
+            raise DecisionValidationError("fallback-provenance-invalid", f"fallback_provenance requires {field} object", section.line)
+    disposition_id = provenance.get("qualification_disposition_id")
+    disposition_sha = provenance.get("qualification_disposition_sha256")
+    if not isinstance(disposition_id, str) or not disposition_id:
+        raise DecisionValidationError("fallback-provenance-invalid", "fallback_provenance requires qualification_disposition_id", section.line)
+    if not isinstance(disposition_sha, str) or not re.fullmatch(r"[0-9a-f]{64}", disposition_sha):
+        raise DecisionValidationError("fallback-provenance-invalid", "fallback_provenance requires qualification_disposition_sha256", section.line)
+    if provenance.get("primary_remains_unknown") is not True:
+        raise DecisionValidationError("fallback-provenance-invalid", "fallback provenance requires primary_remains_unknown true", section.line)
+    dispositions = {item.get("disposition_id"): item for item in claim.get("qualification_dispositions") or []}
+    disposition = dispositions.get(disposition_id)
+    if disposition is None:
+        raise DecisionValidationError("fallback-disposition-missing", f"disposition {disposition_id!r} is not embedded in the project claim", section.line)
+    if sha256_canonical_json(disposition) != disposition_sha:
+        raise DecisionValidationError("fallback-disposition-hash", "qualification_disposition_sha256 does not match the embedded disposition", section.line)
+    if disposition.get("fallback_authorized") is not True or disposition.get("primary_remains_unknown") is not True:
+        raise DecisionValidationError("fallback-disposition-unresolved", "the embedded disposition must be authorized with the primary remaining unknown", section.line)
+    return {**provenance, "qualification_disposition_id": disposition_id}
+
+
+def _validate_final_tuning_contract(
+    sections: dict[str, Section],
+    metadata: dict[str, Any],
+    root: Path,
+    profile: dict[str, Any],
+    sketch_result: dict[str, Any],
+    claim: dict[str, Any],
+) -> dict[str, Any]:
+    section = sections["Final Configuration Tuning"]
+    tuning = parse_single_json_block(section)
+    submission_snapshot_id = tuning.get("submission_snapshot_id")
+    if not isinstance(submission_snapshot_id, str) or not re.fullmatch(r"[0-9a-f]{64}", submission_snapshot_id):
+        raise DecisionValidationError("final-tuning-snapshot-id", "final tuning requires submission_snapshot_id", section.line)
+
+    anchors = tuning.get("anchors")
+    if not isinstance(anchors, dict):
+        raise DecisionValidationError("final-tuning-anchors", "final tuning requires an anchors object", section.line)
+    anchor_keys = {
+        "accepted_candidate": "candidate_sha256",
+        "accepted_binding": "binding_sha256",
+        "sketch": "sketch_sha256",
+        "profile": "profile_sha256",
+        "claim": "claim_sha256",
+        "runtime_snapshot": "runtime_snapshot_sha256",
+        "measurement_fingerprint": "measurement_fingerprint_sha256",
+        "harness": "harness_sha256",
+        "base": "base_sha256",
+    }
+    if set(anchors) != set(anchor_keys):
+        raise DecisionValidationError("final-tuning-anchors", "anchors must name exactly the nine immutable inputs", section.line)
+    hashes: dict[str, str] = {}
+    for key, canonical_key in anchor_keys.items():
+        entry = anchors[key]
+        if not isinstance(entry, dict) or not isinstance(entry.get("sha256"), str) or not re.fullmatch(r"[0-9a-f]{64}", entry["sha256"]):
+            raise DecisionValidationError("final-tuning-anchors", f"anchor {key} requires a SHA-256 hash", section.line)
+        hashes[canonical_key] = entry["sha256"]
+        if key in {"measurement_fingerprint"}:
+            continue
+        reference = entry.get("ref")
+        if not isinstance(reference, str) or not reference:
+            raise DecisionValidationError("final-tuning-anchors", f"anchor {key} requires a relative ref", section.line)
+        artifact = _require_v2_artifact(root, reference, section)
+        if sha256_file(artifact) != entry["sha256"]:
+            raise DecisionValidationError("final-tuning-anchor-hash", f"anchor {key} hash does not match its referenced file", section.line)
+
+    if tuning["anchors"]["sketch"]["sha256"] != metadata["sketch_sha256"]:
+        raise DecisionValidationError("final-tuning-anchors", "final tuning must reuse the accepted Sketch", section.line)
+    computed = compute_submission_snapshot_id(hashes)
+    if computed != submission_snapshot_id:
+        raise DecisionValidationError("final-tuning-snapshot-id", "submission_snapshot_id does not match the immutable anchors", section.line)
+
+    configurations = tuning.get("configurations")
+    if not isinstance(configurations, list) or not configurations:
+        raise DecisionValidationError("final-tuning-domain", "final tuning requires a finite nonempty configurations list", section.line)
+    seen_configs: set[str] = set()
+    field_names: list[str] = []
+    for configuration in configurations:
+        if not isinstance(configuration, dict) or not configuration:
+            raise DecisionValidationError("final-tuning-domain", "each configuration must be a nonempty object", section.line)
+        key = json.dumps(configuration, sort_keys=True)
+        if key in seen_configs:
+            raise DecisionValidationError("final-tuning-duplicate", "duplicate configuration in the domain", section.line)
+        seen_configs.add(key)
+        for name in configuration:
+            if name not in field_names:
+                field_names.append(name)
+
+    tunable = set(sketch_result.get("preferred_hints") or []) | set(sketch_result.get("exploratory_hints") or [])
+    for name in field_names:
+        if name not in tunable:
+            raise DecisionValidationError(
+                "final-tuning-semantic-field",
+                f"tuning field {name!r} is not a preferred|exploratory configuration-only Sketch hint",
+                section.line,
+            )
+
+    fallback_configuration = tuning.get("fallback_configuration")
+    if not isinstance(fallback_configuration, dict):
+        raise DecisionValidationError("final-tuning-domain", "final tuning requires the accepted fallback_configuration", section.line)
+    if json.dumps(fallback_configuration, sort_keys=True) not in seen_configs:
+        raise DecisionValidationError("final-tuning-domain", "the accepted fallback/control configuration must be in the domain", section.line)
+
+    declared_field_set = set(field_names)
+    for configuration in configurations:
+        if set(configuration) != declared_field_set:
+            raise DecisionValidationError(
+                "final-tuning-domain",
+                "all configurations must share exactly the declared tuning field set",
+                section.line,
+            )
+
+    fields = [
+        {
+            "name": name,
+            "values": list(dict.fromkeys(configuration[name] for configuration in configurations if name in configuration)),
+        }
+        for name in field_names
+    ]
+    configuration_scope = tuning.get("configuration_scope")
+    if not isinstance(configuration_scope, dict):
+        raise DecisionValidationError("final-tuning-domain", "final tuning requires a configuration_scope object", section.line)
+    try:
+        domain = validate_configuration_domain(profile, fields, configuration_scope)
+    except ProfileValidationError as error:
+        raise DecisionValidationError("final-tuning-profile-domain", f"profile legality rejects the tuning domain: {error.message}", section.line) from error
+    domain_keys = {json.dumps(entry, sort_keys=True) for entry in domain}
+    for configuration in configurations:
+        if json.dumps(configuration, sort_keys=True) not in domain_keys:
+            raise DecisionValidationError(
+                "final-tuning-profile-domain",
+                "a declared configuration is not covered by reviewed exact-scope profile legality",
+                section.line,
+            )
+
+    for field in ("max_trials", "max_wall_seconds", "warmup", "repeat", "comparison_metric", "tie_rule"):
+        if field not in tuning:
+            raise DecisionValidationError("final-tuning-contract", f"final tuning requires {field}", section.line)
+    if isinstance(tuning["max_trials"], bool) or not isinstance(tuning["max_trials"], int) or tuning["max_trials"] < 1:
+        raise DecisionValidationError("final-tuning-contract", "max_trials must be a positive integer", section.line)
+    if isinstance(tuning["max_wall_seconds"], bool) or not isinstance(tuning["max_wall_seconds"], (int, float)) or tuning["max_wall_seconds"] <= 0:
+        raise DecisionValidationError("final-tuning-contract", "max_wall_seconds must be positive", section.line)
+    for field in ("warmup", "repeat"):
+        if isinstance(tuning[field], bool) or not isinstance(tuning[field], int) or tuning[field] < 0:
+            raise DecisionValidationError("final-tuning-contract", f"{field} must be a non-negative integer", section.line)
+    if tuning.get("pin_selected_config") is not True:
+        raise DecisionValidationError("final-tuning-contract", "pin_selected_config must be true", section.line)
+    return {
+        "submission_snapshot_id": submission_snapshot_id,
+        "anchors": anchors,
+        "configurations": configurations,
+        "fallback_configuration": fallback_configuration,
+        "configuration_scope": configuration_scope,
+        "max_trials": tuning["max_trials"],
+        "max_wall_seconds": tuning["max_wall_seconds"],
+        "warmup": tuning["warmup"],
+        "repeat": tuning["repeat"],
+        "mutation_reset": tuning.get("mutation_reset"),
+        "comparison_metric": tuning["comparison_metric"],
+        "tie_rule": tuning["tie_rule"],
+        "pin_selected_config": True,
+    }
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("decision", type=Path, help="decision Markdown artifact")
-    parser.add_argument("--expected-profile", help="required Metadata target_profile")
+    parser.add_argument("--expected-profile", help="required Metadata target_profile (schema-v1)")
+    parser.add_argument("--expected-implementation-profile", help="required snapshot implementation profile (schema-v2)")
+    parser.add_argument("--project-root", type=Path, help="project root for schema-v2 artifact resolution")
     args = parser.parse_args(argv)
 
     try:
-        normalized = validate_decision(args.decision, args.expected_profile)
+        normalized = validate_decision(
+            args.decision,
+            args.expected_profile,
+            project_root=args.project_root,
+            expected_implementation_profile=args.expected_implementation_profile,
+        )
     except DecisionValidationError as error:
         print(
             f"{args.decision}:{error.line}: {error.code}: {error.message}",

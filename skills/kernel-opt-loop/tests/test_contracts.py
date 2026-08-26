@@ -24,8 +24,11 @@ class DurableContractTests(unittest.TestCase):
         template = read_reference("team-state-template.md")
 
         initial_frontmatter = """---
-schema_version: 1
-skill_version: 2.0.0
+schema_version: 2
+skill_version: 3.0.0
+contract_version: 3
+semantic_contract: typed-sketch-v1
+attribution_contract: verdict-v1
 runtime: unset
 phase: initializing
 workflow_status: running
@@ -37,6 +40,10 @@ last_accepted_round: null
 last_accepted_kernel: null
 last_accepted_report: null
 last_completed_decision: null
+last_completed_sketch: null
+last_completed_binding: null
+last_completed_verdict: null
+last_attribution: null
 last_completed_coder_result: null
 last_completed_report: null
 last_result: null
@@ -59,6 +66,10 @@ measurement_exclusive: false
 implementation_language: triton
 implementation_backend: unset
 target_profile: unset
+implementation_profile_snapshot_ref: null
+implementation_profile_snapshot_sha256: null
+project_capability_claim_ref: null
+project_capability_claim_sha256: null
 runtime_fingerprint_ref: project.md#runtime-fingerprint
 blocked_incident: null
 stop_reason: null
@@ -79,6 +90,11 @@ resume_constraints: []
             "target_profile",
             "runtime_fingerprint_ref",
             "blocked_incident",
+            "contract_version",
+            "semantic_contract",
+            "attribution_contract",
+            "implementation_profile_snapshot_ref",
+            "project_capability_claim_ref",
         ):
             with self.subTest(field=field):
                 self.assertIn(field, template)
@@ -213,6 +229,29 @@ resume_constraints: []
 
         self.assertNotIn("target_dsl_candidates", combined_templates)
         self.assertNotIn("capability_miss_log", combined_templates)
+
+    def test_context_naming_uses_only_context_files_and_no_state_aliases(self):
+        skill_text = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in (
+                *REFERENCES.glob("*.md"),
+                *PROMPTS.glob("*.md"),
+                SKILL_ROOT / "SKILL.md",
+            )
+        )
+        for alias in (
+            "designer_state.md",
+            "coder_state.md",
+            "verifier_state.md",
+        ):
+            with self.subTest(alias=alias):
+                self.assertNotIn(alias, skill_text)
+        for canonical in (
+            "state/designer_context.md",
+            "state/coder_context.md",
+            "state/verifier_context.md",
+        ):
+            self.assertIn(canonical, skill_text)
 
     def test_invariants_cover_ownership_and_attribution(self):
         invariants = read_reference("invariants.md")
