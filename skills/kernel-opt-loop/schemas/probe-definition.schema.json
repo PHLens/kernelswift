@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "kernel-opt-loop versioned probe definition",
+  "description": "Declarative, hash-immutable profile-local probe definition. It names the implementation profile but never claims a successful result.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "probe_id",
+    "implementation_profile_id",
+    "family",
+    "purpose",
+    "capability_ids",
+    "scope_kind",
+    "scope_template",
+    "input_artifacts",
+    "runner",
+    "required_runtime_fields"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "probe_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+    "implementation_profile_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+    "family": {"type": "string"},
+    "purpose": {"type": "string"},
+    "capability_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "scope_kind": {"type": "string"},
+    "scope_template": {"type": "object", "additionalProperties": true},
+    "input_artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "run_path"],
+        "properties": {
+          "path": {"type": "string"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "run_path": {"type": "string", "pattern": "^[A-Za-z0-9._/-]+$"}
+        }
+      }
+    },
+    "runner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "argv", "cwd", "timeout_seconds"],
+      "properties": {
+        "kind": {"const": "command"},
+        "argv": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "cwd": {"type": "string"},
+        "timeout_seconds": {"type": "number", "minimum": 1}
+      }
+    },
+    "required_runtime_fields": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string"}
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "kernel-opt-loop normalized probe result",
+  "description": "Normalized per-probe observation with scope, command, and evidence hash chain. A result may be observed, inferred, or unknown; only a numerically checked observed success may support a recommendation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "probe_id",
+    "implementation_profile_id",
+    "target_id",
+    "profile_sha256",
+    "definition_sha256",
+    "runtime_fingerprint",
+    "argv",
+    "exit_code",
+    "timed_out",
+    "observed_scope",
+    "observations",
+    "evidence"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "probe_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+    "implementation_profile_id": {"type": "string"},
+    "target_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+    "profile_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "definition_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "runtime_fingerprint": {"type": "string"},
+    "argv": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "exit_code": {"type": "integer"},
+    "timed_out": {"type": "boolean"},
+    "observed_scope": {"type": "object", "additionalProperties": true},
+    "observations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["capability_id", "level", "numerically_checked"],
+        "properties": {
+          "capability_id": {"type": "string"},
+          "level": {"enum": ["observed", "inferred", "unknown"]},
+          "numerically_checked": {"type": "boolean"},
+          "detail": {"type": "string"}
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["relative_path", "byte_count", "sha256"],
+        "properties": {
+          "relative_path": {"type": "string"},
+          "byte_count": {"type": "integer", "minimum": 0},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    }
+  }
+}

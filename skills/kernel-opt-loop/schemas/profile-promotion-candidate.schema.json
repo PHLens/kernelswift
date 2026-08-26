@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "kernel-opt-loop profile promotion candidate",
+  "description": "Proposed capability/profile changes awaiting explicit review. Never applied automatically and never edits the canonical profile.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "review_status",
+    "implementation_profile_id",
+    "probe_id",
+    "probe_definition_sha256",
+    "result_sha256",
+    "run_id",
+    "recommendations",
+    "unresolved_gaps"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "review_status": {"const": "proposed"},
+    "implementation_profile_id": {"type": "string"},
+    "probe_id": {"type": "string"},
+    "probe_definition_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "result_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "run_id": {"type": "string"},
+    "onboarding_disposition": {"enum": ["promotion-pending"]},
+    "recommendations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "capability_id",
+          "current_status",
+          "recommended_status",
+          "source_scope",
+          "evidence_refs",
+          "rationale"
+        ],
+        "properties": {
+          "capability_id": {"type": "string"},
+          "current_status": {"enum": ["supported", "constrained", "unknown", "unsupported", "prohibited"]},
+          "recommended_status": {"enum": ["supported", "constrained", "unknown", "unsupported", "prohibited"]},
+          "source_scope": {"type": "object", "additionalProperties": true},
+          "evidence_refs": {"type": "array", "items": {"type": "string"}},
+          "rationale": {"type": "string"}
+        }
+      }
+    },
+    "unresolved_gaps": {"type": "array", "items": {"type": "string"}}
+  }
+}
