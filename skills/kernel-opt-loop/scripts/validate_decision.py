@@ -1186,6 +1186,7 @@ def _validate_final_tuning_contract(
     if tuning.get("pin_selected_config") is not True:
         raise DecisionValidationError("final-tuning-contract", "pin_selected_config must be true", section.line)
     return {
+        "artifact_index": metadata.get("artifact_index"),
         "submission_snapshot_id": submission_snapshot_id,
         "anchors": anchors,
         "configurations": configurations,
