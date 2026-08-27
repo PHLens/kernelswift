@@ -1,0 +1,56 @@
+# Round Status 005
+
+- phase: `verification-complete`
+- result: `no-improvement` (verifier output authority; last_accepted pointer should REMAIN r004; streak accounting owned by Orchestrator)
+- measurement_exclusive: `true until Orchestrator records durable completion of round 005`
+- ended_at_utc: `2026-08-27T17:12:00Z`
+- completed_commands:
+  - input hash verification against bootstrap/coder_result_005 declarations: PASS
+    - candidate `triton_grouped_topk_r2_005.py`: `cf68ed7713269416af5b49e901e040c7dcb97da9ec4f6eb4cc9bc5d70d288e9c` (24214 bytes)
+    - decision `rounds/decision_005.md`: `4a549653a939eafa2c36ade9b51e849633e702cdbd6d2f7463597f6257ed6021`
+    - sketch `rounds/sketch_005.json`: pinned by decision metadata `21d13b983a4bf1ac1e6913bbaff635dd2932006bf9df04cd888406edcd6c92de`
+    - accepted source `triton_grouped_topk_r2_004.py`: `c02d956c6bb5c27c229623b01b99b85f5962db79b5ead09df6fbca7a52e721eb` (unchanged)
+    - binding artifact `log/probes/binding_statement_report.json`: pinned `b28abf7200c1a904fb0bf56233e1b4ba2f4a1c315e1369ab8d43c9b624f0535e` (Coder-produced, consumed read-only)
+    - coder trip-census reference: `log/probes/boundary_trip_census.json` @`e289a5911011e33f32d8cd43631da6aceedf4315a469a1cdf1eb6be1d161e15c` (branch A claim, trips 3→2/call)
+    - harness `auto_bench.py` / base `../base.py` unchanged (`71fb3ad0…` / `12f33248…`)
+  - candidate source read-through vs Decision-005 allowed_changes/invariants: structural pass
+    - construction-time strategy bind inside builder with mixed int64→int32 parity exercise + real-pair byte-parity probe; anomaly → error artifact + legacy pin without propagation (branch B semantics)
+    - `_foreach_copy_([out_w,out_i],src_pair)` batched copy-out only via `_batched_copyout_ok`; three boundary copies carry non_blocking=True where supported; single failure handler `_invalidate_manual_tier()` clears flags+graph+workspace+hotope (stale-binding DANGER rule)
+    - `_route_target` precomputed tuples preserve clause-set equivalence; seven frozen segments byte-frozen per Coder binding statement; retired tier token absent; exactly one torch.compile site {default,False} lazy down-tier
+- artifacts pending: `rounds/report_005.md`, `rounds/verdict_005.json`, lifecycle updates, ledger
+  - verifier correctness probe: PASS exit 0 → `log/probes/verifier_tie_runout_result_005.json`
+    - ACTIVE TIER = **manual-replay**; COPY-OUT STRATEGY BRANCH = **A-batched** (`_batched_copyout_ok=True`, bind-error artifact None) — agrees with Coder's runtime branch A claim
+    - seed42-regime + warm NEW-input bytes (31415) + first-input-again stale-trap + all four tie suites: ids exact AND **bitwise==r004 True/True everywhere** through the coalesced hot path
+    - fresh-buffer leak trap PASS (distinct data_ptrs across consecutive forwards, identical bits)
+    - selectivity: T=41-first ZERO artifacts → staged bitwise==r004; fp16-gating case routed framework-eager base-consistently; subsequent target call captured & served via manual-replay
+    - run_out vs forward bitwise ×2 with data_ptr preserved; cross-instance alternation correct
+    - cold-capture sanity `101.1` ms (observation only), warm replays `0.15–0.20` ms
+- screening_pairs (short regime `--warmup 10 --repeat 20`, same command both sides):
+  - pair S1: reference `0.507568` ms, candidate `0.202594` ms, speedup `2.505x`, exit 0
+  - pair S2: reference `0.481339` ms, candidate `0.198406` ms, speedup `2.426x`, exit 0
+  - screen verdict: not screened-out → proceed to authoritative timing (candidate ~0.198–0.203 ms vs accepted r004 ~0.197–0.199 ms — improvement question open at screening resolution)
+- authoritative_pairs (`--warmup 50 --repeat 100`, byte-identical flags; correctness gate in-run):
+  - pair A1: reference `0.473649` ms, candidate `0.198019` ms, speedup `2.392x`, exit 0
+  - pair A2: reference `0.479112` ms, candidate `0.197524` ms, speedup `2.426x`, exit 0
+  - pair A3: reference `0.469708` ms, candidate **`0.238765`** ms (outlier sample +40 µs vs cluster; median methodology stands as protocol-defined), speedup `1.967x`, exit 0
+  - unrounded medians: reference `0.473649`, candidate `0.198019`
+  - protocol-basis improvement vs same-run v0: +58.1908% (legacy-crediting only)
+  - cross-anchor vs report_004 accepted wall 0.196909: candidate −0.564% (SLOWER)
+  - DECISIVE supplementary same-session interleaved accepted-pair probe (`auto_bench.time_forward` warmup50/repeat100/seed42, ABAB order control): pass-A r004 `0.19645411521196365` vs r005 `0.19653234630823135` = **−0.039821561479276%**; pass-B r004 `0.20089372992515564` vs r005 `0.1961914822459221` = **+2.340664231275613%** — coalescing effect lands in the noise band (≈0–4 µs), far below the ≈9.85 µs paired adoption bar
+    - adoption consequence: H-005 efficacy decider FAILS the ≥5%-vs-accepted clause; verifier output-authority preview ⇒ `no-improvement` (streak 1/3, canonical stays r004)
+  - canonical kernel-mode profile (--profile-mode kernel pw=20/pi=100) via run_out/hot path first-attempt export success → trace @`ff4ee2dead7e902d2b3f7699ada52160a8732bc382c1b2f0da2fcbb7bcf8c56c`; forward dual-scope supplementary → @`c3236bd62531893b258c0cbe0af692c6aae3baaa14768e8f89ce87d4ce06abfc`
+  - named attempt P-D (counted per convention): canonical `summarize_trace.py --scope candidate_triton_grouped_topk_r2_005` rc=2 `scope has no kernel events` — standing branch-B phenomenon under manual replay; host-side trip census substituted diagnostically per decision precedent:
+    - `log/diagnostic_scope_census_round005.json` — candidate kernel-mode scope: cpu_op ×400 = `aten::copy_` ×300 (≈3/call: copy-in + foreach children) + **`aten::_foreach_copy_` ×100 (=1/call batched out)**; gpu_memcpy DtoD ×298 (≈3/call); cuda_runtime ×700; cat=kernel ×0
+    - CROSS-CHECK vs Coder `boundary_trip_census.json`: python-dispatcher trips 2/call CONFIRMED independently (branch A claim verified); underlying runtime submissions unchanged (~7/call) explains the noise-band wall outcome
+    - reference forward scope normal: 181.79 µs/call device, 14.96 kernels/call; candidate forward scope: 4 stray span-edge kernel events only
+  - two-branch adjudication: branch A PASS (trips 2 ≠ failure clause's 3); wall criterion FAIL carries the round
+- artifacts & bases (final):
+  - all four anchor bases in report_005.md: prescribed basis ref median `0.473649` / cand `0.198019` (+58.1908% legacy-crediting); DECISIVE same-session interleaved accepted-pair r004→r005 pass-A **−0.0398%** / pass-B **+2.3407%** (noise band, ≈9.85 µs bar NOT cleared); cross-anchor vs report_004 wall `0.196909` → −0.5640%; manifest anchor cumulative → +59.0526%
+  - correctness/bitwise==r004/selectivity/trip-count guardrails ALL PASS through the coalesced manual-replay tier
+  - cold-capture ≈101.1 ms one-time outside timed medians (observation only); no flags altered
+- artifacts:
+  - `rounds/report_005.md` @sha256 `ada9d94a68e6ff3284ff1e3440df9fb047601285e2bf5fb8df42829a4a2cd122` (Result: no-improvement; H-005 not confirmed with root-cause sizing)
+  - `rounds/verdict_005.json` @sha256 `cd0b3016e4213cc287c723ad084b18ef00c1e7246ed6d5f8af2ec3d149d903a7` (rule-less no-improvement; fact-pack pin `0c25e5ad689a5401fd1db18f9ed1c76214c159d3993ea843251928e162dee96e` extracted post-write and CONFIRMED)
+  - probes/traces/census/summaries under `log/`
+- measurement_fingerprint: `8deb1b012de31b18887562e736c7b9e120b9d9f9500230e237ee003c5fa5a431` unchanged
+- next_safe_action: `Orchestrator validates report_005.md + verdict_005.json; last_accepted stays triton_grouped_topk_r2_004.py @c02d956c…; increment valid-no-improvement streak to 1/3; dispatch round 006 design or begin stop evaluation per remaining-lever economics (CHECK-TIE audit gate is the dominant documented lever)`

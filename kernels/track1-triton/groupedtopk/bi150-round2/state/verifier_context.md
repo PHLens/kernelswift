@@ -2,18 +2,18 @@
 
 - role_contract_sha256: `62f10a0940ca3665260226a7891f5d34e1b571e70937862bb02ad68aa2bbc82f`
 - context_epoch: `1`
-- last_completed_round: `004`
-- accepted_kernel: `triton_grouped_topk_r2_004.py` (sha256 `c02d956c…21eb`) — pending Orchestrator commit
-- accepted_report: `rounds/report_004.md` @`c79cc018…4fe35` Result: accepted, verdict `rounds/verdict_004.json` @`13340553…44a46`, fact-pack pin 19992a18…3e62
+- last_completed_round: `005`
+- accepted_kernel: `triton_grouped_topk_r2_004.py` (sha256 `c02d956c…21eb`) — REMAINS last_accepted after round 005 no-improvement (streak accounting owned by Orchestrator)
+- accepted_report: `rounds/report_004.md` @`c79cc018…4fe35`; round 005 terminal: `rounds/report_005.md` @`ada9d94a…d122` Result: no-improvement, verdict `rounds/verdict_005.json` @`cd0b3016…03a7`, fact-pack pin 0c25e5ad…e96e
 - recent_three_round_evidence:
-  - `002 — compile-graph-default ACCEPTED: prescribed-pair wall 0.475034 -> 0.338824 ms (+28.67%); same-session accepted-pair +18.22%; kernels/call 6.97 -> 6.90; device flat ~104 us/call`
-  - `003 — compile-graph-replay-reduce-overhead NO-IMPROVEMENT: framework skipped cudagraphs for mutated inputs EVERY invocation -> replay never fired; −8.0875% same-session vs accepted; retired from chain`
-  - `004 — manual-cuda-graph-workspace-replay ACCEPTED (decisively): ACTIVE TIER manual-replay on both instances; per-call structure = guard + copy-in + ONE replay submission + 2 copy-outs (~3 aten::copy_ DtoD memcpys/call); attributed cat=kernel count ZERO inside candidate scope -> branch B taken with positive single-submission census evidence (log/diagnostic_scope_census_round004.json); bitwise==r002 True/True everywhere incl stale-trap & alternation & run_out poisoned ×2; T=41 selectivity zero-artifacts then tier-1 capture/recovery; WALL: prescribed basis ref median 0.474386 -> cand median 0.196909 ms (+58.50%); direct same-session accepted-pair r002 0.3463206812739372 -> r004 0.19897893071174622 (+42.54%); cold capture ≈144.7 ms one-time outside timed medians`
-- open_hypotheses: `residual space for H-00x (Designer): remaining host residue ~93 µs/call at 0.1969 ms wall (two copy-outs fusable into one DtoD copy; allocator chatter for two fresh buffers; guard micro-costs); gate-limited device headroom behind CHECK-TIE audit for vendor top-k internals (~87 µs hidden device work/call)`
+  - `003 — compile-graph-replay-reduce-overhead NO-IMPROVEMENT: inductor skipped cudagraphs for mutated inputs every invocation → replay never fired; −8.0875% same-session`
+  - `004 — manual-cuda-graph-workspace-replay ACCEPTED: per-call guard+copy-in+ONE replay+2 copy-outs; wall 0.474386→0.196909 protocol basis (+58.50%), direct accepted-pair +42.54%; candidate scope cat=kernel ZERO (branch B) with host census evidence`
+  - `005 — boundary-dispatch-coalescing NO-IMPROVEMENT: strategy branch A-batched bound; python-dispatcher trips 3→2/call independently confirmed by verifier census (aten::_foreach_copy_ ×1/call) BUT gpu_memcpy still ~3/call and submissions ~7/call unchanged → wall noise-band (−0.04%/+2.34% direct pair; −0.56% cross-anchor); adoption bar ≈9.85 µs NOT cleared; streak now 1/3`
+- open_hypotheses: `remaining levers all documented for Orchestrator/Designer economics: CHECK-TIE vendor-entry audit (~87 µs hidden device work/call inside replay), persistent-result-buffer ownership redesign (violates current Decision lines), operator-scope-exceeding multi-graph batching`
 
 ## Current Bottleneck
 
-- `After round-004 manual workspace replay acceptance: wall 0.196909 ms carries graph-hidden device work (essentially the round-002 ~104 µs kernel band by construction) plus ~93 µs residual host/boundary time dominated by copy-in+copy-out submissions and two per-call fresh buffer allocations; biggest single controllable items are boundary-copy fusion and the CHECK-TIE-gated vendor selection internals.`
+- `Unchanged from r004 acceptance at canonical level: wall 0.196909 ms = hidden device band (~104 µs by construction, tie-gate-locked vendor pair dominant) + ~93 µs residual host time whose composition is NOW PRECISELY KNOWN from round-005 census: ~7 cudaMemcpyAsync-class submissions + 2 fresh buffer allocs + guard/attr residue per call; python dispatch is exhausted as a lever (round-005 negative result).`
 
 ## Round Measurement Facts (authoritative, rolling)
 
@@ -30,6 +30,6 @@
 - ../base.py `12f33248…d0f58`; auto_bench.py `71fb3ad0…fe29`; baseline_adapter.py `ecce4dac…39fa`
 - report_000.md `320b8b03…56fdd`; decision_001.md `93783baa…532b`; sketch_001.json `637917e0…6985`; triton_grouped_topk_r2_001.py `4ae64cad…8de3`
 - decision_002.md `31c972fb…ff37`; sketch_002.json `0ccbec47…4cf3`; binding_statement_report.json(r2) `9315ba1b…a6b6`; triton_cuda.yaml `dc8fa4c0…b7ae`; triton_grouped_topk_r2_002.py `ad703266…ab12`
-- decision_003.md `e214c29a…a403`; sketch_003.json pinned `4a909a11…a782`; binding_statement_report.json(r3) `b32eb677…e1c7`; triton_grouped_topk_r2_003.py `62f8883a…d38`; report_003.md `e00efc94…6bea`; verdict_003.json `9336749c…2134`
 - decision_004.md `e5465d7d…3be1`; sketch_004.json pinned `ccf277f4…e59`; binding_statement_report.json(r4) `1e6b44a5…f9bc`; triton_grouped_topk_r2_004.py `c02d956c…21eb`
-- verifier probes/results: log/probes/verifier_tie_runout_result_00{1,2,3,4}.json; paired-probe results r001v002/r002v003/r002v004; log/diagnostic_scope_census_round004.json
+- decision_005.md `4a549653…6021`; sketch_005.json pinned `21d13b98…92de`; binding_statement_report.json(r5) `b28abf72…535e`; boundary_trip_census.json(coder) `e289a591…e15c`; triton_grouped_topk_r2_005.py `cf68ed77…8e9c`
+- verifier probes/results: log/probes/verifier_tie_runout_result_00{1,2,3,4,5}.json; paired-probe results r001v002/r002v003/r002v004/r004v005; diagnostic censuses round 004/005 under log/
