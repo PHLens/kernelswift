@@ -5,23 +5,23 @@ contract_version: 3
 semantic_contract: typed-sketch-v1
 attribution_contract: verdict-v1
 runtime: claude-code
-phase: initializing
+phase: ready
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-27T12:35:00Z
 current_round: "000"
-last_completed_round: null
-last_accepted_round: null
-last_accepted_kernel: null
-last_accepted_report: null
+last_completed_round: "000"
+last_accepted_round: "000"
+last_accepted_kernel: baseline_adapter.py
+last_accepted_report: rounds/report_000.md
 last_completed_decision: null
 last_completed_sketch: null
 last_completed_binding: null
 last_completed_verdict: null
 last_attribution: null
 last_completed_coder_result: null
-last_completed_report: null
-last_result: null
+last_completed_report: rounds/report_000.md
+last_result: baseline
 performance_miss_streak: 0
 failed_attempt_streak: 0
 total_rounds: 0
@@ -62,3 +62,5 @@ Manifest updated only by the Orchestrator. Round artifacts back every value.
 | timestamp | from | to | result | evidence |
 |---|---|---|---|---|
 | 2026-08-27T12:35:00Z | — | initializing | - | phase0 scaffold commit |
+| 2026-08-27T13:05:00Z | initializing | initializing | - | designer phase-0 gate PASS (state/designer_context.md sha256=5c37487a..., 249 lines); note: epoch-1 ../bi150/final_summary.md does not exist, lineage reconstructed from team-state+reports (designer declared, verified) |
+| 2026-08-27T13:55:00Z | initializing | ready | baseline | report_000 gate PASS (320b8b03...; wall v0=0.483530ms v1=0.481109ms ~1.00x; 14.94 kernels/call, device_ratio 0.372 host-dominated; measurement fingerprint recomputed identical 8deb1b01...; deviation: --profile-mode forward fallback, kernel-mode requires ModelNew.run_out — binding requirement recorded for coder) |

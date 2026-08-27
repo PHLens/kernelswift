@@ -48,6 +48,12 @@
 - Candidate shape/dtype/device/semantics/public contract remain base-compatible.
 - Wall time measured by unchanged harness incl. seed + CUDA sync.
 - Profiler scopes separate; BI150 trace exposes `cat=kernel` device durations.
+- Phase-0 evidence fact: `--profile-mode kernel` structurally requires a callable
+  `ModelNew.run_out`; the phase-0 baseline adapter only defines `forward`, so the
+  regime-matched fallback `--profile-mode forward` (`profile_warmup 20`,
+  `profile_iterations 100`) is canonical until a run_out-capable candidate lands.
+  From Round 001 on, every Triton candidate MUST expose `run_out` so that
+  kernel-mode profiling becomes available.
 
 ## Runtime Fingerprint
 
