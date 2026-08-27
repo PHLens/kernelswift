@@ -1,6 +1,8 @@
-# KernelWiki v1 Implementation Plan
+# [SUPERSEDED] KernelWiki v1 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Status: superseded — do not execute.** The KernelWiki architecture was revised on 2026-08-21 in `docs/superpowers/specs/2026-08-17-kernelwiki-v1-design.md` to use an Ascend-first MIT-style `sources -> wiki -> queries` model, general Wiki Cards, active Designer/Coder consultation, and reviewed local examples. This plan describes the prior independent claim-plane and prebuilt-KnowledgePacket design. A replacement implementation plan must be written only after the revised specification is reviewed and approved.
+
+> **Everything below this notice is non-normative historical material. No checkbox, command, file list, or commit instruction below constitutes approved work.**
 
 **Goal:** Build a standalone, Git-versioned KernelWiki skill that compiles
 provenance-pinned sources into approved claims, readable wiki pages, deterministic
