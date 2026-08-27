@@ -1,0 +1,23 @@
+{
+  "implementation_profile_id": "triton_cuda",
+  "implementation_profile_sha256": "8b9cb9836c4abf97141081288d9eb68af7a571309057181e5ec1914827249a2f",
+  "implementation_profile_version": 1,
+  "primary_contract": "reduction.argmax-grouped-selection",
+  "primary_signature": {
+    "input_dtype": "fp32",
+    "layout": "per-token-row",
+    "num_expert_group": 8,
+    "row_shape": [
+      83,
+      256
+    ],
+    "tie_semantics": "torch.topk-exact-order",
+    "topk": 8,
+    "topk_group": 4
+  },
+  "probe_policy": "optional",
+  "qualification_dispositions": [],
+  "runtime_fingerprint": "triton 3.1.0 (/usr/local/corex-4.4.0/lib64/python3/dist-packages/triton) / torch 2.7.1 / CoreX 4.4.0 nvcc V10.2.89 / Iluvatar BI-V150 capability major=7 minor=1 multi_processor_count=16 total_memory=17179869184",
+  "schema_version": 1,
+  "target_id": "bi150"
+}
