@@ -8,7 +8,7 @@ task 编号 ↔ 算子目录映射见 [docs/competition/track1-triton.md](../../
 
 | 算子 | `mlu`（寒武纪 MLU590） | `s60`（燧原 GCU） | `maca`（沐曦 C500） | `bi150`（天数智芯） | `ascend910b`（昇腾） |
 |---|---|---|---|---|---|
-| `groupedtopk` | ✅ **6.56x** · v4 · **0.840→0.128 ms** | ✅ **1.68x** · r003 · **0.459→0.274 ms** | ✅ **3.29x** · r001 · **0.225→0.068 ms** | ✅ **2.41x** · e2r004 · **0.4835→0.1969 ms**（二轮：Triton 三段融合 + 手动 CUDA Graph 重放；详见 `bi150-round2/final_summary.md`） | ✅ **2.84x** · r002 · **0.760→0.267 ms** |
+| `groupedtopk` | ✅ **6.56x** · v4 · **0.840→0.128 ms** | ✅ **1.68x** · r003 · **0.459→0.274 ms** | ✅ **3.29x** · r001 · **0.225→0.068 ms** | ✅ **2.41x** · e2r004 · **0.4835→0.1969 ms**（二轮：三段融合 + 手动 CUDA Graph 重放；**较一轮最优 0.277 ms 再提 28.9%**；详见 `bi150-round2/final_summary.md`） | ✅ **2.84x** · r002 · **0.760→0.267 ms** |
 | `flexattention` | ✅ **7.08x** · v3 · **1.006→0.140 ms** | 🟡 **0.42x** · r001 · **0.269→0.64 ms**（correctness PASS，手写 causal SDPA，慢因 `tl.dot` 缺失） | — | 🟡 **0.61x** · r001 · **0.150→0.238 ms** | ✅ **1.45x** · r002 · **0.409→0.282 ms** |
 | `fused_moe` | ✅ **50.4x** · v5 · **6.940→0.138 ms** | ✅ **13.1x** · r002 · **5.112→0.390 ms**（逐-token 路由 + selection 融合） | — | ✅ **6.60x** · r002 · **3.259→0.493 ms** | ✅ **19.4x** · r002 · **7.159→0.369 ms** |
 | `sparse_pooler` | ✅ **1.60x** · v4 · **0.910→0.567 ms** | 🟡 **0.79x** · r001 · **0.861→1.092 ms** | — | ✅ **1.22x** · r001 · **1.070→0.880 ms** | ✅ **1.51x** · r001 · **0.935→0.619 ms** |
@@ -25,6 +25,10 @@ task 编号 ↔ 算子目录映射见 [docs/competition/track1-triton.md](../../
 - `🟡` correctness 通过，已提交 Triton code，但 wall speedup 未达到 `5%` threshold，仍保留实测加速比；
 - `⛔` 没有可接受的 Triton candidate；`—` 表示没有对应 campaign artifact 或没有可测 candidate；
 - `📦` 仅有 `base.py`，尚无该后端的 Triton submission。
+- `e2N` 表示 2026-08 第二轮 campaign（kernel-opt-loop v3）：groupedtopk@bi150 在一轮
+  最优 `torch.compile` 路径 0.277 ms 基础上，经「三段 Triton 融合（device −42%，14.9→6.97
+  kernels/call）→ compile-default 派发压缩 → 手动 CUDA Graph 工作区重放」三层叠加降至
+  0.1969 ms；各层归因与失败轮根因见 [bi150-round2/final_summary.md](bi150-round2/final_summary.md)。
 
 ## 横向对比分析
 
