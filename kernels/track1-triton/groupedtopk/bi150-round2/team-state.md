@@ -5,8 +5,8 @@ contract_version: 3
 semantic_contract: typed-sketch-v1
 attribution_contract: verdict-v1
 runtime: claude-code
-phase: ready
-workflow_status: running
+phase: stopped
+workflow_status: stopped
 run_epoch: 2
 project_started_at: 2026-08-27T12:35:00Z
 current_round: "005"
@@ -47,8 +47,8 @@ project_capability_claim_ref: profile_snapshot/capability_claim.json
 project_capability_claim_sha256: 2e6ee49ddd887a00e9a8a8ef6dfc746984ecaacd2256ee0b8666a3099a5b7f67
 runtime_fingerprint_ref: project.md#runtime-fingerprint
 blocked_incident: null
-stop_reason: null
-stop_timestamp: null
+stop_reason: user-intervention
+stop_timestamp: 2026-08-28T03:05:00Z
 resume_eligible: always
 resume_constraints: []
 ---
@@ -86,3 +86,4 @@ Manifest updated only by the Orchestrator. Round artifacts back every value.
 | 2026-08-28T01:55:00Z | verifying | ready | no-improvement | report_005 @ada9d94a... verdict_005 @cd0b3016... (validate_verdict exit 0); ACTIVE TIER manual-replay, copy-out branch A-batched independently confirmed by verifier census; decisive same-session interleaved pair vs r004 -0.0398%/+2.3407% = noise band, ~9.85us bar NOT cleared; cross-anchor vs r004 wall -0.5640%; QUANTITATIVE ROOT CAUSE: _foreach_copy_ coalesces python dispatch NOT underlying submissions on this build (gpu_memcpy DtoD still ~3/call, cudaMemcpyAsync-class ~7/call); correctness/bitwise all green; named attempt P-D only (standing branch-B empty-kernel scope, census substituted per precedent); canonical UNCHANGED r004; miss_streak 1/3 |
 | 2026-08-28T02:20:00Z | ready | designing | - | round-006 designer dispatch with explicit alpha/beta/gamma frame |
 | 2026-08-28T02:45:00Z | designing | ready | aborted | FORMAL ABORT accepted: decision_006 @4b7b1c13... schema-v1 complete-abort form, validate exit 0 no profile flag per v1 rule; reasoning recorded (tie-gate double-blocked + certifiability, replay closed r003, boundary coalescing null-effect r005 build behavior, remaining micro-items jointly below bar); deliverable requirement SATISFIED by accepted canonical r004 @c02d956c... wall 0.196909ms (+59.28% cumulative); reopening conditions documented in decision rationale; evaluator: failed_attempt_streak 1, checkpoint(6), dispatch_next_round=true BUT round-007 would re-elicit identical abort - escalated to user for terminal-boundary determination |
+| 2026-08-28T03:05:00Z | ready | stopped | aborted-final | explicit user stop authorized at natural terminal boundary after round-006 abort; canonical r004 stands as final deliverable; final summary written before live-run end |
