@@ -1,0 +1,27 @@
+{
+  "artifact_index": "002",
+  "artifact_kind": "submission-finalization",
+  "binding_sha256": "__BINDING_HASH__",
+  "decision_sha256": "__DECISION_HASH__",
+  "evidence": [],
+  "final_binding_sha256": "__BINDING_HASH__",
+  "final_candidate_path": "pinned_candidate.py",
+  "final_candidate_sha256": "__PINNED_SHA256__",
+  "final_configuration_sha256": "__SELECTED_SHA256__",
+  "final_report_path": "rounds/report_002.md",
+  "post_pin_gates": {
+    "binding_valid": true,
+    "correctness": true,
+    "lowering": true,
+    "official_evidence": true,
+    "promotion_evidence": true
+  },
+  "preconditions": [],
+  "profile_sha256": "__PROFILE_HASH__",
+  "report_fact_pack_sha256": "__FACTS_HASH__",
+  "route": "submission-ready",
+  "rule_id": null,
+  "schema_version": 1,
+  "selected_configuration_sha256": "__SELECTED_SHA256__",
+  "submission_snapshot_id": "__SNAPSHOT_ID__"
+}

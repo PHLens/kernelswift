@@ -1,0 +1,61 @@
+{
+  "fallback_contract": "reduction.sum",
+  "fallback_kind": "algorithm-substitution",
+  "fallback_signature": {
+    "axis": "k",
+    "dtype": "fp32"
+  },
+  "implementation_profile_id": "triton_mlu",
+  "implementation_profile_sha256": "97d75747e6925b937fd002b3c488b0b03fac22234b62ed7de7111b846ceaa936",
+  "implementation_profile_version": 1,
+  "primary_contract": "matrix.dot",
+  "primary_signature": {
+    "accumulator_dtype": "fp32",
+    "layout": "blocked",
+    "lhs_dtype": "fp16",
+    "rhs_dtype": "fp16"
+  },
+  "probe_policy": "before-fallback",
+  "qualification_dispositions": [
+    {
+      "disposition_id": "s60-attention-dot-fallback-001",
+      "fallback_authorized": true,
+      "maintainer_confirmation": {
+        "confirmed_at": "2026-08-19T00:00:00Z",
+        "confirmed_by": "fixture-maintainer",
+        "method": "maintainer-reviewed-commit"
+      },
+      "onboarding_outcome": "probe-failed",
+      "primary_remains_unknown": true,
+      "probe_definition_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "probe_id": "s60-dot-fp16-001",
+      "probe_result_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "promotion_disposition": "deferred",
+      "reason": "Use explicit sum substitution while dot remains unproven",
+      "requirement": {
+        "fallback_contract": "reduction.sum",
+        "fallback_kind": "algorithm-substitution",
+        "fallback_signature": {
+          "axis": "k",
+          "dtype": "fp32"
+        },
+        "primary_contract": "matrix.dot",
+        "primary_signature": {
+          "accumulator_dtype": "fp32",
+          "k": 64,
+          "layout": "blocked",
+          "lhs_dtype": "fp16",
+          "m": 16,
+          "n": 128,
+          "rhs_dtype": "fp16"
+        },
+        "probe_policy": "before-fallback",
+        "requirement_id": "attention-qk-dot-fp16"
+      },
+      "requirement_sha256": "1ce1a95e28b02daae1317511d0aba1e401e4ac2c6583743ff5fc2e962e781532"
+    }
+  ],
+  "runtime_fingerprint": "triton 3.6.0 / CoreX 4.4.0",
+  "schema_version": 1,
+  "target_id": "mlu590"
+}

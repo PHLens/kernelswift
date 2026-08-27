@@ -21,6 +21,8 @@ TERMINAL_RESULTS = frozenset(
     }
 )
 FAILED_RESULTS = frozenset({"design-rejected", "candidate-failed", "aborted"})
+ATTRIBUTIONS = frozenset({"design-error", "code-error", "lowering-unknown", "evidence-gap", "none"})
+FAILED_ATTEMPT_EFFECTS = frozenset({"increment", "unchanged", "reset"})
 
 __all__ = ("RunPolicyError", "evaluate_terminal", "evaluate_block", "main")
 
@@ -86,17 +88,43 @@ def _policy_state(state: Mapping[str, Any]) -> tuple[int, int, int, int, int]:
     )
 
 
+def _apply_failed_attempt_effect(current: int, effect: str) -> int:
+    if effect == "increment":
+        return current + 1
+    if effect == "reset":
+        return 0
+    return current
+
+
 def evaluate_terminal(
     state: Mapping[str, Any],
     result: str,
     *,
     target_reached: bool = False,
     user_stop_requested: bool = False,
+    attribution: str | None = None,
+    failed_attempt_effect: str | None = None,
 ) -> dict[str, Any]:
-    """Return the state transition for one completed terminal round."""
+    """Return the state transition for one completed terminal round.
+
+    Legacy calls omit both optional attribution arguments and keep the
+    ``FAILED_RESULTS`` counter behavior. vNext campaign-terminal calls supply the
+    verdict's ``failed_attempt_effect``; finalization verdicts never call this
+    interface.
+    """
 
     if not isinstance(result, str) or result not in TERMINAL_RESULTS:
         raise RunPolicyError(f"unknown terminal result: {result}")
+
+    explicit_effect = None
+    if attribution is not None or failed_attempt_effect is not None:
+        if attribution is None or failed_attempt_effect is None:
+            raise RunPolicyError("attribution and failed_attempt_effect must be supplied together")
+        if attribution not in ATTRIBUTIONS:
+            raise RunPolicyError(f"unknown attribution: {attribution}")
+        if failed_attempt_effect not in FAILED_ATTEMPT_EFFECTS:
+            raise RunPolicyError(f"unknown failed_attempt_effect: {failed_attempt_effect}")
+        explicit_effect = failed_attempt_effect
 
     (
         total_rounds,
@@ -112,6 +140,8 @@ def evaluate_terminal(
         failed_attempt_streak = 0
     elif result == "no-improvement":
         performance_miss_streak += 1
+    elif explicit_effect is not None:
+        failed_attempt_streak = _apply_failed_attempt_effect(failed_attempt_streak, explicit_effect)
     elif result in FAILED_RESULTS:
         failed_attempt_streak += 1
 
@@ -132,7 +162,7 @@ def evaluate_terminal(
         and total_rounds % 3 == 0
         and last_checkpoint_round != total_rounds
     )
-    return {
+    outcome: dict[str, Any] = {
         "total_rounds": total_rounds,
         "performance_miss_streak": performance_miss_streak,
         "failed_attempt_streak": failed_attempt_streak,
@@ -145,6 +175,10 @@ def evaluate_terminal(
             total_rounds if emit_checkpoint else last_checkpoint_round
         ),
     }
+    if explicit_effect is not None:
+        outcome["attribution"] = attribution
+        outcome["failed_attempt_effect"] = explicit_effect
+    return outcome
 
 
 def evaluate_block(state: Mapping[str, Any], incident: str) -> dict[str, Any]:
@@ -182,6 +216,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     group.add_argument("--block-incident")
     parser.add_argument("--target-reached", action="store_true")
     parser.add_argument("--user-stop-requested", action="store_true")
+    parser.add_argument("--attribution", choices=sorted(ATTRIBUTIONS))
+    parser.add_argument("--failed-attempt-effect", choices=sorted(FAILED_ATTEMPT_EFFECTS))
 
     try:
         args = parser.parse_args(argv)
@@ -190,6 +226,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         if not isinstance(state, dict):
             raise RunPolicyError("state JSON must be an object")
+        if (args.attribution is None) != (args.failed_attempt_effect is None):
+            raise RunPolicyError("--attribution and --failed-attempt-effect must be supplied together")
         outcome = (
             evaluate_block(state, args.block_incident)
             if args.block_incident is not None
@@ -198,6 +236,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.result,
                 target_reached=args.target_reached,
                 user_stop_requested=args.user_stop_requested,
+                attribution=args.attribution,
+                failed_attempt_effect=args.failed_attempt_effect,
             )
         )
     except (json.JSONDecodeError, RunPolicyError) as error:

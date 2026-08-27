@@ -743,6 +743,16 @@ For `decision_kind: final-autotune`, the verdict uses a separate schema branch w
 | `EVIDENCE.OBSERVABLE.MISSING` | required observable cannot be obtained after bounded probe | `evidence-gap` | `blocked` or `design-rejected` | environment block or invalid Decision |
 | `ENV.PROFILE.MISMATCH` | runtime identity does not match implementation-profile snapshot | no attribution or `evidence-gap` | `blocked` | counter-neutral recovery |
 
+Rule IDs are canonical dot-delimited strings; for example, the lowering rule is
+exactly `LOWERING.EXPECTED.ABSENT`, matching the validator and verdict artifacts.
+Rows marked `repairable` describe only the post-repair terminal branch: the first
+`coder-repair` route has `terminal_result: null` and no failed-streak effect, and
+the listed terminal result/effect apply only after `repair_exhausted: true`.
+`EVIDENCE.OBSERVABLE.MISSING` lists the environment-gap default (`blocked`,
+counter-neutral); when the fact-pack cause is `decision` because the Decision
+omitted a measurable observable, its explicit cause override is
+`design-error`/`design-rejected`/increment.
+
 A correct candidate whose mechanism is observed but whose accepted-to-candidate e2e result does not clear the adoption threshold is `no-improvement`, not `design-error` or `code-error`. Its evidence is passed to Designer for the next hypothesis.
 
 ### 11.3 Lowering-unknown policy

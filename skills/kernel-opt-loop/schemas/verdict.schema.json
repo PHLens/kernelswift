@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "kernel-opt-loop Orchestrator attribution verdict",
+  "description": "Deterministic attribution and route. Campaign verdicts classify and map to a terminal result and counter effect; final-autotune verdicts use a separate counter-free branch that forbids campaign attribution, terminal-result, counter-effect, and run-policy fields.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "decision_sha256",
+    "sketch_sha256",
+    "binding_sha256",
+    "profile_sha256",
+    "report_fact_pack_sha256",
+    "rule_id",
+    "preconditions",
+    "evidence"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "round": {"type": "string", "pattern": "^[0-9]{3}$"},
+    "artifact_kind": {"const": "submission-finalization"},
+    "artifact_index": {"type": "string", "pattern": "^[0-9]{3}$"},
+    "decision_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "sketch_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "binding_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "profile_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "report_fact_pack_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "classification": {"enum": ["design-error", "code-error", "lowering-unknown", "evidence-gap", "none"]},
+    "terminal_result": {"enum": ["accepted", "no-improvement", "screened-out", "design-rejected", "candidate-failed", "aborted"]},
+    "failed_attempt_effect": {"enum": ["increment", "unchanged", "reset"]},
+    "route": {"type": ["string", "null"]},
+    "confidence": {"type": "string"},
+    "rule_id": {"type": "string"},
+    "preconditions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "status"],
+        "properties": {
+          "name": {"type": "string"},
+          "status": {"enum": ["pass", "fail", "missing"]}
+        }
+      }
+    },
+    "evidence": {"type": "array", "items": {"type": "string"}},
+    "explanation": {"type": "string"},
+    "submission_snapshot_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "selected_configuration": {"type": "object", "additionalProperties": true},
+    "selected_configuration_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "final_configuration_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "final_candidate_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "final_binding_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "post_pin_gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["binding_valid", "correctness", "lowering", "promotion_evidence", "official_evidence"],
+      "properties": {
+        "binding_valid": {"type": "boolean"},
+        "correctness": {"type": "boolean"},
+        "lowering": {"type": "boolean"},
+        "promotion_evidence": {"type": "boolean"},
+        "official_evidence": {"type": "boolean"}
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "required": ["classification", "terminal_result", "failed_attempt_effect", "round"],
+      "not": {"required": ["artifact_kind", "artifact_index", "submission_snapshot_id"]}
+    },
+    {
+      "required": ["artifact_kind", "artifact_index", "route", "submission_snapshot_id", "selected_configuration_sha256", "final_configuration_sha256", "final_candidate_sha256", "final_binding_sha256", "post_pin_gates"],
+      "not": {"required": ["round", "classification", "terminal_result", "failed_attempt_effect"]}
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "implementation_profile_id": "triton_mlu",
+  "implementation_profile_version": 1,
+  "implementation_profile_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "target_id": "bi150",
+  "runtime_fingerprint": "triton <version> / <toolchain> / <device architecture>",
+  "primary_contract": "matrix.dot",
+  "primary_signature": {
+    "lhs_dtype": "fp16",
+    "rhs_dtype": "fp16",
+    "accumulator_dtype": "fp32",
+    "layout": "blocked"
+  },
+  "fallback_contract": "reduction.sum",
+  "fallback_signature": {
+    "dtype": "fp32",
+    "axis": "k"
+  },
+  "fallback_kind": "algorithm-substitution",
+  "probe_policy": "before-fallback",
+  "qualification_dispositions": [
+    {
+      "disposition_id": "s60-attention-dot-fallback-001",
+      "requirement": {
+        "requirement_id": "attention-qk-dot-fp16",
+        "primary_contract": "matrix.dot",
+        "primary_signature": {
+          "lhs_dtype": "fp16",
+          "rhs_dtype": "fp16",
+          "accumulator_dtype": "fp32",
+          "layout": "blocked"
+        },
+        "fallback_contract": "reduction.sum",
+        "fallback_signature": {
+          "dtype": "fp32",
+          "axis": "k"
+        },
+        "fallback_kind": "algorithm-substitution",
+        "probe_policy": "before-fallback"
+      },
+      "requirement_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "onboarding_outcome": "probe-failed",
+      "promotion_disposition": "declined",
+      "fallback_authorized": true,
+      "reason": "Use explicit sum substitution for this run epoch while dot remains unproven",
+      "maintainer_confirmation": {
+        "confirmed_by": "<maintainer identity>",
+        "confirmed_at": "2026-08-19T00:00:00Z",
+        "method": "explicit-user-instruction"
+      },
+      "probe_id": "s60-dot-fp16-001",
+      "probe_definition_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "probe_result_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "primary_remains_unknown": true
+    }
+  ]
+}

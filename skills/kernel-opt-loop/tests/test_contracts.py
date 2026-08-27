@@ -1,3 +1,4 @@
+import json
 import unittest
 import os
 import re
@@ -5,6 +6,7 @@ from pathlib import Path
 
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
+SCRIPTS = SKILL_ROOT / "scripts"
 REPO_ROOT = SKILL_ROOT.parents[1]
 REFERENCES = SKILL_ROOT / "references"
 ADAPTERS = SKILL_ROOT / "adapters"
@@ -24,8 +26,11 @@ class DurableContractTests(unittest.TestCase):
         template = read_reference("team-state-template.md")
 
         initial_frontmatter = """---
-schema_version: 1
-skill_version: 2.0.0
+schema_version: 2
+skill_version: 3.0.0
+contract_version: 3
+semantic_contract: typed-sketch-v1
+attribution_contract: verdict-v1
 runtime: unset
 phase: initializing
 workflow_status: running
@@ -37,6 +42,10 @@ last_accepted_round: null
 last_accepted_kernel: null
 last_accepted_report: null
 last_completed_decision: null
+last_completed_sketch: null
+last_completed_binding: null
+last_completed_verdict: null
+last_attribution: null
 last_completed_coder_result: null
 last_completed_report: null
 last_result: null
@@ -59,6 +68,10 @@ measurement_exclusive: false
 implementation_language: triton
 implementation_backend: unset
 target_profile: unset
+implementation_profile_snapshot_ref: null
+implementation_profile_snapshot_sha256: null
+project_capability_claim_ref: null
+project_capability_claim_sha256: null
 runtime_fingerprint_ref: project.md#runtime-fingerprint
 blocked_incident: null
 stop_reason: null
@@ -79,6 +92,11 @@ resume_constraints: []
             "target_profile",
             "runtime_fingerprint_ref",
             "blocked_incident",
+            "contract_version",
+            "semantic_contract",
+            "attribution_contract",
+            "implementation_profile_snapshot_ref",
+            "project_capability_claim_ref",
         ):
             with self.subTest(field=field):
                 self.assertIn(field, template)
@@ -213,6 +231,29 @@ resume_constraints: []
 
         self.assertNotIn("target_dsl_candidates", combined_templates)
         self.assertNotIn("capability_miss_log", combined_templates)
+
+    def test_context_naming_uses_only_context_files_and_no_state_aliases(self):
+        skill_text = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in (
+                *REFERENCES.glob("*.md"),
+                *PROMPTS.glob("*.md"),
+                SKILL_ROOT / "SKILL.md",
+            )
+        )
+        for alias in (
+            "designer_state.md",
+            "coder_state.md",
+            "verifier_state.md",
+        ):
+            with self.subTest(alias=alias):
+                self.assertNotIn(alias, skill_text)
+        for canonical in (
+            "state/designer_context.md",
+            "state/coder_context.md",
+            "state/verifier_context.md",
+        ):
+            self.assertIn(canonical, skill_text)
 
     def test_invariants_cover_ownership_and_attribution(self):
         invariants = read_reference("invariants.md")
@@ -627,11 +668,14 @@ class RoleContractTests(unittest.TestCase):
         targets = PROMPTS / "coder_targets"
         for name in (
             "triton_hip.md",
-            "triton_ascend.md",
             "tilelang.md",
         ):
             with self.subTest(name=name):
                 self.assertFalse((targets / name).exists())
+
+        ascend = (targets / "triton_ascend.md").read_text(encoding="utf-8")
+        self.assertIn("Migration status", ascend)
+        self.assertIn("no vNext canonical implementation profile", ascend)
 
         profile = (targets / "triton_mlu.md").read_text(encoding="utf-8")
         self.assertNotRegex(profile.lower(), r"tl\.make_block_ptr.*register tile")
@@ -1035,10 +1079,11 @@ class CrossFileContractTests(unittest.TestCase):
 
         for name in (
             "triton_hip.md",
-            "triton_ascend.md",
             "tilelang.md",
         ):
             self.assertFalse((PROMPTS / "coder_targets" / name).exists())
+        ascend = (PROMPTS / "coder_targets" / "triton_ascend.md").read_text(encoding="utf-8")
+        self.assertIn("Migration status", ascend)
 
     def test_markdown_fences_close_and_validator_is_executable(self):
         for path in SKILL_ROOT.rglob("*.md"):
@@ -1047,6 +1092,105 @@ class CrossFileContractTests(unittest.TestCase):
 
         validator = SKILL_ROOT / "scripts/validate_decision.py"
         self.assertTrue(os.access(validator, os.X_OK))
+class VNextContractTests(unittest.TestCase):
+    def test_vnext_artifact_ownership_boundaries_are_exact(self):
+        skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+        designer = (PROMPTS / "designer.md").read_text(encoding="utf-8")
+        coder = (PROMPTS / "coder.md").read_text(encoding="utf-8")
+        verifier = (PROMPTS / "verifier.md").read_text(encoding="utf-8")
+
+        import re as _re
+
+        def normalize(value: str) -> str:
+            return _re.sub(r"\s+", " ", value)
+
+        for text, phrase in (
+            (skill, "runs one bounded pre-campaign probe lifecycle"),
+            (skill, "stop without entering Phase 0"),
+            (skill, "unrelated Unknowns are ignored and ambiguous matches fail"),
+            (skill, "stops as `promotion-pending`"),
+            (skill, "materializes the project capability claim"),
+            (skill, "freezes the implementation-profile snapshot"),
+            (skill, "validates `verdict_NNN.json`; it may route one `code-error` repair"),
+            (skill, "`lowering-unknown` terminates as `design-rejected` with unchanged failed"),
+            (skill, "`resolve_finalization_slot()`"),
+            (skill, "submission-ready|blocked` through the separate finalization verdict branch"),
+            (skill, "never calls `evaluate_terminal()`"),
+            (skill, "no runtime/online `@triton.autotune`"),
+            (designer, "without writing a Decision, Sketch, or campaign file"),
+            (designer, "never equates an Unknown capability with unavailable"),
+            (designer, "reuses the accepted Sketch"),
+            (coder, "passes the deterministic conformance checker before `candidate-ready`"),
+            (coder, "at most one pinned candidate derived from the accepted source"),
+            (coder, "never owns pre-campaign qualification"),
+            (verifier, "without assigning design or code blame"),
+            (verifier, "without a persisted selection artifact"),
+            (verifier, "atomically writes the sealed report once"),
+            (verifier, "Search measurements never authorize a submission"),
+        ):
+            with self.subTest(text=text[:40]):
+                self.assertIn(phrase, normalize(text))
+
+    def test_finalization_uses_existing_families_and_no_new_state(self):
+        normalize = lambda value: re.sub(r"\s+", " ", value)
+        team_state = normalize(read_reference("team-state-template.md"))
+        skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("contract_version: 3", team_state)
+        self.assertIn("No finalization-specific state field is added", team_state)
+        self.assertIn("artifact_kind: submission-finalization", normalize(read_reference("report-template.md")))
+        self.assertIn("last_accepted_round", skill)
+        self.assertNotIn("final-tuning.json", team_state)
+
+    def test_vnext_fixture_documents_and_scripts_are_loadable(self):
+        for path in (SKILL_ROOT / "tests" / "fixtures" / "vnext").rglob("*.json"):
+            with self.subTest(path=path.relative_to(SKILL_ROOT)):
+                json.loads(path.read_text(encoding="utf-8"))
+        for path in (SKILL_ROOT / "profiles").rglob("*.yaml"):
+            with self.subTest(path=path.relative_to(SKILL_ROOT)):
+                json.loads(path.read_text(encoding="utf-8"))
+        for name in (
+            "run_profile_probe.py",
+            "validate_probe.py",
+            "render_profile_promotion.py",
+            "validate_sketch.py",
+            "validate_profile.py",
+            "validate_binding.py",
+            "validate_verdict.py",
+        ):
+            with self.subTest(script=name):
+                self.assertTrue((SKILL_ROOT / "scripts" / name).is_file())
+
+    def test_profile_registry_and_human_docs_agree(self):
+        canonical = SKILL_ROOT / "profiles" / "triton_mlu" / "profile.yaml"
+        self.assertTrue(canonical.is_file())
+        mlu_doc = (PROMPTS / "coder_targets" / "triton_mlu.md").read_text(encoding="utf-8")
+        self.assertIn("profiles/triton_mlu/profile.yaml", mlu_doc)
+        self.assertIn("triton_cuda", (REPO_ROOT / "README.md").read_text(encoding="utf-8"))
+        registry = (REPO_ROOT / "docs" / "backend-registry.md").read_text(encoding="utf-8")
+        self.assertIn("triton_maca", registry)
+        self.assertIn("target id", registry.lower())
+        self.assertNotIn("skills/backend-probe", (REPO_ROOT / "README.md").read_text(encoding="utf-8"))
+        self.assertIn("implementation profile", (REPO_ROOT / "docs" / "competition" / "track2-clike.md").read_text(encoding="utf-8").lower())
+
+    def test_reviewed_rule_table_and_schema_branches_are_unambiguous(self):
+        plan = (REPO_ROOT / "docs" / "superpowers" / "plans" / "2026-08-19-kernel-opt-loop-vnext-semantic-attribution.md").read_text(encoding="utf-8")
+        spec = (REPO_ROOT / "docs" / "superpowers" / "specs" / "2026-08-19-kernel-opt-loop-vnext-semantic-attribution-design.md").read_text(encoding="utf-8")
+        self.assertIn("first `oneOf` branch is for ordinary campaign rounds", plan)
+        self.assertIn("finalization requires `artifact_kind` plus `artifact_index` and forbids campaign `round`", plan)
+        self.assertIn("their table `terminal_result` and `failed_attempt_effect` values must not be applied to the first repair route", plan)
+        normalized_spec = re.sub(r"\s+", " ", spec)
+        self.assertIn("cause override is `design-error`/`design-rejected`/increment", normalized_spec)
+        self.assertIn("`LOWERING.EXPECTED.ABSENT`", spec)
+
+    def test_attribution_effects_are_explicit_in_the_evaluator(self):
+        policy = (SCRIPTS / "evaluate_run_policy.py").read_text(encoding="utf-8")
+        self.assertIn("ATTRIBUTIONS", policy)
+        self.assertIn("FAILED_ATTEMPT_EFFECTS", policy)
+        self.assertIn("lowering-unknown", policy)
+        self.assertIn("_apply_failed_attempt_effect", policy)
+        self.assertIn("must be supplied together", policy)
+
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -248,3 +248,95 @@ class RunPolicyTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AttributionCounterTests(unittest.TestCase):
+    def test_lowering_unknown_design_rejection_does_not_increment_failed_streak(self):
+        result = evaluate_terminal(
+            state(failed_attempt_streak=1),
+            "design-rejected",
+            attribution="lowering-unknown",
+            failed_attempt_effect="unchanged",
+        )
+        self.assertEqual(1, result["failed_attempt_streak"])
+        self.assertEqual("lowering-unknown", result["attribution"])
+        self.assertEqual("unchanged", result["failed_attempt_effect"])
+
+    def test_explicit_design_error_still_increments_failed_streak(self):
+        result = evaluate_terminal(
+            state(failed_attempt_streak=1),
+            "design-rejected",
+            attribution="design-error",
+            failed_attempt_effect="increment",
+        )
+        self.assertEqual(2, result["failed_attempt_streak"])
+        self.assertEqual("design-error", result["attribution"])
+
+    def test_code_error_increments_failed_streak(self):
+        result = evaluate_terminal(
+            state(failed_attempt_streak=0),
+            "candidate-failed",
+            attribution="code-error",
+            failed_attempt_effect="increment",
+        )
+        self.assertEqual(1, result["failed_attempt_streak"])
+
+    def test_reset_effect_clears_failed_streak(self):
+        result = evaluate_terminal(
+            state(failed_attempt_streak=3),
+            "candidate-failed",
+            attribution="code-error",
+            failed_attempt_effect="reset",
+        )
+        self.assertEqual(0, result["failed_attempt_streak"])
+
+    def test_legacy_call_without_attribution_keeps_failed_results_behavior(self):
+        result = evaluate_terminal(state(failed_attempt_streak=1), "design-rejected")
+        self.assertEqual(2, result["failed_attempt_streak"])
+        self.assertNotIn("attribution", result)
+
+    def test_attribution_and_effect_require_each_other(self):
+        with self.assertRaisesRegex(RunPolicyError, "together"):
+            evaluate_terminal(state(), "design-rejected", attribution="design-error")
+        with self.assertRaisesRegex(RunPolicyError, "together"):
+            evaluate_terminal(state(), "design-rejected", failed_attempt_effect="increment")
+
+    def test_unknown_attribution_or_effect_is_rejected(self):
+        with self.assertRaisesRegex(RunPolicyError, "unknown attribution"):
+            evaluate_terminal(state(), "design-rejected", attribution="unknown-class", failed_attempt_effect="unchanged")
+        with self.assertRaisesRegex(RunPolicyError, "unknown failed_attempt_effect"):
+            evaluate_terminal(state(), "design-rejected", attribution="design-error", failed_attempt_effect="unknown")
+
+    def test_cli_emits_attribution_in_sorted_json(self):
+        with contextlib.redirect_stdout(io.StringIO()) as captured:
+            return_code = main(
+                [
+                    "--state-json",
+                    json.dumps(state(failed_attempt_streak=1)),
+                    "--result",
+                    "design-rejected",
+                    "--attribution",
+                    "lowering-unknown",
+                    "--failed-attempt-effect",
+                    "unchanged",
+                ]
+            )
+        self.assertEqual(0, return_code)
+        outcome = json.loads(captured.getvalue())
+        self.assertEqual("lowering-unknown", outcome["attribution"])
+        self.assertEqual(1, outcome["failed_attempt_streak"])
+
+    def test_cli_requires_the_attribution_pair(self):
+        with contextlib.redirect_stderr(io.StringIO()) as captured:
+            return_code = main(
+                [
+                    "--state-json",
+                    json.dumps(state()),
+                    "--result",
+                    "design-rejected",
+                    "--attribution",
+                    "design-error",
+                ]
+            )
+        self.assertEqual(2, return_code)
+        self.assertIn("together", captured.getvalue())

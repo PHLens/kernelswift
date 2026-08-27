@@ -74,18 +74,57 @@ change boundary but may not weaken this file.
 ## Role Ownership
 
 - **Orchestrator** alone writes `team-state.md`, project overview rows, canonical
-  pointers, counters, round transitions, and workflow commits.
-- **Designer** alone writes the current uncommitted decision and
-  `state/designer_state.md`. Designer does not write candidate code or runtime
-  measurements.
-- **Coder** alone writes the current candidate, `rounds/coder_result_NNN.md`, and
-  `state/coder_state.md`. Coder never returns `accepted` and never changes
-  canonical state.
+  pointers, counters, round transitions, workflow commits, and verdict
+  artifacts. Before campaign state exists, Orchestrator owns pre-campaign profile
+  onboarding and may write only the isolated probe root, normalized qualification
+  input, results, evidence, promotion candidate, and note; it never edits the
+  canonical implementation profile.
+- **Designer** alone writes the current uncommitted decision, the typed Sketch,
+  causal graph references, and `state/designer_context.md`. Designer does not
+  write candidate code, runtime measurements, a runtime fact pack, or a verdict.
+  In read-only capability preflight Designer identifies explicit primary/fallback
+  pairs without writing campaign files; it never equates an Unknown capability
+  with unavailable.
+- **Coder** alone writes the current candidate, `rounds/coder_result_NNN.md`, the
+  Decision-local binding ledger, and `state/coder_context.md`. Coder never
+  returns `accepted`, never changes canonical state, and never owns the canonical
+  profile, the initial project capability claim, or a verdict.
 - **Verifier** alone performs authoritative runtime execution and writes the
-  current report/status, profiler outputs, and `state/verifier_state.md`.
-  Verifier does not edit the candidate or the decision.
+  current report/status, profiler outputs, the structured fact pack, observed
+  lowering, and `state/verifier_context.md`. Verifier does not edit the
+  candidate, the decision, the binding, or canonical pointers, and assigns no
+  design/code blame.
 - Roles may exchange advisory context, but every state-changing response goes to
   Orchestrator and every actionable result is recorded in a durable artifact.
+
+## Probe, Profile, and Attribution Boundaries
+
+- Profile probing may run versioned probe definitions, emit hashed run-local
+  evidence and a proposed promotion candidate, and stop without creating a
+  campaign. It never mutates the canonical implementation profile and never
+  allocates `team-state.md`, rounds, Decisions, candidates, reports, verdicts,
+  or benchmark rankings.
+- `promotion-pending` is an onboarding disposition, not a campaign terminal
+  result. Raw pre-campaign, Coder, or Verifier probe evidence never satisfies a
+  campaign claim and never updates the canonical profile during a campaign.
+- The immutable `state/project_capability_claim.json` is the only fallback
+  authority. A fallback Decision references the embedded disposition id/hash and
+  never a raw probe-result reference; deleting the pre-campaign run must not
+  invalidate campaign history.
+- Source binding proves source-level conformance to the Decision. Observed
+  lowering is a separate Verifier-owned claim; a source statement is never
+  required to map one-to-one to a final device kernel.
+- `lowering-unknown` terminates as `design-rejected` but does not increment
+  `failed_attempt_streak`; explicit `design-error` does increment it. The run
+  policy consumes the attribution counter effect rather than treating every
+  `design-rejected` round as equivalent.
+- Submission finalization is one offline bounded configuration-only gate per
+  eligible Triton submission snapshot. It uses the existing Decision, report,
+  binding, and verdict families with `artifact_kind: submission-finalization`
+  and an artifact index; it never updates campaign-round pointers, terminal
+  fields, attribution, or counters, and adds no manifest pointer. The final
+  candidate contains one fixed selected configuration and no runtime/online
+  autotune, first-use search, or cache-dependent selection.
 
 ## Measurement Attribution
 

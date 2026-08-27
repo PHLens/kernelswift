@@ -1,0 +1,109 @@
+{
+  "capability_matrix": [
+    {
+      "capability_kind": "primitive",
+      "contract_name": "memory.load",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "memory",
+      "id": "memory.load.contiguous-fp32",
+      "implementation_symbol": "tl.load",
+      "scope": {
+        "device_arch": "fixture-arch",
+        "runtime": "fixture-runtime",
+        "shape_signature": "project-defined",
+        "target_id": "fixture-device"
+      },
+      "signature": {
+        "dtype": "fp32",
+        "layout": "contiguous",
+        "shape": [
+          "N"
+        ]
+      },
+      "status": "unknown"
+    },
+    {
+      "capability_kind": "primitive",
+      "contract_name": "memory.store",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "memory",
+      "id": "memory.store.contiguous-fp32",
+      "implementation_symbol": "tl.store",
+      "scope": {
+        "device_arch": "fixture-arch",
+        "runtime": "fixture-runtime",
+        "shape_signature": "project-defined",
+        "target_id": "fixture-device"
+      },
+      "signature": {
+        "dtype": "fp32",
+        "layout": "contiguous",
+        "shape": [
+          "N"
+        ]
+      },
+      "status": "unknown"
+    }
+  ],
+  "fallback_and_unknown_policy": {
+    "probe_policies": [],
+    "waiver_requirements": []
+  },
+  "identity_match": {
+    "match_rules": [
+      "fixture identity match"
+    ],
+    "permitted_device_architectures": [
+      "fixture-arch"
+    ],
+    "permitted_target_ids": [
+      "fixture-device"
+    ]
+  },
+  "implementation": {
+    "backend": "triton",
+    "language": "python",
+    "runner_adapter": "python-command",
+    "toolchain": "fixture-toolchain"
+  },
+  "implementation_profile_id": "fixture_profile",
+  "implementation_profile_version": 1,
+  "probe_catalog": [
+    {
+      "definition_path": "probes/basic-memory.json",
+      "definition_sha256": "944e1096c2e3b4f11494a920bd159b5f685eb9b68e5842aaf74c011bb0e2f22f",
+      "probe_id": "fixture-basic-memory-001"
+    }
+  ],
+  "profile_schema_ref": "schema/profile.schema.json",
+  "profile_schema_sha256": "4ce1a4f8fbc36428808012b5e0f54af2b71fb81a7a746eaa2ff334f89ed5b436",
+  "profile_status": "partial",
+  "profiler_evidence": {
+    "available_event_types": [],
+    "normalized_fields": [],
+    "scopes": [],
+    "unavailable_event_types": []
+  },
+  "runtime_launcher": {
+    "harness_constraints": [],
+    "imports": [],
+    "launch_abi": "fixture",
+    "stream_synchronization": "fixture-sync"
+  },
+  "schema_version": 1,
+  "shared_profile_schema_ref": "schema/shared-profile.schema.json",
+  "shared_profile_schema_sha256": "4ce1a4f8fbc36428808012b5e0f54af2b71fb81a7a746eaa2ff334f89ed5b436",
+  "shared_profile_schema_version": 1,
+  "source_conformance": {
+    "analyzer": "python-ast-triton",
+    "binding_model": "primitive-call"
+  }
+}

@@ -320,3 +320,97 @@ commit. Do not rewrite existing project histories.
 - `scripts/validate_decision.py`, `scripts/make_baseline_adapter.py`,
   `scripts/summarize_trace.py`, and `scripts/evaluate_run_policy.py`:
   deterministic gates and helpers.
+
+## vNext semantic attribution and finalization routing
+
+A vNext run records `contract_version: 3`, `semantic_contract: typed-sketch-v1`,
+and `attribution_contract: verdict-v1` in `team-state.md`. Existing v1/v2
+campaigns remain historical and are never migrated. Routing is exact:
+
+1. For an explicit profile-onboarding request, Orchestrator validates
+   profile/probe/runtime inputs, runs one bounded pre-campaign probe lifecycle,
+   emits proposed promotion artifacts, reports them to the user, and may stop
+   without entering Phase 0.
+2. When a campaign is requested, Orchestrator obtains explicit requirements from
+   the user/maintainer or Designer read-only capability preflight, validates and
+   materializes them without inventing design claims, and invokes
+   `select_profile_probes()` before campaign state or snapshot creation.
+3. A unique exact-scope Unknown primary with `must-resolve|before-fallback` runs
+   one bounded probe; unrelated Unknowns are ignored and ambiguous matches fail
+   deterministically.
+4. Eligible observed success emits promotion artifacts and stops as
+   `promotion-pending`. Phase 0 resumes only after maintainer promotion, or
+   after explicit decline/defer plus fallback authorization. Partial/failure/
+   block/no-match leaves the primary Unknown.
+5. Phase 0 validates only reviewed exact-scope prior evidence, rediscovers
+   current target/runtime identity, materializes the project capability claim
+   including any complete maintainer-confirmed fallback disposition, rejects raw
+   probe refs, and freezes the implementation-profile snapshot. Claim/Decision
+   validation must not depend on the pre-campaign run directory.
+6. A schema-v2 Decision validates Sketch, references, frozen implementation
+   profile snapshot, claim, causal graph, and any fallback provenance before
+   Coder dispatch.
+7. Coder runs only Decision-scoped capability/compile probes and the binding
+   checker before `candidate-ready`; its results stay under campaign-local
+   `log/probes/`.
+8. Verifier writes authoritative runtime facts, correctness, observed lowering,
+   and performance only.
+9. Orchestrator validates `verdict_NNN.json`; it may route one `code-error`
+   repair.
+10. `design-error` terminates as `design-rejected` with increment.
+11. `lowering-unknown` terminates as `design-rejected` with unchanged failed
+    streak.
+12. Bounded `evidence-gap` routes environment absence to `blocked`; a Decision
+    missing a measurable contract terminates as `design-rejected` with explicit
+    design-error effect. A correct candidate with insufficient accepted-to-
+    candidate e2e improvement remains `no-improvement` and attribution `none`.
+13. At submission finalization, Orchestrator computes the canonical
+    `submission_snapshot_id`, calls `resolve_finalization_slot()`, and opens or
+    resumes one artifact index only when no qualification, promotion, repair,
+    fingerprint transition, missing profile legality, completed identical input,
+    or already-finalized current output exists.
+14. Designer reuses the accepted Sketch and declares a finite reviewed
+    profile-legal config-only domain, accepted fallback/control, search
+    budget/protocol, objective, and deterministic order/tie rule.
+15. Verifier executes the accepted source through temporary launch/meta-
+    parameter injection under measurement exclusivity. It returns normalized
+    trials to Orchestrator without writing a selection artifact or report and
+    verifies that temporary storage contains no derived candidate source.
+16. Orchestrator runs the pure selector and sends only the normalized selection
+    to Coder. For an improved winner, Coder emits exactly one pinned candidate
+    derived from the accepted source; for the fallback/control, Coder emits no
+    source. Binding validation then runs on the exact final source.
+17. Verifier reruns full correctness, lowering, required promotion evidence, and
+    official competition measurements on that source, then atomically writes the
+    report once with separate `search_trials` and `post_pin_official` sections.
+18. Orchestrator reruns the selector from the sealed report and evaluates the
+    pure submission-promotion predicate. An improved winner atomically advances
+    `last_accepted_kernel` and `last_accepted_report` to the pinned source and
+    sealed report while preserving `last_accepted_round`; a fallback-retained
+    winner changes neither pointer; both require all final gates, and partial
+    pair updates are rejected.
+19. Orchestrator emits only `submission-ready|blocked` through the separate
+    finalization verdict branch. It never calls `evaluate_terminal()` and the
+    verdict rejects attribution, campaign terminal, counter-effect, and
+    run-policy fields.
+20. The final candidate contains one fixed selected configuration and no
+    runtime/online `@triton.autotune`, adaptive search, or autotune-cache
+    selection dependency.
+
+
+## Profile onboarding and vNext new-run boundary
+
+Profile onboarding may run versioned probes, emit hashed run-local evidence and a
+proposed promotion candidate, and stop without creating a campaign. It never edits
+the canonical implementation profile.
+
+A vNext campaign records `contract_version: 3`, a frozen implementation-profile
+snapshot hash, a project capability claim, typed Sketch, binding ledger, and
+verdict artifact. Existing v1/v2 campaigns remain historical and are not migrated.
+
+Each Triton submission snapshot runs one offline bounded configuration-only search over
+profile-legal fields. The selected configuration is pinned into one candidate and
+must pass fresh binding, correctness, lowering, promotion, and official benchmark
+gates. The workflow adds no finalization-specific state or artifact family. The final
+candidate contains one fixed configuration and no runtime/online autotune,
+first-use search, or cache-dependent configuration selection.

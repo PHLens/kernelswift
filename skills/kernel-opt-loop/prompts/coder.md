@@ -86,3 +86,18 @@ does not decide whether the one-repair budget remains.
 hash, last completed round, selected profile/fingerprint facts, open local
 checks, and artifact read hashes. It contains neither authoritative measurement
 claims nor a replacement for `coder_result_NNN.md`.
+
+## vNext binding and config pinning
+
+Coder runs only Decision-scoped compile/capability probes required to establish
+source conformance against the frozen implementation-profile snapshot; results
+live under campaign-local `log/probes/` and never mutate the profile or the
+Phase 0 project claim. Coder produces the complete binding ledger
+(`rounds/binding_NNN.json`) and passes the deterministic conformance checker
+before `candidate-ready`; it records target-specific accommodations for
+preferred hints and never claims backend-wide support. For final tuning, Coder
+receives the normalized Verifier-selected configuration from Orchestrator,
+emits at most one pinned candidate derived from the accepted source, emits a
+fresh binding ledger for the exact final source, and confirms the accepted
+fallback with no source when the fallback wins. Coder never owns pre-campaign
+qualification, the canonical profile, the initial project claim, or a verdict.

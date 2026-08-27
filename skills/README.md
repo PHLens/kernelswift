@@ -17,3 +17,19 @@
 - 每个终态 round 提交后，由策略评估决定继续、停止或因环境问题进入可恢复的 blocked 状态。
 
 详细的运行契约、角色边界和停止策略见 [`kernel-opt-loop/SKILL.md`](kernel-opt-loop/SKILL.md)。
+
+## vNext 边界
+
+Profile onboarding 可以运行版本化 probes、产出哈希化 run-local evidence 与
+proposed promotion candidate，并且可以不创建 campaign 就结束。它绝不编辑 canonical
+implementation profile。
+
+vNext campaign 记录 `contract_version: 3`、冻结的 implementation-profile snapshot
+哈希、project capability claim、typed Sketch、binding ledger 与 verdict artifact。
+现有 v1/v2 campaigns 保持历史只读，不做迁移。
+
+每个 Triton submission snapshot 只运行一次离线、有界、config-only 的搜索，覆盖
+profile-legal 字段。选中的配置被 pin 进唯一候选，必须通过 fresh binding、
+correctness、lowering、promotion 与官方 benchmark gates。工作流不引入 finalization
+专属 state 或 artifact family。最终候选包含一个固定配置，无 runtime/online autotune、
+首次使用搜索或缓存依赖的配置选择。

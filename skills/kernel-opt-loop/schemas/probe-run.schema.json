@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "kernel-opt-loop probe run manifest",
+  "description": "One pre-campaign or campaign-local probe run manifest. Freezes profile, definition, runtime, and payload input hashes so the run validates independently of the current canonical profile.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "target_id",
+    "implementation_profile_id",
+    "implementation_profile_path",
+    "implementation_profile_version",
+    "implementation_profile_sha256",
+    "runtime_fingerprint",
+    "requested_probe_ids",
+    "definition_sha256",
+    "start_timestamp",
+    "end_timestamp",
+    "summary",
+    "inputs",
+    "results",
+    "evidence"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+    "target_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+    "implementation_profile_id": {"type": "string"},
+    "implementation_profile_path": {"type": "string"},
+    "implementation_profile_version": {"type": "integer", "minimum": 1},
+    "implementation_profile_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "runtime_fingerprint": {"type": "string"},
+    "requested_probe_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "definition_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "qualification_requirement_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "start_timestamp": {"type": "string"},
+    "end_timestamp": {"type": "string"},
+    "summary": {"enum": ["evidence-ready", "partial", "environment-blocked", "probe-failed"]},
+    "inputs": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["relative_path", "byte_count", "sha256"],
+        "properties": {
+          "relative_path": {"type": "string"},
+          "byte_count": {"type": "integer", "minimum": 0},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["relative_path", "byte_count", "sha256"],
+        "properties": {
+          "relative_path": {"type": "string"},
+          "byte_count": {"type": "integer", "minimum": 0},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["relative_path", "byte_count", "sha256"],
+        "properties": {
+          "relative_path": {"type": "string"},
+          "byte_count": {"type": "integer", "minimum": 0},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    }
+  }
+}

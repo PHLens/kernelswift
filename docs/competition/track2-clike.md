@@ -31,3 +31,13 @@ kernels/track2-clike/<算子>/<后端>/    # campaign（baseline_adapter / proje
   `get_inputs` / `get_init_inputs` 内部。
 - 后端首次出现时，确认存在对应的 C-like target profile
   （`skills/kernel-opt-loop/prompts/coder_targets/`，目前仅 triton 系列，C-like 待建）。
+
+
+## Implementation profile 资质生命周期
+
+C-like 后端复用 kernel-opt-loop 的 implementation-profile 资质生命周期：每个后端
+提供自己的 build/runner/profiler probe payload 与 source analyzer，不需要复制整个
+skill。直到某个 C-like profile 的 build/runner/profiler 与 source-analyzer 契约
+被实现并经过 probe 验证之前，任何 Track 2 profile 都不算完整；文档不得提前宣称
+完整。profile schema 是语言中立的，未来 `ascendc` 或类似 C-like profile 可以在不
+复制生命周期的情况下提供自己的 payload。

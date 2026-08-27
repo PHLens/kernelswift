@@ -1,5 +1,12 @@
 # Target Profile: triton_ascend
 
+> **Migration status**: this Markdown page is an explanatory rendering of the
+> target. It has no vNext canonical implementation profile yet — no reviewed
+> `profiles/<id>/profile.yaml`, executable versioned probe suite, or approved
+> evidence record exists under `skills/kernel-opt-loop/profiles/`. Claims below
+> are historical human context until a machine-readable profile is promoted.
+
+
 This profile records only capabilities observed on the available Ascend NPU
 runtime and probe configuration. Evidence is local to the recorded runtime,
 device architecture, shapes, dtypes, and compiler versions. Absence from
@@ -144,3 +151,10 @@ are not fallbacks; they require a new decision or are a major deviation.
 | `num_warps=1`, `2`, and `4` compiled and executed correctly. | ascend primitive probe | One launch configuration family on the recorded runtime only. |
 | `torch_npu` is the required import; `triton_ascend` is metadata-only and not importable. | runtime introspection | Package behavior and versions must be rediscovered in each project fingerprint. |
 | Ascend support for block pointers, async copy, fast launcher, stages, streams, and mixed precision remains unproven. | This profile and absence of a qualifying probe. | Unknown is not treated as Unsupported or Supported. |
+
+
+**S60 groupedtopk evidence boundary**: groupedtopk-derived
+reduction evidence proves only its observed capabilities; it does not establish
+negative evidence for `tl.dot`. A future S60 attention/MoE algorithm substitution
+must use demand-scoped dot qualification before treating `tl.sum` as the
+fallback.

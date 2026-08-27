@@ -13,9 +13,17 @@
 
 ## 说明
 
-- `skills/kernel-opt-loop/prompts/coder_targets/` 目前只有 `triton_mlu.md` 与
-  `triton_gcu.md` 两个 profile。`maca`/`bi150` 的 campaign 需要各自的完整 profile
-  （`triton_maca`、`triton_cuda`）才能按技能 Phase 0 正规运行——当前这两端的工作
-  在 run 分支/worktree 上进行，尚未建立 dev 上可复现的 profile。
+- target id 与 implementation profile id 是两个不同的标识，绝不混用：具体部署目标 id（如 `bi150`、`s60`、`ascend910b`）对应 `target_id`，实现能力契约 id（如 `triton_cuda`、`triton_ascend`）对应 `implementation_profile_id`。上表
+  「target profile」列为渲染式 Markdown 说明（`triton_mlu` / `triton_gcu` /
+  `triton_cuda` / `triton_maca` / `triton_ascend`），机器可读的 canonical
+  implementation profile 位于 `skills/kernel-opt-loop/profiles/` 下。
+- 当前只有 `triton_mlu` 拥有 vNext canonical implementation profile（`partial`
+  状态、可执行版本化 probe 套件与 reviewed evidence 目录）；`triton_gcu`、
+  `triton_cuda`、`triton_maca`、`triton_ascend` 尚未各自获得 reviewed
+  `profile.yaml`、可执行 probe 套件与 approved evidence，不能宣称完整。
+- `maca`/`bi150`/`ascend910b` 的 campaign 需要各自的完整 profile 才能按技能
+  Phase 0 正规运行——当前这部分工作在 run 分支/worktree 上进行。
 - 同一算子在多后端之间的结果**不可直接外推**（技能 KernelWiki 规则）：加速比、能力
   边界均以各后端自己的测量指纹为准。
+- Pre-campaign profile onboarding 可在 campaign 创建之前完成，且不创建 campaign
+  状态；现有 v1/v2 campaigns 保持只读历史。
