@@ -5,7 +5,7 @@ contract_version: 3
 semantic_contract: typed-sketch-v1
 attribution_contract: verdict-v1
 runtime: claude-code
-phase: coding
+phase: verifying
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-27T12:35:00Z
@@ -37,7 +37,7 @@ last_checkpoint_round: 3
 base_branch: dev
 base_commit: 389053e
 run_branch: kernel-opt/round2-bi150-20260827
-measurement_exclusive: false
+measurement_exclusive: true
 implementation_language: triton
 implementation_backend: cuda
 target_profile: triton_cuda
@@ -74,3 +74,4 @@ Manifest updated only by the Orchestrator. Round artifacts back every value.
 | 2026-08-27T18:50:00Z | verifying | ready | accepted | report_002 @bd0932b9... verdict_002 @db173df8... (validate_verdict exit 0); wall paired ref 0.475034→cand 0.338824 ms = +28.67% prescribed basis; accepted-basis r001→r002 direct pair +18.22%, cross-anchor vs report_001 +18.73%; vs manifest anchor +29.93%; H-002 all 4 observables pass (kernels 6.90/call ≤7.5, vendor topk 1.97/call each preserved, device flat 103.99µs in band, wall ≥5%); outputs bitwise==r001 on every case incl. tie suites; device_ratio not degraded; one tooling-only named attempt (paired-probe TypeError) zero candidate impact; fingerprint unchanged |
 | 2026-08-27T19:05:00Z | ready | designing | - | checkpoint(3) emitted status-only; round-003 designer dispatch (compile-graph-replay-reduce-overhead H-003 candidate family with explicit supersession clause + attribution-scoping contract) |
 | 2026-08-27T19:40:00Z | designing | coding | - | decision_003 gate PASS by orchestrator rerun (exit 0 "valid":true; decision sha e214c29aa66d78654ffb65fba33b4870379bcf059902c8f7cc6409ebffc3a403, sketch 4a909a11cbd8df0ad0385cf6379dc77eb189bffd60ec2ab1b341dbdaa127a782; pins unchanged dc8fa4c0.../2e6ee49d...); H-003 expected 15%; three-tier permanent fallback chain replayed→compiled-default→staged; retention proof transfers to bitwise==r002 via seed42+4 tie suites+run_out checks; kernel-count two-branch PASS semantics locked |
+| 2026-08-27T20:20:00Z | coding | verifying | candidate-ready | coder_003 gate PASS (candidate triton_grouped_topk_r2_003.py sha 62f8883a2c6d1bdf65d84b29beb71d95500b40b8d6acaf484eb09fccdcf97d38; smoke 18/18 EXIT0; bitwise==r002 through replayed route incl. warm-replay on new bytes + all tie suites; both fallback edges exercised permanent-once; T=41 zero compiler artifacts; run_out poisoned-buffer both orderings in-place; mode audit reduce-overhead×1/default×1, segments byte-frozen incl. run_out; disclosed design repair: static-aliasing hazard structurally resolved via externally-owned caller-side output buffers, net-zero kernel delta; known framework mutation-skip may elide partial replay — two-branch rule + wall measurement decide) |
