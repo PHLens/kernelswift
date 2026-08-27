@@ -5,11 +5,11 @@ contract_version: 3
 semantic_contract: typed-sketch-v1
 attribution_contract: verdict-v1
 runtime: claude-code
-phase: ready
+phase: coding
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-27T12:35:00Z
-current_round: "003"
+current_round: "004"
 last_completed_round: "003"
 last_accepted_round: "002"
 last_accepted_kernel: triton_grouped_topk_r2_002.py
@@ -76,3 +76,5 @@ Manifest updated only by the Orchestrator. Round artifacts back every value.
 | 2026-08-27T19:40:00Z | designing | coding | - | decision_003 gate PASS by orchestrator rerun (exit 0 "valid":true; decision sha e214c29aa66d78654ffb65fba33b4870379bcf059902c8f7cc6409ebffc3a403, sketch 4a909a11cbd8df0ad0385cf6379dc77eb189bffd60ec2ab1b341dbdaa127a782; pins unchanged dc8fa4c0.../2e6ee49d...); H-003 expected 15%; three-tier permanent fallback chain replayed→compiled-default→staged; retention proof transfers to bitwise==r002 via seed42+4 tie suites+run_out checks; kernel-count two-branch PASS semantics locked |
 | 2026-08-27T20:20:00Z | coding | verifying | candidate-ready | coder_003 gate PASS (candidate triton_grouped_topk_r2_003.py sha 62f8883a2c6d1bdf65d84b29beb71d95500b40b8d6acaf484eb09fccdcf97d38; smoke 18/18 EXIT0; bitwise==r002 through replayed route incl. warm-replay on new bytes + all tie suites; both fallback edges exercised permanent-once; T=41 zero compiler artifacts; run_out poisoned-buffer both orderings in-place; mode audit reduce-overhead×1/default×1, segments byte-frozen incl. run_out; disclosed design repair: static-aliasing hazard structurally resolved via externally-owned caller-side output buffers, net-zero kernel delta; known framework mutation-skip may elide partial replay — two-branch rule + wall measurement decide) |
 | 2026-08-27T21:10:00Z | verifying | ready | no-improvement | report_003 @e00efc94... verdict_003 @9336749c... (validate_verdict exit 0); active tier behaviorally=replayed BUT framework mutation-skip demoted capture to default-equivalent execution every invocation, replay never fired on this build; decisive same-session pair vs r002 -8.0875% REGRESSION (pure wrapper overhead); paired-vs-base +21.73% legacy-credit to r001-002 stack only; canonical UNCHANGED r002; two-branch outcome: branch B moot, branch A fail-by-letter-mechanism-neutral (attributed 6.94 vs ceiling 6.90 = 3 span-edge events, composition byte-identical, device flat +1.0%) - orchestrator interpretation recorded per decision dispatch-to-lead clause; correctness/bitwise all green; counters miss_streak 1/3 |
+| 2026-08-27T21:45:00Z | ready | designing | - | round-004 designer dispatch after no-improvement; designer chose PROCEED with new family manual-cuda-graph-workspace-replay (grounded in r003 root cause: inductor heuristic does not govern manual capture) |
+| 2026-08-27T22:15:00Z | designing | coding | - | decision_004 gate PASS by orchestrator rerun (exit 0 "valid":true; decision sha e5465d7dfdbc35cdba8251b9d43a5d43eb05c64d63c57d89eb299723b0be3be1, sketch ccf277f422ce254d09dc1402c997a6c311a1f63457423f23afd60a71b4d9ae59; pins unchanged dc8fa4c0.../2e6ee49d...); H-004 expected 15%; three-tier manual-replay->compiled-default->staged, reduce-overhead tier RETIRED (binding must FAIL on reduce-overhead strings); copy-in/copy-out workspace design keeps bitwise==r002 retention proof |
