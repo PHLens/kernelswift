@@ -5,7 +5,7 @@ contract_version: 3
 semantic_contract: typed-sketch-v1
 attribution_contract: verdict-v1
 runtime: claude-code
-phase: coding
+phase: verifying
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-27T12:35:00Z
@@ -37,7 +37,7 @@ last_checkpoint_round: 3
 base_branch: dev
 base_commit: 389053e
 run_branch: kernel-opt/round2-bi150-20260827
-measurement_exclusive: false
+measurement_exclusive: true
 implementation_language: triton
 implementation_backend: cuda
 target_profile: triton_cuda
@@ -78,3 +78,4 @@ Manifest updated only by the Orchestrator. Round artifacts back every value.
 | 2026-08-27T21:10:00Z | verifying | ready | no-improvement | report_003 @e00efc94... verdict_003 @9336749c... (validate_verdict exit 0); active tier behaviorally=replayed BUT framework mutation-skip demoted capture to default-equivalent execution every invocation, replay never fired on this build; decisive same-session pair vs r002 -8.0875% REGRESSION (pure wrapper overhead); paired-vs-base +21.73% legacy-credit to r001-002 stack only; canonical UNCHANGED r002; two-branch outcome: branch B moot, branch A fail-by-letter-mechanism-neutral (attributed 6.94 vs ceiling 6.90 = 3 span-edge events, composition byte-identical, device flat +1.0%) - orchestrator interpretation recorded per decision dispatch-to-lead clause; correctness/bitwise all green; counters miss_streak 1/3 |
 | 2026-08-27T21:45:00Z | ready | designing | - | round-004 designer dispatch after no-improvement; designer chose PROCEED with new family manual-cuda-graph-workspace-replay (grounded in r003 root cause: inductor heuristic does not govern manual capture) |
 | 2026-08-27T22:15:00Z | designing | coding | - | decision_004 gate PASS by orchestrator rerun (exit 0 "valid":true; decision sha e5465d7dfdbc35cdba8251b9d43a5d43eb05c64d63c57d89eb299723b0be3be1, sketch ccf277f422ce254d09dc1402c997a6c311a1f63457423f23afd60a71b4d9ae59; pins unchanged dc8fa4c0.../2e6ee49d...); H-004 expected 15%; three-tier manual-replay->compiled-default->staged, reduce-overhead tier RETIRED (binding must FAIL on reduce-overhead strings); copy-in/copy-out workspace design keeps bitwise==r002 retention proof |
+| 2026-08-27T22:55:00Z | coding | verifying | candidate-ready | coder_004 gate PASS (candidate triton_grouped_topk_r2_004.py sha c02d956c6bb5c27c229623b01b99b85f5962db79b5ead09df6fbca7a52e721eb; smoke 21/21 EXIT0; capture-fired proven via 4-fact behavioral intersection incl. stale-trap input sensitivity, compiled-default never constructed in healthy instances; bitwise==r002 through replayed route all suites + warm new bytes; Edge A/A2/B permanent-once all green; T=41 zero artifacts + recovery; run_out in-place both orderings + leak-trap; reduce-overhead token count 0; segments byte-frozen vs r002) |

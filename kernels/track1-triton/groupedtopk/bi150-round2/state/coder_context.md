@@ -1,32 +1,32 @@
 # Coder Context
 
 - role_contract_sha256: `26c40a94bacbbe5ac4cf12b330516b0439a823e7ca8fd648bdace3fdfcce9cba`
-- context_epoch: `4`
-- last_completed_round: `003` (coding phase; result returned, canonical pointers unchanged pending Verifier)
+- context_epoch: `5`
+- last_completed_round: `004` (coding phase; result returned, canonical pointers unchanged pending Verifier)
 - accepted_kernel: `triton_grouped_topk_r2_002.py` @`ad703266eb727f7725c8fa61ceaedcffc269e94291def703cb34279e5275ab12`
-- accepted_report: `rounds/report_002.md` (r002 accepted: +28.67% prescribed basis, +18.22% same-session vs r001; 6.90 kernels/call; device 103.985 µs flat)
-- recent_three_round_evidence: `report_000 identity v0=0.483530ms device_ratio 0.372 host-dominated; report_001 staged-Triton+kernel-side narrowing accepted; report_002 default-compile compression accepted, reduce-overhead named as unused lever -> taken by round 003`
-- open_hypotheses: `H-003 compile-graph-replay-reduce-overhead implemented in candidate triton_grouped_topk_r2_003.py (sha256 62f8883a2c6d1bdf65d84b29beb71d95500b40b8d6acaf484eb09fccdcf97d38); expected 15%; awaiting Verifier measurement under fingerprint 8deb1b01...`
-- artifact_read_hashes: decision_003=e214c29a…a403; sketch_003=4a909a11…a782; r002_source=ad703266…5ab12; report_002=bd0932b9…36ce; profile_snapshot/triton_cuda.yaml=dc8fa4c0…b7ae; capability_claim.json=2e6ee49d…7f67
+- accepted_report: `rounds/report_002.md` (r002 accepted +28.67% prescribed / +18.22% same-session; r003 RETIRED as no-improvement evidence — pointers unchanged)
+- recent_three_round_evidence: `report_000 identity v0=0.483530ms host-dominated; report_001 staged-Triton accepted; report_002 default-compile accepted (reduce-overhead lever named unused); r003 inductor replay refused by framework → family closed; round 004 takes the remaining legal mechanism`
+- open_hypotheses: `H-004 manual-cuda-graph-workspace-replay implemented in candidate triton_grouped_topk_r2_004.py (sha256 c02d956c6bb5c27c229623b01b99b85f5962db79b5ead09df6fbca7a52e721eb); expected 15%; awaiting Verifier measurement under fingerprint 8deb1b01...`
+- artifact_read_hashes: decision_004=e5465d7d…3be1; sketch_004=ccf277f4…e59; r002_source=ad703266…5ab12; profile_snapshot/triton_cuda.yaml=dc8fa4c0…b7ae
 
 ## Current Bottleneck
 
-- `Verifier-backed facts carried from historical epoch 1 and rounds 000-002: wall time is dominated by fixed host overhead; after r002's dispatch compression ~0.235 ms/call remains outside kernels while device stays ~104 µs/call (vendor top-k pair = 85.51 µs of it).`
+- `Verifier-backed facts carried through rounds 000-002: wall dominated by fixed host overhead; after r002 ~0.235 ms/call remains outside kernels at 6.90 kernels/call; manual single-submission replay attacks the per-launch submission residue directly.`
 
 ## Recent Three-round Evidence
 
-- `historical ../bi150/rounds/report_000..009 — epoch-1 accepted a reduce-overhead compile path (with per-invocation output cloning against pool overwrite); round-003 candidate instead eliminates pool ownership structurally via externally-owned output buffers`
+- `historical ../bi150/rounds/report_000..009 epoch-1 prior; r1-002 accepted; r1-003 retired no-improvement (inductor refuses mutated inputs) — manual capture NOT subject to that heuristic, fired and served correctly this round`
 
-## Round 003 Coding State
+## Round 004 Coding State
 
-- classification written: `candidate-ready` → `rounds/coder_result_003.md` (no major deviation; one disclosed design repair caught by own gate)
-- candidate = mode-only escalation to graph-replay tier with THREE-TIER permanent chain replayed→compiled-default→staged; monotonic downward flags; strict [83,256]+fixed-config gating constructs NO compiler off-regime
+- classification written: `candidate-ready` → `rounds/coder_result_004.md` (no major deviation; probe-side tooling repairs disclosed)
+- candidate = ONE manual torch.cuda.CUDAGraph over instance-owned static workspace (copy-in at boundary per call, full-overwrite placeholders, copy-out OUTSIDE boundary every call), three-tier chain manual-replay→compiled-default(lazy)→staged, both upper tiers permanent-on-failure with lazy construction inside the failing call
 - machine proofs under log/probes/ (no timing/profiler usage beyond bounded sanity):
-  - coder_smoke_result.json @e6414ad0364a0e701c1000a273f4dc132bc3fe3362bce2fa014f47907095a366 — 18/18 PASS: cold-capture smoke (0.562 s sanity) + warm-replay repeat bit-stable (0.001 s sanity); bitwise-vs-r002 sweep on seed42 + four tie suites + new-bytes independence ALL through the REPLAYED route (tier active at sweep end); both fallback edges exercised permanently-once each with poison invoked exactly once; non-target regime never constructs any compiler then re-enters replay tier; run_out poisoned-buffer BOTH orderings with pointer preservation bitwise==r002; cross-instance alternation clean
-  - binding_statement_report.json @b32eb677d43b7d2ad51cb4ec140aae4661495a1ce027098c2ff77301adafe1c7 — SEVEN frozen segments byte+AST identical to r002 incl. run_out; exactly two torch.compile sites {graph-replay mode + dynamic False} / {default mode + dynamic False}; whole-file quoted-mode counts 1/1 and mode=/dynamic=False counts 2/2; carryover forbidden-token scan all-zero
-- hazard resolution record: first-write design returned pool-backed replay outputs; warm-replay consumer read raised framework overwrite protection (hazard ii concrete) → repaired by routing forward through fresh externally-owned output buffers (run_out unchanged); net-zero kernel delta vs r002; framework then logs "skipping cudagraphs due to mutated inputs" on buffer paths — graceful, correctness unconditional, recorded for Verifier attribution scoping (branch A or B both covered by decision rule)
-- open local checks: none outstanding; same-round repair budget untouched (0 verifier-requested repairs)
+  - coder_smoke_result.json @54d14d896e7de0e6e7c6357a7d92ad724f91800324523aab9bc1db4b886e638f — 21/21 PASS: cold-capture smoke (0.139 s sanity) + warm-replay bit-stable; CAPTURE-FIRED proof via handle-alive + lower-tiers-absent + stale-trap + detectable-separation quadruple; bitwise-vs-r002 sweep seed42+4 tie suites+new-bytes ALL through tier 1 (active at sweep end, compiled-default NEVER constructed); Edge A true construction-failure → lazy default permanent-once; Edge A2 live-handle replay() poison hit once → permanent; Edge B stacked cascade 1/1 poisons; T=41 zero artifacts then graph build recovery; run_out poisoned BOTH orderings in-place bitwise==r002 + fresh-copyout leak-trap; cross-instance alternation clean
+  - binding_statement_report.json @1e6b44a5d6db200d91a7686dea39069046e7e184c38de83eb54444a693ddf9bc — six frozen segments byte+AST identical (+forward verbatim); run_out AST-identical w/ disclosed 3-line comment delta; DANGER rule 'reduce-overhead' total==0; exactly one torch.compile site {default,dynamic False}; carryover allowlist all-zero incl. lowercase cudagraph prose; workspace/replay contract spans machine-checked
+- hazard-resolution record: two gate FAILs were my probe-setup artifacts (unrealistic injected handles), candidate never misbehaved; final bytes frozen before gates ran green
+- open local checks: none outstanding; same-round repair budget untouched (0 verifier-requested)
 
 ## Open Hypotheses or Checks
 
-- H-003 awaiting authoritative Verifier wall comparison (expected ≥5% unrounded paired median improvement; expected-gain prior 15%; two-branch kernel-count pass rule; capture-cost absorbed outside timed medians)
+- H-004 awaiting authoritative Verifier wall comparison (expected ≥5% unrounded paired median improvement; expected-gain prior 15%; TWO-BRANCH kernel-count rule with branch-A collapse toward ≤2 attributable launches/call expected from copy-in+replay+copy-out structure; cold warmup+capture cost absorbed outside timed medians)
