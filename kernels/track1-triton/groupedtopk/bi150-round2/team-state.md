@@ -5,7 +5,7 @@ contract_version: 3
 semantic_contract: typed-sketch-v1
 attribution_contract: verdict-v1
 runtime: claude-code
-phase: coding
+phase: verifying
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-27T12:35:00Z
@@ -37,7 +37,7 @@ last_checkpoint_round: null
 base_branch: dev
 base_commit: 389053e
 run_branch: kernel-opt/round2-bi150-20260827
-measurement_exclusive: false
+measurement_exclusive: true
 implementation_language: triton
 implementation_backend: cuda
 target_profile: triton_cuda
@@ -70,3 +70,4 @@ Manifest updated only by the Orchestrator. Round artifacts back every value.
 | 2026-08-27T16:40:00Z | verifying | ready | accepted | report_001 @f9fbb9bf... verdict_001 @ff1e49c6 (validate_verdict exit 0; fact-pack pin c46c3349 confirmed by verifier; accepted rule-less classification none); wall paired +11.4133% vs same-run ref, +13.77% vs manifest anchor 0.483530ms; kernels/call 14.93→6.97, device 180.4→105.3us/call; device_ratio 0.383→0.253; H-001 all observables confirmed; deviation: 1 named failed probe (summarize_trace strict-overlap rc=2) salvaged offline host-window convention, zero GPU re-runs; measurement fingerprint unchanged |
 | 2026-08-27T16:55:00Z | ready | designing | - | run-policy dispatch_next_round=true; round-002 designer dispatch (compile-graph-default H-002 candidate family) |
 | 2026-08-27T17:25:00Z | designing | coding | - | decision_002 gate PASS by orchestrator rerun (exit 0 "valid":true; decision sha 31c972fb31d9760acf4bb271bbff9d919c910cf0231b5b9215f9c871af82ff37, sketch 0ccbec4756d447d1365d0cae81ff2f8e3a020ecc3b99d84bbe2d4d7ce5d84cf3 — both first-run green; profile/claim pins unchanged dc8fa4c0.../2e6ee49d...); H-002 expected 10%, guardrails: default mode only, dynamic=False, fallback-to-staged permanent, topk sites byte-frozen |
+| 2026-08-27T18:05:00Z | coding | verifying | candidate-ready | coder_002 gate PASS (candidate triton_grouped_topk_r2_002.py sha ad703266eb727f7725c8fa61ceaedcffc269e94291def703cb34279e5275ab12; smoke 15/15 EXIT0 ids exact + bitwise==r001 all cases; byte/AST-identity of 6 inherited segments incl. both topk sites; compile allowlist scan zero-violation; fallback exercised dynamo-fail + off-regime T=41 both bitwise-correct, permanent-once proven; run_out==forward poisoned-buffer bitwise cold+warm) |
