@@ -10,7 +10,9 @@
 
 **Reference model**: [MIT Han Lab KernelWiki](https://github.com/mit-han-lab/KernelWiki) at `b6b4301f15e8ce6955a56776690643ce5db369e6`
 
-**Related control plane review point**: `skills/kernel-opt-loop/` as inspected at `origin/dev@389053e203610a78cb95340520f3b60bb33a58fe`; the normative authority is always the latest reviewed, checked-in vNext contracts rather than this historical review SHA
+**Related control plane**: the latest checked-in `skills/kernel-opt-loop/` vNext contracts, schemas, validators, role ownership rules, and Orchestrator gates are authoritative; KernelWiki does not pin, fork, or supersede that authority
+
+**Historical review baseline**: `origin/dev@389053e203610a78cb95340520f3b60bb33a58fe`; non-authoritative
 
 ## 1. Summary
 
@@ -92,7 +94,9 @@ promotion rules.
 
 Raw evidence, editorial synthesis, and navigation must not become one mutable
 blob. Source records are provenance-first. Wiki Cards are reviewed synthesis.
-Query views are disposable deterministic materializations.
+Generated query views are first-class human and agent navigation interfaces;
+they are reproducible from the corpus and contain no independently authored
+knowledge.
 
 ### 3.2 Wiki Card equals Wiki Page
 
@@ -162,19 +166,24 @@ KernelWiki v1 must:
    source following, and reviewed artifact inspection;
 8. support active Coder research through a narrower exact-profile implementation
    view that cannot change the frozen Sketch or Decision;
-9. support structured, deterministic applicability resolution and bounded role
-   dossiers without replacing direct page reading;
+9. support deterministic role, target, profile, and version filtering in active
+   queries and page retrieval; any later dossier is an optional receipt or
+   convenience view, never the required research input or handoff artifact;
 10. use completed local campaigns as scoped positive or counterexample cases on
     general Cards;
 11. turn terminal campaign evidence into reviewable knowledge-lift proposals,
     never automatic Wiki publication;
 12. preserve profile, project, Sketch, binding, Verifier, verdict, and canonical
     pointer authority in `kernel-opt-loop`;
-13. use Track 2 operators as holdout query fixtures that test whether general
-    knowledge is useful without operator-specific Wiki pages; and
+13. use Track 2 operators as query contexts rather than Wiki ontology, and
+    maintain a sealed Track 2 query-and-judgment subset for holdout evaluation;
 14. demonstrate target isolation, Unknown preservation, deterministic output,
     citation integrity, contradiction visibility, and useful retrieval through
-    hardware-free tests.
+    hardware-free tests;
+15. keep Phases A–D entirely standalone, with no changes to `kernel-opt-loop`
+    prompts, schemas, validators, templates, or campaign artifact formats; and
+16. treat loop-flow, consultation-record, and project-side proposal descriptions
+    as deferred Phase E design sketches until separately approved.
 
 ## 5. Non-goals
 
@@ -196,7 +205,12 @@ The following are outside v1:
 - making KernelWiki availability a prerequisite for a valid local optimization
   campaign;
 - implementing an AtomGit or arbitrary-web crawler before stable source adapters
-  and provenance rules exist; and
+  and provenance rules exist;
+- modifying `skills/kernel-opt-loop/`, role prompts, campaign schemas, validators,
+  or project artifact formats during Phases A–D;
+- requiring Designer, Coder, Verifier, or Orchestrator to emit KernelWiki-specific
+  artifacts before a separately approved Phase E adapter;
+- writing into an active campaign directory from standalone KernelWiki; and
 - solving the missing `triton_ascend` or `ascendc` canonical implementation
   profiles inside KernelWiki.
 
@@ -219,9 +233,17 @@ the campaign control plane.
 | Publishing or changing a Wiki Card | Curator review and Git commit |
 
 KernelWiki may cite authoritative project and profile facts. It may not replace or
-revise them.
+revise them. If this specification differs from the latest checked-in
+`kernel-opt-loop` contract, `kernel-opt-loop` governs campaign behavior and
+KernelWiki must adapt to it.
 
 ## 7. Repository Architecture
+
+The tree below is the staged end-state architecture, not the minimum Phase A
+file list. The initial standalone core must first prove the complete
+`source capture -> Source -> Wiki Card -> generated query views -> offline query
+and page retrieval` path. Dossiers, consultation records, campaign imports, and
+loop adapters remain later-phase extensions.
 
 ```text
 skills/kernelwiki/
@@ -246,7 +268,6 @@ skills/kernelwiki/
     version-claims.yaml
     tool-versions.yaml
     source-repositories.yaml
-    inclusion-policy.yaml
     size-budget.yaml
 
   candidates/
@@ -538,6 +559,10 @@ examples must remain relevant to the same general technique topic.
 
 ### 11.3 Frontmatter
 
+`summary` is a concise navigation field used by generated query views. It is not
+an independently approved claim and does not override the narrower evidence,
+target, version, or transfer scope of individual observations and examples.
+
 Example technique Card:
 
 ```yaml
@@ -572,9 +597,9 @@ risks:
   - occupancy or parallelism decreases
   - host or synchronization overhead dominates
 
-confidence:
-  evidence_level: source-reported
-  replication: multi-source
+evidence_summary:
+  levels_present: [official-doc-and-upstream-code, source-reported, local-verifier]
+  source_count: 2
 reproduction:
   level: snippet
 
@@ -591,6 +616,8 @@ examples:
   - id: example-ascend-groupedtopk-launch-collapse
     role: positive
     source_id: source-local-ascend-groupedtopk-round-001
+    evidence_level: local-verifier
+    reproduction: historical-local
     target_id: ascend910b
     implementation_profile_id: triton_ascend
     profile_authority: historical-noncanonical
@@ -608,6 +635,8 @@ examples:
   - id: example-ascend-flexattention-device-win-wall-loss
     role: counterexample
     source_id: source-local-ascend-flexattention-round-003
+    evidence_level: local-verifier
+    reproduction: historical-local
     target_id: ascend910b
     implementation_profile_id: triton_ascend
     operator_family: attention
@@ -653,7 +682,12 @@ What does not transfer
 
 ## 12. Confidence, Reproducibility, and Performance
 
-### 12.1 Confidence is Card-level, examples remain individually scoped
+### 12.1 Evidence qualification is observation- and example-scoped
+
+Each sourced observation or example carries the evidence qualification needed
+to interpret it. A Card may expose a generated or editorial summary of its
+evidence coverage for navigation, but that summary does not widen the authority,
+target, runtime, shape, version, or measurement scope of any statement.
 
 Allowed evidence levels are:
 
@@ -663,8 +697,9 @@ Allowed evidence levels are:
 - `inferred`;
 - `experimental`.
 
-A strong Card-level label does not widen any example's target, runtime, shape, or
-measurement scope.
+When a page contains observations at different evidence levels, its body and
+metadata preserve those differences instead of assigning the strongest level to
+the whole page.
 
 ### 12.2 Reproducibility ladder
 
@@ -708,22 +743,24 @@ control campaign adoption.
 
 ### 13.1 Catalog
 
-`compiled/catalog.jsonl` contains one record per Source or Card:
+`compiled/catalog.jsonl` contains one generated record per Wiki Card. Source
+records remain discoverable through Card citations and the generated
+`by-source-repo.md` view:
 
 ```json
 {"id":"technique-kernel-fusion","path":"wiki/techniques/kernel-fusion.md","body_sha256":"...","type":"technique","audiences":["designer"],"targets":["backend-neutral","ascend"],"kernel_types":["attention","topk","moe","reduction"],"tags":["kernel-fusion"],"source_count":2,"positive_example_count":1,"counterexample_count":1}
 ```
 
-The catalog is generated from source files and frontmatter. It contains no
-independently authored statements.
+The catalog is generated from Wiki Card frontmatter and body hashes. It contains
+no independently authored statements or Source-record schema fields.
 
 ### 13.2 Query views
 
 `generate_indices.py` produces:
 
 1. `by-problem.md`: symptom -> pattern -> candidate techniques;
-2. `by-technique.md`: technique, targets, confidence, reproducibility, source and
-   example counts;
+2. `by-technique.md`: technique, targets, evidence coverage, reproducibility,
+   source and example counts;
 3. `by-hardware-feature.md`: feature -> hardware, technique, kernel, and source
    pages;
 4. `by-kernel-type.md`: kernel family -> sources, case studies, techniques, and
@@ -762,7 +799,7 @@ Filters include:
 - architecture disposition;
 - symptom;
 - kernel type;
-- confidence;
+- evidence level;
 - reproducibility;
 - audience;
 - has-code.
@@ -786,14 +823,15 @@ does not determine campaign legality.
 `grep_wiki.py` supports scoped regex search across Wiki bodies, source pages, or
 both. It is an investigation tool, not an applicability gate.
 
-## 15. Role-aware Applicability and Dossiers
+## 15. Role-aware Query Admission and Optional Dossiers
 
 ### 15.1 Active access model
 
 Designer and Coder actively access Wiki Cards. They are not passive consumers of
 one preselected packet.
 
-Future loop flow:
+The following is a deferred Phase E integration sketch. It is non-operative
+during Phases A–D and does not authorize changes to `kernel-opt-loop`:
 
 ```text
 Orchestrator pins one KernelWiki revision
@@ -837,6 +875,11 @@ Coder may inspect only Cards that satisfy all of the following:
 7. snippets and artifacts permit Coder access;
 8. provenance and license checks pass.
 
+Card admission and asset admission are separate. A Coder-admitted Card does not
+automatically grant access to every cited example, snippet, or artifact. Each
+target-sensitive implementation item independently passes exact-profile,
+runtime, capability, provenance, license, and frozen-Sketch checks.
+
 A Coder query never falls back to another backend or language. If a useful Card
 would require a Sketch or Decision change, Coder reports the existing deviation
 or capability route instead of applying it.
@@ -865,10 +908,15 @@ Designer context contains current project facts but no invented capability:
 Coder context additionally requires frozen Sketch, Decision, implementation
 profile, and project capability claim references and hashes.
 
-### 15.5 Applicability resolution
+### 15.5 Query admission and visible exclusion reasons
 
-`build_dossier.py` takes explicit page IDs or query results and deterministically
-classifies them as:
+`query.py` and `get_page.py` apply deterministic role, target, profile, and
+version admission rules at request time. Results include stable match classes and
+visible exclusion reasons. They return page references and metadata rather than
+compiling a replacement knowledge packet.
+
+An optional later `build_dossier.py` may collect explicitly selected page IDs or
+query receipts and classify them as:
 
 - `admitted`;
 - `conditional`;
@@ -899,28 +947,25 @@ stable ID.
 Counterexamples and capability gaps use separate groups so positive techniques
 cannot rank them out of the dossier.
 
-### 15.6 Bounded dossiers
+### 15.6 Optional result limits and receipts
 
-Default Designer limits:
+Query and page-retrieval commands accept explicit result, excerpt, and snippet
+limits to control output size. Limits do not create a persisted dossier, do not
+suppress separately requested counterexamples or capability gaps, and do not
+replace active page reading.
 
-```yaml
-pages: 12
-source_excerpts: 8
-snippets: 3
-```
+An optional Phase C dossier is only a deterministic convenience view or research
+receipt over pages the role actively selected. It is never a mandatory Designer
+input, Coder handoff, or campaign authority artifact.
 
-Default Coder limits:
-
-```yaml
-pages: 6
-source_excerpts: 4
-snippets: 2
-```
-
-An empty or unavailable Wiki returns a schema-valid empty dossier and does not
-block the local loop.
+An empty or unavailable Wiki returns a schema-valid empty query result and does
+not block the local loop.
 
 ## 16. Consultation Records
+
+All consultation records in this section are deferred Phase E artifacts.
+Standalone Phases A–D do not require roles to write them and do not modify current
+campaign artifact contracts.
 
 ### 16.1 Designer consultation
 
@@ -1010,14 +1055,19 @@ Verifier fact pack/report
 + deterministic verdict
 + terminal Git commit
         ↓
-Orchestrator invokes proposal extractor
+Curator explicitly invokes an offline proposal extractor
         ↓
-project-side knowledge-lift proposal
+KernelWiki experience candidate
         ↓
 Curator include/defer/exclude review
         ↓
 immutable local Source + Wiki Card example update
 ```
+
+During Phases A–D, this is an explicit offline maintenance operation over a
+completed, user-selected artifact bundle. It does not change Verifier behavior,
+invoke itself from the live loop, or write into active project state. Automated
+Orchestrator invocation is deferred to Phase E.
 
 ### 18.2 Safe timing
 
@@ -1026,13 +1076,17 @@ write occurs during measurement exclusivity or before verdict attribution.
 
 ### 18.3 Proposal artifact
 
-The extractor writes a project-side proposal such as:
+The standalone extractor writes a candidate beneath:
 
 ```text
-state/kernelwiki_lift_proposal_<run-epoch>.json
+skills/kernelwiki/candidates/experience/<proposal-id>.json
 ```
 
-It pins profile, project claim, runtime, measurement, Sketch, Decision, binding,
+or to an explicit caller-provided output path. It does not write into an active
+campaign directory or project `state/`. A future Phase E adapter may own a
+project-side proposal path after separate review.
+
+The proposal pins profile, project claim, runtime, measurement, Sketch, Decision, binding,
 Coder result, report/fact pack, verdict, and terminal commit identities.
 
 It records:
@@ -1049,17 +1103,23 @@ It contains no instruction for the next candidate.
 
 ### 18.4 Outcome mapping
 
-- `accepted`: candidate positive example, scoped implementation evidence, or
-  measurement example;
-- `no-improvement`: counterexample, residual-bottleneck, or device-win/wall-loss
-  example when evidence supports it;
-- `screened-out`: slower-result example only, with no unsupported causal claim;
-- `design-rejected`: design pitfall or capability-gap proposal according to the
-  verdict rule;
-- `lowering-unknown`: Unknown/probe proposal, never Unsupported;
-- `candidate-failed`: implementation pitfall only when repeated or tied to a
-  stable exact-profile diagnostic;
-- `environment-blocked`: deferred by default.
+The proposal extractor consumes terminal classifications, evidence-gap states,
+and attribution facts exactly as validated by the pinned `kernel-opt-loop`
+contract version. KernelWiki does not redefine that vocabulary.
+
+The reviewed mapping may propose:
+
+- a scoped positive example when terminal evidence establishes an improvement;
+- a scoped counterexample or residual-bottleneck example when valid measurement
+  establishes no improvement or a wall/device mismatch;
+- a slower-result example without unsupported causal claims;
+- a design-pitfall or capability-gap proposal when the deterministic verdict
+  supports it;
+- an Unknown/probe proposal when lowering or capability evidence remains Unknown;
+- an implementation-pitfall proposal only for stable, repeatable, exact-profile
+  evidence; or
+- defer when the run is environmentally blocked or the artifact chain is
+  incomplete.
 
 ### 18.5 Review and publication
 
@@ -1072,12 +1132,15 @@ reviewed_at: ...
 rationale: ...
 ```
 
-An included proposal creates an immutable local Source and either:
+An included local proposal creates an immutable local Source. Its default
+publication form is a scoped positive or counterexample case on an existing
+general Card.
 
-- appends a scoped positive/counterexample case to an existing general Card; or
-- creates a new general Card when a genuinely new mechanism exists; or
-- creates a kernel case-study Card when the implementation has independent
-  teaching value.
+A local campaign may justify a new general Card only when it establishes a
+previously uncovered reusable mechanism. It may justify a kernel case-study Card
+only when Curator review finds independent teaching value beyond the originating
+operator. Such a Card is titled and indexed by reusable kernel family or
+mechanism, not by competition operator or campaign identity.
 
 Git review and commit are the publication boundary. There is no independent
 `claims/proposed|active` lifecycle.
@@ -1096,7 +1159,10 @@ Cards.
 
 ### 19.1 Initial general Cards
 
-Phase B targets approximately 8–12 initial Cards across:
+Phase B creates the smallest reviewed set of general Cards needed to cover the
+initial Ascend-native sources, exercise every required query view, and validate
+target-isolation rules. Card count is not an acceptance metric. Initial topics
+include:
 
 - AscendC language and build model;
 - Triton Ascend language/backend model;
@@ -1172,6 +1238,8 @@ All production query paths are offline and deterministic.
    hashes.
 7. Every Coder-visible Card satisfies exact-profile and code-access policy.
 8. Generated catalog and query views are current and byte-stable.
+9. No Track 2 operator identifier becomes a Wiki ontology root or operator-named
+   Card solely because a local campaign exists.
 
 ### 21.2 Source policy
 
@@ -1225,8 +1293,11 @@ materialization and output-reuse counterexamples.
 
 #### Track 2 query holdout
 
-Keep all three Track 2 references outside the Wiki corpus. Use them as structured
-queries and compare retrieved general Cards to an expert gold set.
+Keep all Track 2 operators outside the authored Wiki corpus. Before tuning query
+ranking, seal a subset of Track 2 query contexts and expert relevance judgments.
+Do not use that sealed subset to author Cards, choose taxonomy, tune ranking, or
+select aliases. Use it only for final retrieval evaluation; the remaining Track 2
+contexts may be used as development examples.
 
 Suggested acceptance targets:
 
@@ -1276,19 +1347,19 @@ specification and implementation plan after its compatibility gates are met.
 - add a small number of kernel case studies;
 - validate query views and offline navigation.
 
-### Phase C: role-aware consultation
+### Phase C: role-aware standalone queries
 
-- Designer and Coder views;
-- deterministic admissibility and dossiers;
-- consultation validation;
+- Designer and Coder query views;
+- deterministic admission, visible exclusions, and optional result receipts;
 - Track 2 query fixtures and adversarial tests;
-- exact-profile empty behavior for missing AscendC capability authority.
+- exact-profile empty behavior for missing AscendC capability authority;
+- no role prompt, campaign schema, or consultation-artifact changes.
 
-### Phase D: local evidence lift
+### Phase D: offline local evidence lift
 
-- artifact-chain validator;
-- project-side proposal extractor;
-- experience candidate ledger;
+- artifact-chain validator over explicitly selected terminal bundles;
+- offline experience proposal extractor with caller-selected output;
+- experience candidate ledger under KernelWiki;
 - local positive and counterexample cases;
 - replication, contradiction, and version-staleness updates.
 
@@ -1311,20 +1382,24 @@ The adapter adds:
 
 ## 23. vNext Integration Compatibility Gate
 
-The future Wiki adapter targets the intended vNext authority model, not observed
-implementation inconsistencies. Phase E remains blocked until the owning
-`kernel-opt-loop` work establishes compatible, reviewed contracts for:
+Phase E targets the latest checked-in `kernel-opt-loop` vNext authority, not a
+KernelWiki-owned copy or fork of its contracts.
 
-1. binding data needed by the validator for `elided-by` relations;
-2. verdict repair and finalization fields consumed by the validator;
-3. legal multi-field final-configuration binding validation;
-4. evidence-path and hash trust around the Verifier fact pack;
-5. canonical machine-readable Ascend implementation profiles and probes.
+Before enabling the optional adapter, compatibility tests must demonstrate that
+KernelWiki consumes the then-current validated implementation-profile snapshot,
+project capability claim, typed Sketch, Decision, binding ledger, Verifier fact
+pack/report, deterministic verdict, and Orchestrator pointers without changing
+their ownership or semantics.
 
-These are compatibility conditions, not KernelWiki Phase A–D deliverables. This
-specification does not authorize changes to `kernel-opt-loop` to satisfy them.
-A later Phase E design must pin supported artifact contract versions and consume
-only artifacts that have passed their role validators and Orchestrator gates.
+KernelWiki does not prescribe fixes or schema changes for `kernel-opt-loop`.
+Any control-plane defect or contract evolution is handled through the
+`kernel-opt-loop` design and implementation process. Until compatibility is
+demonstrated and the adapter is separately approved, KernelWiki remains a
+standalone research and curation skill.
+
+A later Phase E design pins the exact supported artifact contract versions and
+consumes only artifacts that passed their existing role validators and
+Orchestrator gates.
 
 ## 24. Governance
 

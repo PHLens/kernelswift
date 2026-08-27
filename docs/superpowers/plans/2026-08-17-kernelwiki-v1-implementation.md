@@ -1,8 +1,14 @@
-# [SUPERSEDED] KernelWiki v1 Implementation Plan
+# [SUPERSEDED — DO NOT EXECUTE] KernelWiki v1 Historical Implementation Plan
 
-> **Status: superseded — do not execute.** The KernelWiki architecture was revised on 2026-08-21 in `docs/superpowers/specs/2026-08-17-kernelwiki-v1-design.md` to use an Ascend-first MIT-style `sources -> wiki -> queries` model, general Wiki Cards, active Designer/Coder consultation, and reviewed local examples. This plan describes the prior independent claim-plane and prebuilt-KnowledgePacket design. A replacement implementation plan must be written only after the revised specification is reviewed and approved.
+> **STATUS: SUPERSEDED — DO NOT EXECUTE ANY TASK, COMMAND, CHECKBOX, TEST, FILE CHANGE, OR COMMIT BELOW.**
+>
+> The entire remainder of this file is a historical artifact. Every interface, schema, path, task sequence, code sample, and `kernel-opt-loop` integration change below is non-normative and may contradict the approved design.
+>
+> In particular, do not implement the `claims/` lifecycle, atomic claim schemas, `KnowledgePacket`, `build_packet.py`, claim promotion workflow, Verifier evidence sidecar, schema-v2 packet snapshot, or direct modifications to `skills/kernel-opt-loop/` described below.
+>
+> The replacement architecture is defined by `docs/superpowers/specs/2026-08-17-kernelwiki-v1-design.md` together with the latest checked-in `skills/kernel-opt-loop/` vNext authority. A replacement implementation plan must be written and separately approved before work begins.
 
-> **Everything below this notice is non-normative historical material. No checkbox, command, file list, or commit instruction below constitutes approved work.**
+# Historical Superseded Content — Non-Executable
 
 **Goal:** Build a standalone, Git-versioned KernelWiki skill that compiles
 provenance-pinned sources into approved claims, readable wiki pages, deterministic
