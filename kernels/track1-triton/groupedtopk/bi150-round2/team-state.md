@@ -5,7 +5,7 @@ contract_version: 3
 semantic_contract: typed-sketch-v1
 attribution_contract: verdict-v1
 runtime: claude-code
-phase: coding
+phase: verifying
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-27T12:35:00Z
@@ -37,7 +37,7 @@ last_checkpoint_round: null
 base_branch: dev
 base_commit: 389053e
 run_branch: kernel-opt/round2-bi150-20260827
-measurement_exclusive: false
+measurement_exclusive: true
 implementation_language: triton
 implementation_backend: cuda
 target_profile: triton_cuda
@@ -66,3 +66,4 @@ Manifest updated only by the Orchestrator. Round artifacts back every value.
 | 2026-08-27T13:55:00Z | initializing | ready | baseline | report_000 gate PASS (320b8b03...; wall v0=0.483530ms v1=0.481109ms ~1.00x; 14.94 kernels/call, device_ratio 0.372 host-dominated; measurement fingerprint recomputed identical 8deb1b01...; deviation: --profile-mode forward fallback, kernel-mode requires ModelNew.run_out — binding requirement recorded for coder) |
 | 2026-08-27T14:30:00Z | ready | designing | - | round-001 decision+sketch authored by designer; orchestrator promoted machine-readable implementation profile triton_cuda v1 partial (snapshot triton_cuda.yaml sha dc8fa4c0..., claim re-pinned 2e6ee49d...; canonical skills/kernel-opt-loop/profiles/triton_cuda/); markdown md snapshot retained as provenance |
 | 2026-08-27T15:10:00Z | designing | coding | - | decision_001 gate PASS by orchestrator rerun (exit 0 valid:true; amended decision sha 93783baafdc4c4c022773e30ca2d90f7bc94e954ae25cae057fe625b7c43532b, sketch 637917e0...; decision now immutable before coding); change family preprocess-fusion-triton-stages H-001 |
+| 2026-08-27T15:55:00Z | coding | verifying | candidate-ready | coder_001 gate PASS (candidate triton_grouped_topk_r2_001.py sha 4ae64cad913267f2198fec735e08f1b9490cafa1139d3a48ee11400aacb80de3; smoke EXIT0 all_pass ids_exact+4 tie suites; run_out byte-equality; bounded cast-narrow probe evidence-ready → NO fallback needed; binding all_checks_pass=true; measurements exclusive to verifier now) |
