@@ -249,21 +249,18 @@ Standing checks:
 - Round 000 baseline is dispatched separately; Designer stays idle during
   verification/measurement exclusivity windows (measurement_exclusive=false at
   context-write time). [Round 001 update: baseline landed canonically.]
-- Gate status after Round-001 self-validation: `validate_decision.py
-  --expected-implementation-profile triton_cuda --project-root <round2 root>`
-  passed ALL structural checks — seven sections, schema-v2 metadata,
-  typed-Sketch artifact + hash binding, capability-claim hash/profile match,
-  runtime-fingerprint anchor, causal-graph connectivity, host plan, evaluation
-  contract — and stops ONLY at the machine-readable implementation-profile
-  gate (`load_profile` cannot parse the project-declared Markdown snapshot
-  `profile_snapshot/triton_cuda.md`; no reviewed machine-readable triton_cuda
-  profile exists under `skills/kernel-opt-loop/profiles/` yet; only
-  `triton_mlu` does). Remediation is Orchestrator-owned profile
-  promotion/materialization; once promoted, Designer amends ONLY the two
-  Metadata fields `implementation_profile_snapshot_ref/_sha256` to point at
-  the promoted artifact before Coder dispatch (decision not yet validated/
-  dispatched, so amendment is legitimate round-001 designer work).
-  No algorithm substitution / fallback_provenance involved in this decision.
+- Gate status RESOLVED (2026-08-27, promotion commit a9f1fe0): Orchestrator
+  materialized canonical machine-readable profile
+  `skills/kernel-opt-loop/profiles/triton_cuda/profile.yaml` v1
+  (`profile_status=partial`) + frozen campaign snapshot
+  `profile_snapshot/triton_cuda.yaml` and re-pinned the capability claim.
+  Designer amended ONLY the three authorized Metadata fields in
+  `rounds/decision_001.md` and re-ran
+  `validate_decision.py --expected-implementation-profile triton_cuda
+  --project-root <root>`: **exit=0, `"valid": true` on ALL gates** including
+  the previously blocked snapshot check. Amended decision sha256:
+  `93783baafdc4c4c022773e30ca2d90f7bc94e954ae25cae057fe625b7c43532b`.
+  No algorithm substitution / fallback_provenance involved.
 
 ## Artifact Read Hashes
 
@@ -284,10 +281,12 @@ Standing checks:
 | `../bi150/rounds/report_004.md` | `2821208486c00f6add2bac177819fc8fc39c931170cfea2b4efb5dcf26eb6042` | P0 |
 | `../bi150/rounds/report_008.md` | `42f6b7a713e09b0adef661c0e24d85e7afd28d253fd72a04a5b721894b773fb5` | P0 |
 | `../bi150/rounds/report_009.md` | `015be0aef0d96b09702d393014892862cc84fc68657ae2e848813546e3644f6d` | P0 |
-| `project.md` (updated Invariants: run_out binding) | `5206ba9c1d8f54a3dda02ae74e06d27724d007b46271291f8811072c16e00650` | 001 |
+| `profile_snapshot/triton_cuda.yaml` (promoted frozen snapshot) | `dc8fa4c0c73caecc78c6a886e5ffb18cb97371f3add7cb382dbe30887743b7ae` | 001 |
+| `profile_snapshot/capability_claim.json` (re-pinned by Orchestrator) | `2e6ee49ddd887a00e9a8a8ef6dfc746984ecaacd2256ee0b8666a3099a5b7f67` | 001 |
+| `project.md` (promotion commit a9f1fe0 hash chains) | `67965595898b9230c2ba3f03751bcd092de4b95fd7c848c93ecb37844cdec6c3` | 001 |
+| `team-state.md` (post-promotion manifest) | `318c97753ac04d015b3cba7ce96755ec46dbadc6e2043d59ec56ccd0162029f5` | 001 |
 | `baseline_adapter.py` (canonical last_accepted_kernel) | `ecce4dacee211a86ba38584b6b78fc2f575ba60cedccdc6f79ac4f6fb0139fa5` | 001 |
-| `team-state.md` | `4206c40ad63c1a3691c6bc9f30fad03c6e7e57928a02ede49338bb6b258d2aac` | 001 |
 | `auto_bench.py` (harness; run_out contract source) | `71fb3ad0c3ad23c5c156c898f85abcee3d42a15800f75ff97769cfca9152fe29` | 001 |
 | `rounds/report_000.md` | `320b8b03f3d25a43904b1499db0af251ea324051470d55e2309088100bb56fdd` | 001 |
-| `rounds/sketch_001.json` (WRITTEN, normative) | `637917e07b4461258ea714d42021e2e5537e21d19765b57bc9cc1552ef6f6985` | 001 |
-| `rounds/decision_001.md` (WRITTEN) | `5bb98ac0c1ae24bb29ea9205eefa927d70717fc0d7794501a233a4728a1361f4` | 001 |
+| `rounds/sketch_001.json` (WRITTEN, normative; unchanged by amendment) | `637917e07b4461258ea714d42021e2e5537e21d19765b57bc9cc1552ef6f6985` | 001 |
+| `rounds/decision_001.md` (WRITTEN + promotion amendment, validator green) | `93783baafdc4c4c022773e30ca2d90f7bc94e954ae25cae057fe625b7c43532b` | 001 |

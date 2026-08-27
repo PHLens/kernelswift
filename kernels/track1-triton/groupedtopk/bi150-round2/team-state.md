@@ -5,17 +5,17 @@ contract_version: 3
 semantic_contract: typed-sketch-v1
 attribution_contract: verdict-v1
 runtime: claude-code
-phase: ready
+phase: coding
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-27T12:35:00Z
-current_round: "000"
+current_round: "001"
 last_completed_round: "000"
 last_accepted_round: "000"
 last_accepted_kernel: baseline_adapter.py
 last_accepted_report: rounds/report_000.md
-last_completed_decision: null
-last_completed_sketch: null
+last_completed_decision: rounds/decision_001.md
+last_completed_sketch: rounds/sketch_001.json
 last_completed_binding: null
 last_completed_verdict: null
 last_attribution: null
@@ -65,3 +65,4 @@ Manifest updated only by the Orchestrator. Round artifacts back every value.
 | 2026-08-27T13:05:00Z | initializing | initializing | - | designer phase-0 gate PASS (state/designer_context.md sha256=5c37487a..., 249 lines); note: epoch-1 ../bi150/final_summary.md does not exist, lineage reconstructed from team-state+reports (designer declared, verified) |
 | 2026-08-27T13:55:00Z | initializing | ready | baseline | report_000 gate PASS (320b8b03...; wall v0=0.483530ms v1=0.481109ms ~1.00x; 14.94 kernels/call, device_ratio 0.372 host-dominated; measurement fingerprint recomputed identical 8deb1b01...; deviation: --profile-mode forward fallback, kernel-mode requires ModelNew.run_out — binding requirement recorded for coder) |
 | 2026-08-27T14:30:00Z | ready | designing | - | round-001 decision+sketch authored by designer; orchestrator promoted machine-readable implementation profile triton_cuda v1 partial (snapshot triton_cuda.yaml sha dc8fa4c0..., claim re-pinned 2e6ee49d...; canonical skills/kernel-opt-loop/profiles/triton_cuda/); markdown md snapshot retained as provenance |
+| 2026-08-27T15:10:00Z | designing | coding | - | decision_001 gate PASS by orchestrator rerun (exit 0 valid:true; amended decision sha 93783baafdc4c4c022773e30ca2d90f7bc94e954ae25cae057fe625b7c43532b, sketch 637917e0...; decision now immutable before coding); change family preprocess-fusion-triton-stages H-001 |

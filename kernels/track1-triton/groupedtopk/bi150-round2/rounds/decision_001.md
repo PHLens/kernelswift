@@ -18,10 +18,10 @@
   "change_family": "preprocess-fusion-triton-stages",
   "sketch_ref": "rounds/sketch_001.json",
   "sketch_sha256": "637917e07b4461258ea714d42021e2e5537e21d19765b57bc9cc1552ef6f6985",
-  "implementation_profile_snapshot_ref": "profile_snapshot/triton_cuda.md",
-  "implementation_profile_snapshot_sha256": "8b9cb9836c4abf97141081288d9eb68af7a571309057181e5ec1914827249a2f",
+  "implementation_profile_snapshot_ref": "profile_snapshot/triton_cuda.yaml",
+  "implementation_profile_snapshot_sha256": "dc8fa4c0c73caecc78c6a886e5ffb18cb97371f3add7cb382dbe30887743b7ae",
   "project_capability_claim_ref": "profile_snapshot/capability_claim.json",
-  "project_capability_claim_sha256": "bc50f7f974f025e6be49d611e2546b6db6426d0761b794001898482f80f91371"
+  "project_capability_claim_sha256": "2e6ee49ddd887a00e9a8a8ef6dfc746984ecaacd2256ee0b8666a3099a5b7f67"
 }
 ```
 
@@ -145,7 +145,7 @@
 - `tl.argmax` is NOT used anywhere in this design, so the Constrained repeated-argmax/tie capability is never normatively exercised. `num_warps`/`num_stages` remain Unknown on this profile revision and stay UNSET: no launch hint enters sketch hints, launches use proven direct syntax defaults.
 - `run_out` binding is hard: report_000 records that `--profile-mode kernel` structurally requires callable `ModelNew.run_out` (harness raises `KsCompareError` otherwise). The exact contract was read from `auto_bench.py::make_profile_call`: called as `run_out(gating_output, *output_args, **run_kwargs)` where `output_args` are the reference forward's tensors and `run_kwargs = dict(getattr(model, 'run_kwargs', {}))`; the return value is ignored, so run_out must complete its writes into the provided buffers before returning.
 - `-inf` masked lanes reach the retained expert `torch.topk` exactly as in base semantics because stage-B produces the same logical value pattern (`score` where member else `-inf`); no reordering of lanes occurs.
-- Profile snapshot status disclosure: the frozen snapshot referenced here (`profile_snapshot/triton_cuda.md`) is the project-declared explanatory rendering; no reviewed machine-readable `triton_cuda` implementation profile has been promoted yet (snapshot Migration status header). This decision references the project-declared ref/hash without inventing artifacts; validator-side machine-profile conformance depends on Orchestrator-owned promotion/onboarding materialization. The claim's `primary_contract: reduction.argmax-grouped-selection` with `probe_policy: optional` governs fallback planning; NO algorithm substitution is declared (no `uses_algorithm_substitution`, no fallback_provenance).
+- Profile binding (historical note, resolved): during initial round-001 authoring no machine-readable `triton_cuda` implementation profile existed and the project declared only the Markdown rendering; Orchestrator subsequently promoted the canonical `skills/kernel-opt-loop/profiles/triton_cuda/profile.yaml` v1 (`profile_status=partial`) and materialized the frozen campaign snapshot `profile_snapshot/triton_cuda.yaml` (`load_profile` verified), re-pinning `profile_snapshot/capability_claim.json` to it. This Decision binds directly to that machine-readable snapshot; the Markdown rendering remains in place purely as provenance. The claim's `primary_contract: reduction.argmax-grouped-selection` with `probe_policy: optional` governs fallback planning; NO algorithm substitution is declared (no `uses_algorithm_substitution`, no fallback_provenance).
 
 ## Rationale and Evidence
 
