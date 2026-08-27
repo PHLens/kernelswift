@@ -1,0 +1,43 @@
+# Round Status 002
+
+- phase: `verification-complete`
+- result: `accepted` (verifier output authority; terminal transition/commit owned by Orchestrator)
+- measurement_exclusive: `true until Orchestrator records durable completion of round 002`
+- started_at_utc: `2026-08-27T14:45:00Z`
+- ended_at_utc: `2026-08-27T15:12:00Z`
+- completed_commands:
+  - input hash verification (file-byte sha256) against bootstrap/coder_result_002 declarations: PASS
+    - candidate `triton_grouped_topk_r2_002.py`: `ad703266eb727f7725c8fa61ceaedcffc269e94291def703cb34279e5275ab12` (14348 bytes; re-verified after all measurements)
+    - decision `rounds/decision_002.md`: `31c972fb31d9760acf4bb271bbff9d919c910cf0231b5b9215f9c871af82ff37`
+    - sketch `rounds/sketch_002.json`: `0ccbec4756d447d1365d0cae81ff2f8e3a020ecc3b99d84bbe2d4d7ce5d84cf3`
+    - accepted source `triton_grouped_topk_r2_001.py`: `4ae64cad913267f2198fec735e08f1b9490cafa1139d3a48ee11400aacb80de3` (unchanged)
+    - binding artifact `log/probes/binding_statement_report.json`: pinned `9315ba1b5f6b431713e7699f6ba89515d292e9bba56edd9d5cd4e18f5093a6b6` (Coder-produced, consumed read-only)
+    - harness `auto_bench.py` / base `../base.py` unchanged (`71fb3ad0…` / `12f33248…`)
+  - candidate source read-through vs Decision-002 allowed_changes/invariants: structural pass (one torch.compile site mode='default' dynamic=False; shared `_invoke_compiled_or_staged` used by BOTH forward and run_out; strict `_compile_regime_applies` T=83+config guard; permanent once-only `_compile_failed` binding; kernels/topk sites byte-identical per coder binding statement)
+  - verifier correctness probe: PASS — `log/probes/verifier_tie_runout_check_r2_002.py` exit 0 → `log/probes/verifier_tie_runout_result_002.json`
+    - COMPILED route: seed42-regime + all-equal / two-expert-tie-same-group / structured-group-tie-boundary / duplicate-max-pairs-cross-group: ids_exact_vs_base AND weights_allclose AND bitwise_weights_eq_r001 AND bitwise_ids_eq_r001 on every case
+    - non-target T=41 exercised normative staged fallback (bitwise==r001); same instance returned to compiled route afterwards; `_compile_failed` false throughout
+    - run_out vs forward bitwise ×2 with data_ptr preserved
+    - cold-compile completion observation (sanity only): first target-regime forward host wall ≈ `2812.8` ms; warm ≈ `0.27` ms
+  - screening pair S1 (`--warmup 10 --repeat 20`): correctness PASS; v0 `0.480635` ms, v1 `0.341196` ms (1.409x), exit 0
+  - screening pair S2: correctness PASS; v0 `0.474344` ms, v1 `0.343777` ms (1.380x), exit 0 → not screened-out
+  - authoritative pair A1 (`--warmup 50 --repeat 100`): correctness PASS; v0 `0.475034` ms, v1 `0.338824` ms (1.402x), exit 0
+  - authoritative pair A2: correctness PASS; v0 `0.472995` ms, v1 `0.338136` ms (1.399x), exit 0
+  - authoritative pair A3: correctness PASS; v0 `0.479432` ms, v1 `0.344416` ms (1.392x), exit 0
+  - supplementary same-session accepted-pair probe (`auto_bench.time_forward` warmup=50 repeat=100 seed=42, r001 vs r002 in one process): r001 `0.4170527681708336` ms → r002 `0.3410717472434044` ms = **+18.21856290768121%** vs last_accepted; outputs bitwise-equal pre-timing; named failed attempt P-A run 1 = MY probe's TypeError (forward arity), fixed tooling-side only, rerun exit 0
+  - canonical kernel-mode profile (--profile-mode kernel, pw=20/pi=100): candidate scope via ModelNew.run_out first attempt success → `log/triton_grouped_topk_r2_002_kernel_100iter.pt.trace.json` @`7f8b20faf8e872562b380d90bf59485f59e4d33655643bea238356e18559e2c1`; harness PASS accuracy in-run
+  - forward dual-scope supplementary: `log/groupedtopk_round002_forward_100iter.pt.trace.json` @`bbd0824abee4a2c62736e9ac30b969f2007e0dd70008345bdd4f1633150ad715`; harness PASS accuracy in-run
+  - scope normalization: ALL THREE scopes summarized by the CANONICAL summarize_trace.py this round — round-001 P1 double-record rejection did NOT recur; no salvage needed:
+    - kernel-mode candidate: `log/summary_round002_candidate_kernelmode.json` — 6.90 kernels/call, device `103.985009765625` us/call (within declared 90–130 flatness band), ratio `0.30689977618357905`
+    - forward reference: `log/summary_round002_reference_forward.json` — 14.95 kernels/call, device `179.920361328125` us/call
+    - forward candidate: `log/summary_round002_candidate_forward.json` — 6.92 kernels/call, device `102.6319921875` us/call (±1.3% cross-check vs kernel-mode)
+- unrounded medians & adoption (both required bases):
+  - prescribed protocol basis (v0=base.py same-run pairs): reference median `0.475034` ms, candidate median `0.338824` ms → **+28.6733%** ≥ 5.0 bar; H-002 expected 10.0 exceeded
+  - last_accepted basis: same-session direct pair r001→r002 **+18.2186%**; cross-anchor vs report_001 recorded wall `0.416933` → +18.7345%; vs manifest anchor `0.483530` → +29.9270%
+  - cold compile lands inside correctness phase/warmup per invocation and never enters timed medians; no flags altered to hide or show it
+- artifacts:
+  - `rounds/report_002.md` @sha256 `bd0932b9cae83a55e0d63f3b149f77937c143100e62e62daf28e850f97ca36ce` (Result: accepted; H-002 mirror verdict confirmed; deviations recorded: none new — P1 did not recur; P-A tooling-only probe fix)
+  - `rounds/verdict_002.json` @sha256 `db173df820459e683595f2a5fba7c1e13e1cf2ddfb7f5acbf9e88f2c9e8de5f7` (rule-less accepted: classification none / terminal accepted / effect unchanged; fact-pack pin `ffe20fec967b0d8b1ee736869dd57e02a8ca672ba3823053fc643fb659a97014` re-extracted from written fence and CONFIRMED post-write after one re-pin)
+  - probes under `log/probes/`; traces + three summaries under `log/`
+- measurement_fingerprint: `8deb1b012de31b18887562e736c7b9e120b9d9f9500230e237ee003c5fa5a431` unchanged; regime flags byte-identical to rounds 000–001
+- next_safe_action: `Orchestrator validates report_002.md + verdict_002.json, applies accepted transitions (last_accepted_kernel=triton_grouped_topk_r2_002.py @ad703266…, last_accepted_report=rounds/report_002.md), commits, then dispatches round 003 design`

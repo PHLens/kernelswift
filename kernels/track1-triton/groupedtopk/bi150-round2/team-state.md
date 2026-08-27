@@ -5,26 +5,26 @@ contract_version: 3
 semantic_contract: typed-sketch-v1
 attribution_contract: verdict-v1
 runtime: claude-code
-phase: verifying
+phase: ready
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-27T12:35:00Z
 current_round: "002"
-last_completed_round: "001"
-last_accepted_round: "001"
-last_accepted_kernel: triton_grouped_topk_r2_001.py
-last_accepted_report: rounds/report_001.md
-last_completed_decision: rounds/decision_001.md
-last_completed_sketch: rounds/sketch_001.json
+last_completed_round: "002"
+last_accepted_round: "002"
+last_accepted_kernel: triton_grouped_topk_r2_002.py
+last_accepted_report: rounds/report_002.md
+last_completed_decision: rounds/decision_002.md
+last_completed_sketch: rounds/sketch_002.json
 last_completed_binding: log/probes/binding_statement_report.json
-last_completed_verdict: rounds/verdict_001.json
+last_completed_verdict: rounds/verdict_002.json
 last_attribution: none
-last_completed_coder_result: rounds/coder_result_001.md
-last_completed_report: rounds/report_001.md
+last_completed_coder_result: rounds/coder_result_002.md
+last_completed_report: rounds/report_002.md
 last_result: accepted
 performance_miss_streak: 0
 failed_attempt_streak: 0
-total_rounds: 1
+total_rounds: 2
 max_rounds: 20
 valid_no_improvement_limit: 3
 adoption_threshold_pct: 5
@@ -37,7 +37,7 @@ last_checkpoint_round: null
 base_branch: dev
 base_commit: 389053e
 run_branch: kernel-opt/round2-bi150-20260827
-measurement_exclusive: true
+measurement_exclusive: false
 implementation_language: triton
 implementation_backend: cuda
 target_profile: triton_cuda
@@ -71,3 +71,4 @@ Manifest updated only by the Orchestrator. Round artifacts back every value.
 | 2026-08-27T16:55:00Z | ready | designing | - | run-policy dispatch_next_round=true; round-002 designer dispatch (compile-graph-default H-002 candidate family) |
 | 2026-08-27T17:25:00Z | designing | coding | - | decision_002 gate PASS by orchestrator rerun (exit 0 "valid":true; decision sha 31c972fb31d9760acf4bb271bbff9d919c910cf0231b5b9215f9c871af82ff37, sketch 0ccbec4756d447d1365d0cae81ff2f8e3a020ecc3b99d84bbe2d4d7ce5d84cf3 — both first-run green; profile/claim pins unchanged dc8fa4c0.../2e6ee49d...); H-002 expected 10%, guardrails: default mode only, dynamic=False, fallback-to-staged permanent, topk sites byte-frozen |
 | 2026-08-27T18:05:00Z | coding | verifying | candidate-ready | coder_002 gate PASS (candidate triton_grouped_topk_r2_002.py sha ad703266eb727f7725c8fa61ceaedcffc269e94291def703cb34279e5275ab12; smoke 15/15 EXIT0 ids exact + bitwise==r001 all cases; byte/AST-identity of 6 inherited segments incl. both topk sites; compile allowlist scan zero-violation; fallback exercised dynamo-fail + off-regime T=41 both bitwise-correct, permanent-once proven; run_out==forward poisoned-buffer bitwise cold+warm) |
+| 2026-08-27T18:50:00Z | verifying | ready | accepted | report_002 @bd0932b9... verdict_002 @db173df8... (validate_verdict exit 0); wall paired ref 0.475034→cand 0.338824 ms = +28.67% prescribed basis; accepted-basis r001→r002 direct pair +18.22%, cross-anchor vs report_001 +18.73%; vs manifest anchor +29.93%; H-002 all 4 observables pass (kernels 6.90/call ≤7.5, vendor topk 1.97/call each preserved, device flat 103.99µs in band, wall ≥5%); outputs bitwise==r001 on every case incl. tie suites; device_ratio not degraded; one tooling-only named attempt (paired-probe TypeError) zero candidate impact; fingerprint unchanged |
