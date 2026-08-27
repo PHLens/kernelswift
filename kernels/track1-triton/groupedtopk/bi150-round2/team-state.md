@@ -5,7 +5,7 @@ contract_version: 3
 semantic_contract: typed-sketch-v1
 attribution_contract: verdict-v1
 runtime: claude-code
-phase: coding
+phase: verifying
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-27T12:35:00Z
@@ -37,7 +37,7 @@ last_checkpoint_round: 3
 base_branch: dev
 base_commit: 389053e
 run_branch: kernel-opt/round2-bi150-20260827
-measurement_exclusive: false
+measurement_exclusive: true
 implementation_language: triton
 implementation_backend: cuda
 target_profile: triton_cuda
@@ -82,3 +82,4 @@ Manifest updated only by the Orchestrator. Round artifacts back every value.
 | 2026-08-27T23:35:00Z | verifying | ready | accepted | report_004 @c79cc018... verdict_004 @13340553... (validate_verdict exit 0); ACTIVE TIER manual-replay, zero down-tier events; wall ref 0.474386 -> cand 0.196909 ms paired = +58.50% (2.41x); vs r002 same-session +42.54%; cross-anchor +41.89%; campaign cumulative vs manifest anchor +59.28%; outputs bitwise==r002 incl. stale-trap fresh-recompute proof; two-branch BRANCH B PASS with positive single-submission evidence (attributed kernels ZERO in scope, ~3 aten copy memcpys/call census vs ~700 launches in r002 structure); workspace boundary copies O(10us) did NOT eat the gain; P-C named attempt (empty-kernel-scope rc=2) root-caused read-only; counters reset |
 | 2026-08-27T23:59:00Z | ready | designing | - | round-005 designer dispatch; designer chose PROCEED: re-priced adoption bar (~9.85us absolute) lifts sub-round-scale levers into plausible-clearing family |
 | 2026-08-28T00:20:00Z | designing | coding | - | decision_005 gate PASS by orchestrator rerun (exit 0 "valid":true; decision sha 4a549653a939eafa2c36ade9b51e849633e702cdbd6d2f7463597f6257ed6021, sketch 21d13b983a4bf1ac1e6913bbaff635dd2932006bf9df04cd888406edcd6c92de; pins unchanged dc8fa4c0.../2e6ee49d...); H-005 expected 6% boundary-dispatch-coalescing (foreach_copy_ batch + non_blocking + build-time bound callables); tie-gate re-write-off upheld with unchanged blockers; new observable boundary_host_trip_count_per_call two-branch PASS |
+| 2026-08-28T01:05:00Z | coding | verifying | candidate-ready | coder_005 gate PASS (candidate triton_grouped_topk_r2_005.py sha cf68ed7713269416af5b49e901e040c7dcb97da9ec4f6eb4cc9bc5d70d288e9c; smoke 24/24 EXIT0; runtime branch A foreach batched bound after dual parity probes, trip count 3->2/call demonstrated both branches; bitwise==r004 through replayed route all suites + warm new bytes + stale-trap; three edges permanent-once through NEW boundary code with single-handler full invalidation; non_blocking read-before-write safety confirmed stream-ordered without added syncs; seven segments byte+AST frozen vs r004, reduce-overhead x0) |
