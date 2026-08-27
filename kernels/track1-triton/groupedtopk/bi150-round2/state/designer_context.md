@@ -11,19 +11,27 @@
 - role_contract_sha256: `7227706c7068ad4a20caebb95c045721f643a409473fc9768e73d828fb2e5ab5`
 - context_epoch: `1`
 - last_completed_round: `null`
-- accepted_kernel: `null`
-- accepted_report: `null`
-- recent_three_round_evidence: `none in this campaign; see Recent Three-round Evidence for labeled epoch-1 history`
+- accepted_kernel: `baseline_adapter.py` (sha256 `ecce4dacee211a86ba38584b6b78fc2f575ba60cedccdc6f79ac4f6fb0139fa5`)
+- accepted_report: `rounds/report_000.md`
+- recent_three_round_evidence: `round 000 baseline established canonically; deeper history remains labeled NONCANONICAL epoch-1 record`
 - open_hypotheses: `5-item bounded backlog (SEL-FUSE-01, DISPATCH-02, FUSION-TOPK-03, CHECK-TIE-audit, HOST-SLIM-04)`
 - artifact_read_hashes: `see Artifact Read Hashes ledger`
 
 ## Current Bottleneck
 
-- NO campaign-local Verifier-backed fact exists yet: team-state records
-  `last_accepted_kernel: null`, `current_round: 000`; the round-000 baseline
-  run is dispatched separately by Orchestrator. Any bottleneck classification
-  below is a Phase-0 PRIOR derived from labeled historical evidence, to be
-  confirmed or replaced by the round-000 report before any Round-1 decision.
+- CANONICAL (round-000 `rounds/report_000.md`, fingerprint-matched): wall
+  medians 0.483530 ms (reference side) / 0.481109 ms (adapter); ~14.94
+  kernels/call; device 180.11 vs 178.84 us/call; device_ratio ≈ 0.372 —
+  HOST-DOMINATED (≥60% of each call outside kernel execution). Top
+  contributors: `gatherTopK` 49.26 us/call + `bitonicSortKVInPlace`
+  37.21 us/call (retained by design for tie-exactness), then MaxOps 18.13 /
+  sum_functor 15.24 / direct_copy 10.02 plus a long small-kernel tail.
+- NEW hard binding from round-000 evidence (project.md Invariants update):
+  `--profile-mode kernel` structurally requires a callable
+  `ModelNew.run_out(gating_output, *output_tensors, **run_kwargs)`
+  (harness `auto_bench.make_profile_call` lines 520–536; return value ignored;
+  outputs written in place; `run_kwargs = dict(getattr(model,'run_kwargs',{}))`).
+  Every candidate from round 001 on MUST expose run_out.
 - [NONCANONICAL, epoch-1 verifier reports] At the epoch-1 baseline
   (`report_000.md`: eager `base.py` @`d57ace7d…`, old fingerprint `57bf01…`),
   wall was `0.474612 ms` with `14.8 kernels/call`, device `177.18 us/call`,
@@ -150,7 +158,13 @@ observable-behavior compatible.
 
 ## Recent Three-round Evidence
 
-Campaign-local rounds completed: NONE (Phase 0). Labeled historical record —
+Campaign-local rounds: round 000 BASELINE established (canonical).
+
+| Round | Result | Change family | Key Verifier-backed numbers | Pointer |
+|---|---|---|---|---|
+| 000 | baseline | identity adapter from immutable base | wall 0.483530/0.481109 ms (identity +0.50%, recorded as evidence, not an optimization claim); kernels/call 14.94; device 180.11/178.84 us/call; ratio 0.372/0.372; kernel-mode attempt logged `KsCompareError ... requires a callable ModelNew.run_out`; forward-mode fallback used | `rounds/report_000.md` |
+
+Labeled historical record —
 final three TERMINAL rounds of the read-only epoch-1 lineage
 (`../bi150`, same operator/device class, DIFFERENT measurement_fingerprint
 `57bf01…`; all values below are noncanonical priors only):
@@ -177,8 +191,13 @@ expected gains are priors, never measurements):
   Bottleneck basis: fragmentation 14.8 kernels/call + 179 us/call device at
   eager baseline [NONCANONICAL r000]. Expected wall gain: ≥5% (same-family
   lineage delivered -7.46% in-regime once). Risk: low-medium (no new selection
-  semantics; new probes unneeded). Evidence: `../bi150/rounds/report_004.md`.
+  semantics; new probes unneeded).   Evidence: `../bi150/rounds/report_004.md`.
   Validation cost: medium (full correctness + authoritative timing).
+  **SELECTED for round 001** via `rounds/decision_001.md` (sha `5bb98ac0c1ae24bb29ea9205eefa927d70717fc0d7794501a233a4728a1361f4`)
+  + normative typed Sketch `rounds/sketch_001.json` (sha `637917e07b4461258ea714d42021e2e5537e21d19765b57bc9cc1552ef6f6985`);
+  Metadata change_family recorded as `preprocess-fusion-triton-stages`; scope
+  mixed including the MANDATORY `ModelNew.run_out` surface; expected wall
+  improvement declared 8.0%.
 - **DISPATCH-02** — change_family `compile-graph.capture`. Wrap the accepted
   fixed-shape forward in `torch.compile` (default mode first, reduce-overhead
   only as a separate follow-on decision given its profiler-attribution
@@ -206,6 +225,9 @@ expected gains are priors, never measurements):
   matched local file-backed probes agreed through Orchestrator (Designer
   writes no runtime facts itself). Output feeds Sketch fallback provenance;
   until then any custom selection stays non-normative fallback.
+  STATUS after round-001 decision: de-risked but still OPEN — round 001
+  retains BOTH library torch.topk calls, so tie-exactness holds by
+  construction; the audit remains the gate only for FUSION-TOPK-03.
 - **HOST-SLIM-04** — change_family `host.allocation-minimization`. Trim
   per-forward temporaries/wrapper work around whatever dataflow survives
   earlier rounds (allocation/cache-key discipline per invariants; no
@@ -226,7 +248,22 @@ Standing checks:
   presented as in-regime speedups.
 - Round 000 baseline is dispatched separately; Designer stays idle during
   verification/measurement exclusivity windows (measurement_exclusive=false at
-  context-write time).
+  context-write time). [Round 001 update: baseline landed canonically.]
+- Gate status after Round-001 self-validation: `validate_decision.py
+  --expected-implementation-profile triton_cuda --project-root <round2 root>`
+  passed ALL structural checks — seven sections, schema-v2 metadata,
+  typed-Sketch artifact + hash binding, capability-claim hash/profile match,
+  runtime-fingerprint anchor, causal-graph connectivity, host plan, evaluation
+  contract — and stops ONLY at the machine-readable implementation-profile
+  gate (`load_profile` cannot parse the project-declared Markdown snapshot
+  `profile_snapshot/triton_cuda.md`; no reviewed machine-readable triton_cuda
+  profile exists under `skills/kernel-opt-loop/profiles/` yet; only
+  `triton_mlu` does). Remediation is Orchestrator-owned profile
+  promotion/materialization; once promoted, Designer amends ONLY the two
+  Metadata fields `implementation_profile_snapshot_ref/_sha256` to point at
+  the promoted artifact before Coder dispatch (decision not yet validated/
+  dispatched, so amendment is legitimate round-001 designer work).
+  No algorithm substitution / fallback_provenance involved in this decision.
 
 ## Artifact Read Hashes
 
@@ -247,3 +284,10 @@ Standing checks:
 | `../bi150/rounds/report_004.md` | `2821208486c00f6add2bac177819fc8fc39c931170cfea2b4efb5dcf26eb6042` | P0 |
 | `../bi150/rounds/report_008.md` | `42f6b7a713e09b0adef661c0e24d85e7afd28d253fd72a04a5b721894b773fb5` | P0 |
 | `../bi150/rounds/report_009.md` | `015be0aef0d96b09702d393014892862cc84fc68657ae2e848813546e3644f6d` | P0 |
+| `project.md` (updated Invariants: run_out binding) | `5206ba9c1d8f54a3dda02ae74e06d27724d007b46271291f8811072c16e00650` | 001 |
+| `baseline_adapter.py` (canonical last_accepted_kernel) | `ecce4dacee211a86ba38584b6b78fc2f575ba60cedccdc6f79ac4f6fb0139fa5` | 001 |
+| `team-state.md` | `4206c40ad63c1a3691c6bc9f30fad03c6e7e57928a02ede49338bb6b258d2aac` | 001 |
+| `auto_bench.py` (harness; run_out contract source) | `71fb3ad0c3ad23c5c156c898f85abcee3d42a15800f75ff97769cfca9152fe29` | 001 |
+| `rounds/report_000.md` | `320b8b03f3d25a43904b1499db0af251ea324051470d55e2309088100bb56fdd` | 001 |
+| `rounds/sketch_001.json` (WRITTEN, normative) | `637917e07b4461258ea714d42021e2e5537e21d19765b57bc9cc1552ef6f6985` | 001 |
+| `rounds/decision_001.md` (WRITTEN) | `5bb98ac0c1ae24bb29ea9205eefa927d70717fc0d7794501a233a4728a1361f4` | 001 |

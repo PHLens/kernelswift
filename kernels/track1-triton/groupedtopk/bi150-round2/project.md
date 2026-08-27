@@ -18,10 +18,11 @@
 - implementation_backend: `cuda`
 - target_id: `bi150`
 - target_profile: `triton_cuda`
-- target_profile_snapshot_ref: `profile_snapshot/triton_cuda.md`
-- target_profile_snapshot_sha256: `8b9cb9836c4abf97141081288d9eb68af7a571309057181e5ec1914827249a2f`
+- target_profile_snapshot_ref: `profile_snapshot/triton_cuda.yaml` (machine-readable partial implementation profile v1)
+- target_profile_snapshot_sha256: `dc8fa4c0c73caecc78c6a886e5ffb18cb97371f3add7cb382dbe30887743b7ae`
 - project_capability_claim_ref: `profile_snapshot/capability_claim.json`
-- project_capability_claim_sha256: `bc50f7f974f025e6be49d611e2546b6db6426d0761b794001898482f80f91371`
+- project_capability_claim_sha256: `2e6ee49ddd887a00e9a8a8ef6dfc746984ecaacd2256ee0b8666a3099a5b7f67`
+- capability claim pin: machine-readable profile triton_cuda v1 @dc8fa4c0...（canonical home skills/kernel-opt-loop/profiles/triton_cuda/, byte-frozen copy in this campaign）
 - prior_lineage: `../bi150 (v2 campaign, contract_version 2, read-only history)`
 - base_branch: `dev @389053e`
 - run_branch: `kernel-opt/round2-bi150-20260827`

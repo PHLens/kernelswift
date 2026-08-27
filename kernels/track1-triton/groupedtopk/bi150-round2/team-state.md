@@ -41,10 +41,10 @@ measurement_exclusive: false
 implementation_language: triton
 implementation_backend: cuda
 target_profile: triton_cuda
-implementation_profile_snapshot_ref: profile_snapshot/triton_cuda.md
-implementation_profile_snapshot_sha256: 8b9cb9836c4abf97141081288d9eb68af7a571309057181e5ec1914827249a2f
+implementation_profile_snapshot_ref: profile_snapshot/triton_cuda.yaml
+implementation_profile_snapshot_sha256: dc8fa4c0c73caecc78c6a886e5ffb18cb97371f3add7cb382dbe30887743b7ae
 project_capability_claim_ref: profile_snapshot/capability_claim.json
-project_capability_claim_sha256: bc50f7f974f025e6be49d611e2546b6db6426d0761b794001898482f80f91371
+project_capability_claim_sha256: 2e6ee49ddd887a00e9a8a8ef6dfc746984ecaacd2256ee0b8666a3099a5b7f67
 runtime_fingerprint_ref: project.md#runtime-fingerprint
 blocked_incident: null
 stop_reason: null
@@ -64,3 +64,4 @@ Manifest updated only by the Orchestrator. Round artifacts back every value.
 | 2026-08-27T12:35:00Z | — | initializing | - | phase0 scaffold commit |
 | 2026-08-27T13:05:00Z | initializing | initializing | - | designer phase-0 gate PASS (state/designer_context.md sha256=5c37487a..., 249 lines); note: epoch-1 ../bi150/final_summary.md does not exist, lineage reconstructed from team-state+reports (designer declared, verified) |
 | 2026-08-27T13:55:00Z | initializing | ready | baseline | report_000 gate PASS (320b8b03...; wall v0=0.483530ms v1=0.481109ms ~1.00x; 14.94 kernels/call, device_ratio 0.372 host-dominated; measurement fingerprint recomputed identical 8deb1b01...; deviation: --profile-mode forward fallback, kernel-mode requires ModelNew.run_out — binding requirement recorded for coder) |
+| 2026-08-27T14:30:00Z | ready | designing | - | round-001 decision+sketch authored by designer; orchestrator promoted machine-readable implementation profile triton_cuda v1 partial (snapshot triton_cuda.yaml sha dc8fa4c0..., claim re-pinned 2e6ee49d...; canonical skills/kernel-opt-loop/profiles/triton_cuda/); markdown md snapshot retained as provenance |

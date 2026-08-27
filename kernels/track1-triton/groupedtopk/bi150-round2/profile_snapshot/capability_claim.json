@@ -1,6 +1,6 @@
 {
   "implementation_profile_id": "triton_cuda",
-  "implementation_profile_sha256": "8b9cb9836c4abf97141081288d9eb68af7a571309057181e5ec1914827249a2f",
+  "implementation_profile_sha256": "dc8fa4c0c73caecc78c6a886e5ffb18cb97371f3add7cb382dbe30887743b7ae",
   "implementation_profile_version": 1,
   "primary_contract": "reduction.argmax-grouped-selection",
   "primary_signature": {
