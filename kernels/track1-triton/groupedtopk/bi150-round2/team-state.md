@@ -5,26 +5,26 @@ contract_version: 3
 semantic_contract: typed-sketch-v1
 attribution_contract: verdict-v1
 runtime: claude-code
-phase: verifying
+phase: ready
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-27T12:35:00Z
 current_round: "003"
-last_completed_round: "002"
+last_completed_round: "003"
 last_accepted_round: "002"
 last_accepted_kernel: triton_grouped_topk_r2_002.py
 last_accepted_report: rounds/report_002.md
-last_completed_decision: rounds/decision_002.md
-last_completed_sketch: rounds/sketch_002.json
+last_completed_decision: rounds/decision_003.md
+last_completed_sketch: rounds/sketch_003.json
 last_completed_binding: log/probes/binding_statement_report.json
-last_completed_verdict: rounds/verdict_002.json
+last_completed_verdict: rounds/verdict_003.json
 last_attribution: none
-last_completed_coder_result: rounds/coder_result_002.md
-last_completed_report: rounds/report_002.md
-last_result: accepted
-performance_miss_streak: 0
+last_completed_coder_result: rounds/coder_result_003.md
+last_completed_report: rounds/report_003.md
+last_result: no-improvement
+performance_miss_streak: 1
 failed_attempt_streak: 0
-total_rounds: 2
+total_rounds: 3
 max_rounds: 20
 valid_no_improvement_limit: 3
 adoption_threshold_pct: 5
@@ -37,7 +37,7 @@ last_checkpoint_round: 3
 base_branch: dev
 base_commit: 389053e
 run_branch: kernel-opt/round2-bi150-20260827
-measurement_exclusive: true
+measurement_exclusive: false
 implementation_language: triton
 implementation_backend: cuda
 target_profile: triton_cuda
@@ -75,3 +75,4 @@ Manifest updated only by the Orchestrator. Round artifacts back every value.
 | 2026-08-27T19:05:00Z | ready | designing | - | checkpoint(3) emitted status-only; round-003 designer dispatch (compile-graph-replay-reduce-overhead H-003 candidate family with explicit supersession clause + attribution-scoping contract) |
 | 2026-08-27T19:40:00Z | designing | coding | - | decision_003 gate PASS by orchestrator rerun (exit 0 "valid":true; decision sha e214c29aa66d78654ffb65fba33b4870379bcf059902c8f7cc6409ebffc3a403, sketch 4a909a11cbd8df0ad0385cf6379dc77eb189bffd60ec2ab1b341dbdaa127a782; pins unchanged dc8fa4c0.../2e6ee49d...); H-003 expected 15%; three-tier permanent fallback chain replayed→compiled-default→staged; retention proof transfers to bitwise==r002 via seed42+4 tie suites+run_out checks; kernel-count two-branch PASS semantics locked |
 | 2026-08-27T20:20:00Z | coding | verifying | candidate-ready | coder_003 gate PASS (candidate triton_grouped_topk_r2_003.py sha 62f8883a2c6d1bdf65d84b29beb71d95500b40b8d6acaf484eb09fccdcf97d38; smoke 18/18 EXIT0; bitwise==r002 through replayed route incl. warm-replay on new bytes + all tie suites; both fallback edges exercised permanent-once; T=41 zero compiler artifacts; run_out poisoned-buffer both orderings in-place; mode audit reduce-overhead×1/default×1, segments byte-frozen incl. run_out; disclosed design repair: static-aliasing hazard structurally resolved via externally-owned caller-side output buffers, net-zero kernel delta; known framework mutation-skip may elide partial replay — two-branch rule + wall measurement decide) |
+| 2026-08-27T21:10:00Z | verifying | ready | no-improvement | report_003 @e00efc94... verdict_003 @9336749c... (validate_verdict exit 0); active tier behaviorally=replayed BUT framework mutation-skip demoted capture to default-equivalent execution every invocation, replay never fired on this build; decisive same-session pair vs r002 -8.0875% REGRESSION (pure wrapper overhead); paired-vs-base +21.73% legacy-credit to r001-002 stack only; canonical UNCHANGED r002; two-branch outcome: branch B moot, branch A fail-by-letter-mechanism-neutral (attributed 6.94 vs ceiling 6.90 = 3 span-edge events, composition byte-identical, device flat +1.0%) - orchestrator interpretation recorded per decision dispatch-to-lead clause; correctness/bitwise all green; counters miss_streak 1/3 |

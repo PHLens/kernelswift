@@ -1,0 +1,68 @@
+# Round Status 003
+
+- phase: `verification-complete`
+- result: `no-improvement` (verifier output authority; last_accepted pointer should REMAIN r002; streak accounting owned by Orchestrator)
+- measurement_exclusive: `true until Orchestrator records durable completion of round 003`
+- started_at_utc: `2026-08-27T15:20:00Z`
+- ended_at_utc: `2026-08-27T15:52:00Z`
+- completed_commands:
+  - input hash verification (file-byte sha256): PASS — candidate `62f8883a…d38` (16904B), decision `e214c29a…a403`, sketch pinned `4a909a11…a782`, accepted source r002 `ad703266…ab12` unchanged, binding artifact `b32eb677…e1c7`, harness/base unchanged
+  - candidate read-through vs Decision-003: structural pass (mode-only supersession honored; two compile sites exactly {reduce-overhead,default}×dynamic=False; monotonic three-tier chain shared by forward/run_out; fresh externally-owned buffers per forward)
+  - verifier correctness probe: PASS exit 0 → `log/probes/verifier_tie_runout_result_003.json`
+    - ACTIVE TIER = `replayed` (tier-1) serving all target-regime calls on BOTH instances (behavioral flag determination); no silent down-tier
+    - seed42 + warm new-input bytes(31415) + 4 tie suites: ids exact AND bitwise==r002 True/True everywhere
+    - selectivity: T=41-first instance created ZERO artifacts, staged bitwise==r002; then tier-1 engaged/recovered
+    - run_out bitwise ×2 poisoned with data_ptr preserved; cross-instance alternation correct
+    - cold capture sanity `313.2` ms (cache-warm from Coder smoke; observation only), warm `0.21–0.29` ms
+  - screening S1/S2 (--warmup 10 --repeat 20): PASS accuracy both; v0 `0.487853/0.484471`, v1 `0.376550/0.373808`; framework stderr `skipping cudagraphs due to mutated inputs (2 instances)` BOTH pairs → not screened out
+  - authoritative A1/A2/A3 (--warmup 50 --repeat 100): PASS accuracy ×3; v0 medians `0.481532/0.478203/0.452523` → median `0.478203`; v1 `0.374760/0.374314/0.353708` → median `0.374314`; notice present all three pairs
+  - DECISIVE same-session paired probe r002-vs-r003: r002 `0.3451220691204071` ms vs r003 `0.373033806681633` ms = **−8.087497166542533%** vs last_accepted (bitwise-equal outputs pre-timing) → adoption clause FAILS as a regression
+  - canonical kernel-mode profile (--profile-mode kernel pw=20/pi=100) via run_out first-attempt success → trace @`b5c57d6c06b7f44d9466a3910cc542e4752933dd9d2170317aa0ed8f768e5613`; forward dual-scope supplementary → @`4a3eb36ae5ab2b31f6c45eb05880f3724e48739d4014df2dedd50caa1aad1235`
+  - scope summaries ALL canonical first-attempt (`log/summary_round003_candidate_kernelmode.json`: device `105.005458984375` µs/call, `6.94` kernels/call, ratio `0.2805277360301111`; reference fwd `181.330908203125` µs/call `14.90`/call; candidate fwd `105.25236328125` µs/call `7.00`/call)
+  - two-branch adjudication recorded in report_003.md: attributed 6.94 > 6.90 by letter (exactly 3 span-edge events across 700; composition/names byte-identical to r002; zero new kernels) — branch B moot since graphs never captured (mutation-skip demotion documented diagnostically)
+- unrounded medians & bases:
+  - prescribed protocol basis (v0=base.py same-run): +21.7262% — legacy-crediting only, NOT attributable to round 003
+  - last_accepted basis: **−8.0875%** (same-session direct pair) / −10.47% cross-session vs report_002 wall 0.338824 → H-003 ≥5% clause FAILED
+  - cumulative lens: candidate 0.374314 vs manifest anchor 0.483530 = +22.58% total campaign gain banked by rounds 001–002
+- artifacts:
+  - `rounds/report_003.md` @sha256 `e00efc944fc6ef234ef7e498eb3c70ac4e4c61b3eb7920f0bfd894b6d8326bea` (Result: no-improvement; Diagnostics section documents mutation-skip demotion)
+  - `rounds/verdict_003.json` @sha256 `9336749c7852b2c1ae21f4695aeb1689d92daf92297d419d406bd3cc3d5c2134` (rule-less no-improvement; fact-pack pin e12c939cd1c6fcfe9032011e918c969824dbc08b9ee1c20e3a128876f381be31 extracted post-write and CONFIRMED)
+  - probes/traces/summaries under `log/`
+- measurement_fingerprint: `8deb1b012de31b18887562e736c7b9e120b9d9f9500230e237ee003c5fa5a431` unchanged
+- next_safe_action: `Orchestrator validates report_003.md + verdict_003.json; last_accepted stays triton_grouped_topk_r2_002.py @ad703266…; apply no-improvement bookkeeping; dispatch round 004 design (open levers: CHECK-TIE audit for vendor top-k sites, capture-compatible buffership redesign)`
+- completed_commands:
+  - input hash verification against bootstrap/coder_result_003 declarations: PASS
+    - candidate `triton_grouped_topk_r2_003.py`: `62f8883a2c6d1bdf65d84b29beb71d95500b40b8d6acaf484eb09fccdcf97d38` (16904 bytes)
+    - decision `rounds/decision_003.md`: `e214c29aa66d78654ffb65fba33b4870379bcf059902c8f7cc6409ebffc3a403`
+    - sketch `rounds/sketch_003.json`: pinned by decision metadata `4a909a11cbd8df0ad0385cf6379dc77eb189bffd60ec2ab1b341dbdaa127a782`
+    - accepted source `triton_grouped_topk_r2_002.py`: `ad703266eb727f7725c8fa61ceaedcffc269e94291def703cb34279e5275ab12` (unchanged)
+    - binding artifact `log/probes/binding_statement_report.json`: pinned `b32eb677d43b7d2ad51cb4ec140aae4661495a1ce027098c2ff77301adafe1c7` (Coder-produced, consumed read-only)
+    - harness `auto_bench.py` / base `../base.py` unchanged (`71fb3ad0…` / `12f33248…`)
+  - candidate source read-through vs Decision-003 allowed_changes/invariants: structural pass
+    - exactly two torch.compile sites: tier-1 {mode:'reduce-overhead', dynamic=False}, tier-2 {mode:'default', dynamic=False} — supersession clause honored mode-only
+    - three-tier monotonic fallback (`_replayed_staged/_replay_failed`, `_compiled_staged/_compile_failed`) shared by forward AND run_out via `_invoke_compiled_or_staged`; forward allocates fresh EXTERNALLY-OWNED output buffers per call (Coder hazard-(ii) repair); strict guards unchanged; seven inherited segments byte-frozen per Coder binding statement
+    - known framework behavior carried as declared branch: `skipping cudagraphs due to mutated inputs` (graceful sub-behavior, bitwise-equal regardless)
+- artifacts pending: `rounds/report_003.md`, `rounds/verdict_003.json`, this file lifecycle updates, `state/verifier_context.md`
+  - verifier correctness probe: PASS — `log/probes/verifier_tie_runout_check_r2_003.py` exit 0 → `verifier_tie_runout_result_003.json`
+    - ACTIVE-TIER finding (behavioral, no code reads beyond running-object attrs): main instance flags `{replay_failed:false, replayed_handle_present:true, compile_failed:false, compiled_handle_present:false}` → **active tier = `replayed` (tier-1) serving all target-regime calls**; no silent down-tier anywhere
+    - seed42-regime + warm NEW-input bytes (seed 31415) + 4 tie suites: ids exact vs base AND **bitwise==r002 (weights+ids True/True on every case)** through the active tier
+    - selectivity: separate instance first call T=41 created ZERO compiler artifacts (handles None / flags false), staged outputs bitwise==r002; same instance then engaged the replayed tier on [83,256] — observable `fallback_tier_selectivity_and_recovery` PASS
+    - run_out==forward bitwise ×2 over poisoned buffers with data_ptr preserved
+    - cross-instance alternation bitwise-correct to per-input anchors
+    - cold capture completion sanity `313.2` ms (first target forward; framework cache from Coder smoke present — observation only), warm `0.21–0.29` ms
+- screening_pairs (short regime `--warmup 10 --repeat 20`, same command both sides):
+  - framework observation BOTH pairs: stderr shows `skipping cudagraphs due to mutated inputs (2 instances)` — declared graceful sub-behavior live on this build (diagnostic; documented, no action)
+  - pair S1: reference `0.487853` ms, candidate `0.376550` ms, speedup `1.296x`, exit 0
+  - pair S2: reference `0.484471` ms, candidate `0.373808` ms, speedup `1.296x`, exit 0
+  - screen verdict: not screened-out → proceed to authoritative timing
+- authoritative_pairs (`--warmup 50 --repeat 100`, byte-identical flags; each includes correctness gate):
+  - framework observation ALL THREE pairs: stderr `skipping cudagraphs due to mutated inputs (2 instances)` (declared graceful sub-behavior)
+  - pair A1: reference `0.481532` ms, candidate `0.374760` ms, speedup `1.285x`, exit 0
+  - pair A2: reference `0.478203` ms, candidate `0.374314` ms, speedup `1.278x`, exit 0
+  - pair A3: reference `0.452523` ms, candidate `0.353708` ms, speedup `1.279x`, exit 0
+  - unrounded medians: reference `0.478203`, candidate `0.374314` → paired protocol-basis improvement **+21.7262%**
+  - WARNING flag for adoption judgment: candidate median vs report_002 recorded r002 wall basis 0.338824 → **candidate ~+10.48% SLOWER than last_accepted cross-session** — mutation-skip elision risk visibly materialized (effective graph replay likely not firing for buffer-carrying invocations); DIRECT same-session paired probe r002-vs-r003 scheduled as the decisive adoption quantity
+  - decisive supplementary same-session paired probe (`auto_bench.time_forward` warmup 50 / repeat 100 / seed 42, one process): r002 `0.3451220691204071` ms → r003 `0.373033806681633` ms = **−8.087497166542533%** vs last_accepted (outputs bitwise-equal pre-timing)
+    - adoption consequence: H-003 efficacy decider FAILS the ≥5%-vs-accepted clause — direction is a REGRESSION, not merely insufficient gain; the mutation-skip elision risk disclosed by Coder materialized (effective cudagraph replay does not fire for buffer-carrying invocations; reduce-overhead machinery adds overhead instead)
+    - verifier output-authority preview: correctness pass + guardrails pass + wall criterion fail ⇒ terminal classification lands in `no-improvement` band (rule-less verdict), pending profiling diagnostics below
+- next_safe_action: `kernel-mode profile pw=20/pi=100 via run_out (two-branch kernel-count rule adjudication) + forward dual-scope supplementary`
