@@ -5,26 +5,26 @@ contract_version: 3
 semantic_contract: typed-sketch-v1
 attribution_contract: verdict-v1
 runtime: claude-code
-phase: verifying
+phase: ready
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-27T12:35:00Z
 current_round: "004"
-last_completed_round: "003"
-last_accepted_round: "002"
-last_accepted_kernel: triton_grouped_topk_r2_002.py
-last_accepted_report: rounds/report_002.md
-last_completed_decision: rounds/decision_003.md
-last_completed_sketch: rounds/sketch_003.json
+last_completed_round: "004"
+last_accepted_round: "004"
+last_accepted_kernel: triton_grouped_topk_r2_004.py
+last_accepted_report: rounds/report_004.md
+last_completed_decision: rounds/decision_004.md
+last_completed_sketch: rounds/sketch_004.json
 last_completed_binding: log/probes/binding_statement_report.json
-last_completed_verdict: rounds/verdict_003.json
+last_completed_verdict: rounds/verdict_004.json
 last_attribution: none
-last_completed_coder_result: rounds/coder_result_003.md
-last_completed_report: rounds/report_003.md
-last_result: no-improvement
-performance_miss_streak: 1
+last_completed_coder_result: rounds/coder_result_004.md
+last_completed_report: rounds/report_004.md
+last_result: accepted
+performance_miss_streak: 0
 failed_attempt_streak: 0
-total_rounds: 3
+total_rounds: 4
 max_rounds: 20
 valid_no_improvement_limit: 3
 adoption_threshold_pct: 5
@@ -37,7 +37,7 @@ last_checkpoint_round: 3
 base_branch: dev
 base_commit: 389053e
 run_branch: kernel-opt/round2-bi150-20260827
-measurement_exclusive: true
+measurement_exclusive: false
 implementation_language: triton
 implementation_backend: cuda
 target_profile: triton_cuda
@@ -79,3 +79,4 @@ Manifest updated only by the Orchestrator. Round artifacts back every value.
 | 2026-08-27T21:45:00Z | ready | designing | - | round-004 designer dispatch after no-improvement; designer chose PROCEED with new family manual-cuda-graph-workspace-replay (grounded in r003 root cause: inductor heuristic does not govern manual capture) |
 | 2026-08-27T22:15:00Z | designing | coding | - | decision_004 gate PASS by orchestrator rerun (exit 0 "valid":true; decision sha e5465d7dfdbc35cdba8251b9d43a5d43eb05c64d63c57d89eb299723b0be3be1, sketch ccf277f422ce254d09dc1402c997a6c311a1f63457423f23afd60a71b4d9ae59; pins unchanged dc8fa4c0.../2e6ee49d...); H-004 expected 15%; three-tier manual-replay->compiled-default->staged, reduce-overhead tier RETIRED (binding must FAIL on reduce-overhead strings); copy-in/copy-out workspace design keeps bitwise==r002 retention proof |
 | 2026-08-27T22:55:00Z | coding | verifying | candidate-ready | coder_004 gate PASS (candidate triton_grouped_topk_r2_004.py sha c02d956c6bb5c27c229623b01b99b85f5962db79b5ead09df6fbca7a52e721eb; smoke 21/21 EXIT0; capture-fired proven via 4-fact behavioral intersection incl. stale-trap input sensitivity, compiled-default never constructed in healthy instances; bitwise==r002 through replayed route all suites + warm new bytes; Edge A/A2/B permanent-once all green; T=41 zero artifacts + recovery; run_out in-place both orderings + leak-trap; reduce-overhead token count 0; segments byte-frozen vs r002) |
+| 2026-08-27T23:35:00Z | verifying | ready | accepted | report_004 @c79cc018... verdict_004 @13340553... (validate_verdict exit 0); ACTIVE TIER manual-replay, zero down-tier events; wall ref 0.474386 -> cand 0.196909 ms paired = +58.50% (2.41x); vs r002 same-session +42.54%; cross-anchor +41.89%; campaign cumulative vs manifest anchor +59.28%; outputs bitwise==r002 incl. stale-trap fresh-recompute proof; two-branch BRANCH B PASS with positive single-submission evidence (attributed kernels ZERO in scope, ~3 aten copy memcpys/call census vs ~700 launches in r002 structure); workspace boundary copies O(10us) did NOT eat the gain; P-C named attempt (empty-kernel-scope rc=2) root-caused read-only; counters reset |
