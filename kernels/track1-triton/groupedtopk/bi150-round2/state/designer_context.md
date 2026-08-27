@@ -11,9 +11,9 @@
 - role_contract_sha256: `7227706c7068ad4a20caebb95c045721f643a409473fc9768e73d828fb2e5ab5`
 - context_epoch: `1`
 - last_completed_round: `null`
-- accepted_kernel: `triton_grouped_topk_r2_004.py` (sha256 `c02d956c6bb5c27c229623b01b99b85f5962db79b5ead09df6fbca7a52e721eb`)
+- accepted_kernel: `triton_grouped_topk_r2_004.py` (sha256 `c02d956c6bb5c27c229623b01b99b85f5962db79b5ead09df6fbca7a52e721eb`) — FINAL CANONICAL after round-006 ABORT
 - accepted_report: `rounds/report_004.md`
-- recent_three_round_evidence: `trajectory 0.483530 anchor -> 0.416933 (r001) -> 0.338824 (r002) -> [r003 retired] -> 0.196909 ms (r004 manual-replay); cumulative +59.28% (~2.41x)`
+- recent_three_round_evidence: `trajectory 0.483530 anchor -> 0.416933 (r001) -> 0.338824 (r002) -> [r003 retired] -> 0.196909 ms (r004 manual-replay, FINAL) -> r005 no-improvement (null-effect root cause); cumulative +59.28% (~2.41x); campaign aborted at round 006 with canonical preserved`
 - open_hypotheses: `5-item bounded backlog (SEL-FUSE-01, DISPATCH-02, FUSION-TOPK-03, CHECK-TIE-audit, HOST-SLIM-04)`
 - artifact_read_hashes: `see Artifact Read Hashes ledger`
 
@@ -168,8 +168,10 @@ Campaign-local rounds: round 000 BASELINE established (canonical).
 
 | 003 | NO-IMPROVEMENT (−8.0875% same-session vs r002) | compile-graph-replay-reduce-overhead | ROOT CAUSE structural: inductor logged "skipping cudagraphs due to mutated inputs" EVERY invocation — CUDA-graph replay NEVER fired on this build; r003 delivered pure wrapper overhead 0.345122 -> 0.373034 ms; all bitwise guardrails green; branch A fail by letter (6.94 attributed launches/call, composition byte-identical to r002, device flat +1.0%); replay family CLOSED for this build/harness pattern; candidate archived as evidence only, canonical tree unchanged | `rounds/report_003.md` @`e00efc94...`, verdict @`9336749c...` |
 | 004 | accepted (+58.4951% protocol pair; +42.5449% direct accepted-pair vs r002) | manual-cuda-graph-workspace-replay (H-004 confirmed; expected 15.0 exceeded ~2.8-3.9x) | paired medians -> **0.196909 ms** (cumulative +59.28%, 2.41x); ACTIVE TIER = manual-replay with ZERO down-tier events; attributed cat=kernel count ZERO (branch-B positive single-submission evidence via host census: exactly ~3 aten::copy_ DtoD boundary memcpys/call, gpu_memcpy 298/100 calls); bitwise==r002 on seed42 + warm-new-bytes + stale-trap + all four tie suites + run_out poisoned x2 + cross-instance alternation; T=41-first instance created zero artifacts then captured tier-1; cold capture ~145 ms host outside medians; residual now ~93 us host share of wall; vendor pair ~87 us still tie-gate-locked | `rounds/report_004.md` @`c79cc018...`, verdict @`13340553...` |
+| 005 | NO-IMPROVEMENT (quantitative null-effect root cause) | boundary-dispatch-coalescing | _foreach_copy_ coalesced PYTHON DISPATCH only: gpu_memcpy DtoD events remain ~3/call and cudaMemcpyAsync-class submissions ~7/call on this CoreX build — the ~9.85 us bar was never python-trip approachable; all other guardrails green (branch A bound, tier-1 healthy, bitwise==r004 everywhere incl. suites) | `rounds/report_005.md` @`ada9d94a...`, verdict @`cd0b3016...` |
+| 006 | ABORT declared by Designer (schema-v1 Complete Abort Example form, validator green without profile flag) | no-change | final family-ledger disposition recorded with explicit reopening conditions; canonical r004 preserved as committed deliverable (+59.28%, 2.41x) | `rounds/decision_006.md` @`4b7b1c13dca75d0a182994c6e1d841a2fc525235d5628186b2fb2810d9fb2fa6` |
 
-Canonical residual bottleneck after round 004: host share shrank to ~93 us/call; adoption bar re-priced to ~9.85 us absolute (5% of paired basis). Remaining legal levers are report_004's named sub-round-scale items (copy-out batching, guard micro-costs) — selected for round 005 as `boundary-dispatch-coalescing`. The tie-gate blocks the only large device lever (~87 us in vendor top-k sites): audit slots remain unprofitable and cross-implementation exp-bit ambiguity stands regardless of scale.
+Campaign-close residual statement (of record): wall 196.909 us/call = ~104 us pipeline device band BY CONSTRUCTION (vendor pair ~87 us LOCKED behind certifiability gate + three barrier-separated Triton stages 18.5 us) + ~93 us host floor whose reachable remainder proved inert to python-side dispatch changes (r005). Reopening conditions documented in decision_006 Rationale: maintainer-authorized tie-rule derivation; harness/workspace infrastructure restoring inductor-level capture compatibility; revised frozen profile promoting argmax-family selection beyond unique-maximum constraint.
 
 Labeled historical record —
 final three TERMINAL rounds of the read-only epoch-1 lineage
@@ -254,6 +256,14 @@ expected gains are priors, never measurements):
   bound-callable hot path, guard micro-trims); adoption arithmetic re-priced:
   bar ≈9.85 us absolute vs report_004-named levers ~10-17 us reachable;
   expected wall improvement declared 6.0%; validator-green first run.
+  **ROUND 005 OUTCOME: NO-IMPROVEMENT** (null-effect root cause: python trips
+  unmapped to GPU submissions on this build).
+  **ROUND 006: FORMAL ABORT declared by Designer** via `rounds/decision_006.md`
+  (sha `4b7b1c13dca75d0a182994c6e1d841a2fc525235d5628186b2fb2810d9fb2fa6`,
+  schema-v1 Complete Abort Example form, validator exit=0 valid=true without
+  profile flag) — every family terminal-dispositioned with evidence; explicit
+  reopening conditions recorded; canonical r004 stands as the committed
+  campaign deliverable (+59.28% cumulative, 2.41x).
 - **DISPATCH-02** — change_family `compile-graph.capture`. Wrap the accepted
   fixed-shape forward in `torch.compile` (default mode first, reduce-overhead
   only as a separate follow-on decision given its profiler-attribution
@@ -365,3 +375,6 @@ Standing checks:
 | `rounds/verdict_004.json` | `13340553ee3a5f5d10b812b29891519fb85ee946f71b9314390755c0ca644a46` | 005 |
 | `rounds/sketch_005.json` (WRITTEN, normative; validator green) | `21d13b983a4bf1ac1e6913bbaff635dd2932006bf9df04cd888406edcd6c92de` | 005 |
 | `rounds/decision_005.md` (WRITTEN, validator exit=0 valid:true first run) | `4a549653a939eafa2c36ade9b51e849633e702cdbd6d2f7463597f6257ed6021` | 005 |
+| `rounds/report_005.md` | `ada9d94a68e6ff3284ff1e3440df9fb047601285e2bf5fb8df42829a4a2cd122` | 006 |
+| `rounds/verdict_005.json` | `cd0b3016e4213cc287c723ad084b18ef00c1e7246ed6d5f8af2ec3d149d903a7` | 006 |
+| `rounds/decision_006.md` (WRITTEN, formal ABORT, schema-v1 form, validator green) | `4b7b1c13dca75d0a182994c6e1d841a2fc525235d5628186b2fb2810d9fb2fa6` | 006 |
