@@ -4,7 +4,9 @@
 
 **Revised**: 2026-08-21
 
-**Status**: Draft for user review
+**Status**: Approved by user on 2026-08-21
+
+**Implementation plans**: `docs/superpowers/plans/2026-08-21-kernelwiki-standalone-core.md`, `docs/superpowers/plans/2026-08-21-kernelwiki-role-aware-query.md`, and `docs/superpowers/plans/2026-08-21-kernelwiki-offline-knowledge-lift.md`
 
 **Supersedes**: the earlier claim-plane and prebuilt-KnowledgePacket design in this file
 
@@ -266,7 +268,6 @@ skills/kernelwiki/
     taxonomy.yaml
     aliases.yaml
     version-claims.yaml
-    tool-versions.yaml
     source-repositories.yaml
     size-budget.yaml
 
@@ -326,12 +327,13 @@ skills/kernelwiki/
     validate_consultation.py
     validate.py
     generate_indices.py
-    repo_status.py
-    refresh_candidate_ledger.py
+    source_registry.py
+    discover_candidates.py
+    source_capture.py
     capture_source.py
-    generate_source_pages.py
-    validate_provenance.py
+    provenance.py
     propose_from_campaign.py
+    propose_historical_campaign.py
     validate_lift.py
 
   tests/
@@ -1208,9 +1210,9 @@ capability-gap pages.
 ## 20. Error Handling and Offline Behavior
 
 - malformed user input: exit `2` with stable `error:` message;
-- invalid corpus: fail closed and return no partial production dossier;
+- invalid corpus: fail closed and return no partial production query result;
 - no match: success with a schema-valid empty result;
-- unavailable Wiki: valid empty consultation and local workflow continues;
+- unavailable Wiki: valid empty query result and local workflow continues;
 - unresolved ID/link: corpus validation failure;
 - stale version claim: Card is conditional or excluded according to role;
 - missing artifact: page remains readable when metadata suffices, but code access
@@ -1343,7 +1345,8 @@ specification and implementation plan after its compatibility gates are met.
 ### Phase B: general Ascend Cards
 
 - capture initial Ascend-native sources;
-- synthesize approximately 8–12 general Cards;
+- synthesize the smallest reviewed general Card set that covers the captured
+  Ascend-native sources, required query views, and target-isolation tests;
 - add a small number of kernel case studies;
 - validate query views and offline navigation.
 

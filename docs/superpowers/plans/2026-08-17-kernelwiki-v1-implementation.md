@@ -6,7 +6,7 @@
 >
 > In particular, do not implement the `claims/` lifecycle, atomic claim schemas, `KnowledgePacket`, `build_packet.py`, claim promotion workflow, Verifier evidence sidecar, schema-v2 packet snapshot, or direct modifications to `skills/kernel-opt-loop/` described below.
 >
-> The replacement architecture is defined by `docs/superpowers/specs/2026-08-17-kernelwiki-v1-design.md` together with the latest checked-in `skills/kernel-opt-loop/` vNext authority. A replacement implementation plan must be written and separately approved before work begins.
+> The replacement architecture is defined by the approved `docs/superpowers/specs/2026-08-17-kernelwiki-v1-design.md` together with the latest checked-in `skills/kernel-opt-loop/` vNext authority. Execute only the replacement plans `docs/superpowers/plans/2026-08-21-kernelwiki-standalone-core.md`, `docs/superpowers/plans/2026-08-21-kernelwiki-role-aware-query.md`, and `docs/superpowers/plans/2026-08-21-kernelwiki-offline-knowledge-lift.md`, each under its stated dependency and review gates.
 
 # Historical Superseded Content — Non-Executable
 
