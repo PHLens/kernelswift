@@ -5,11 +5,11 @@ contract_version: 3
 semantic_contract: typed-sketch-v1
 attribution_contract: verdict-v1
 runtime: claude-code
-phase: ready
+phase: coding
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-27T12:35:00Z
-current_round: "001"
+current_round: "002"
 last_completed_round: "001"
 last_accepted_round: "001"
 last_accepted_kernel: triton_grouped_topk_r2_001.py
@@ -68,3 +68,5 @@ Manifest updated only by the Orchestrator. Round artifacts back every value.
 | 2026-08-27T15:10:00Z | designing | coding | - | decision_001 gate PASS by orchestrator rerun (exit 0 valid:true; amended decision sha 93783baafdc4c4c022773e30ca2d90f7bc94e954ae25cae057fe625b7c43532b, sketch 637917e0...; decision now immutable before coding); change family preprocess-fusion-triton-stages H-001 |
 | 2026-08-27T15:55:00Z | coding | verifying | candidate-ready | coder_001 gate PASS (candidate triton_grouped_topk_r2_001.py sha 4ae64cad913267f2198fec735e08f1b9490cafa1139d3a48ee11400aacb80de3; smoke EXIT0 all_pass ids_exact+4 tie suites; run_out byte-equality; bounded cast-narrow probe evidence-ready → NO fallback needed; binding all_checks_pass=true; measurements exclusive to verifier now) |
 | 2026-08-27T16:40:00Z | verifying | ready | accepted | report_001 @f9fbb9bf... verdict_001 @ff1e49c6 (validate_verdict exit 0; fact-pack pin c46c3349 confirmed by verifier; accepted rule-less classification none); wall paired +11.4133% vs same-run ref, +13.77% vs manifest anchor 0.483530ms; kernels/call 14.93→6.97, device 180.4→105.3us/call; device_ratio 0.383→0.253; H-001 all observables confirmed; deviation: 1 named failed probe (summarize_trace strict-overlap rc=2) salvaged offline host-window convention, zero GPU re-runs; measurement fingerprint unchanged |
+| 2026-08-27T16:55:00Z | ready | designing | - | run-policy dispatch_next_round=true; round-002 designer dispatch (compile-graph-default H-002 candidate family) |
+| 2026-08-27T17:25:00Z | designing | coding | - | decision_002 gate PASS by orchestrator rerun (exit 0 "valid":true; decision sha 31c972fb31d9760acf4bb271bbff9d919c910cf0231b5b9215f9c871af82ff37, sketch 0ccbec4756d447d1365d0cae81ff2f8e3a020ecc3b99d84bbe2d4d7ce5d84cf3 — both first-run green; profile/claim pins unchanged dc8fa4c0.../2e6ee49d...); H-002 expected 10%, guardrails: default mode only, dynamic=False, fallback-to-staged permanent, topk sites byte-frozen |

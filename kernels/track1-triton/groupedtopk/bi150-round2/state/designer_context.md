@@ -11,9 +11,9 @@
 - role_contract_sha256: `7227706c7068ad4a20caebb95c045721f643a409473fc9768e73d828fb2e5ab5`
 - context_epoch: `1`
 - last_completed_round: `null`
-- accepted_kernel: `baseline_adapter.py` (sha256 `ecce4dacee211a86ba38584b6b78fc2f575ba60cedccdc6f79ac4f6fb0139fa5`)
-- accepted_report: `rounds/report_000.md`
-- recent_three_round_evidence: `round 000 baseline established canonically; deeper history remains labeled NONCANONICAL epoch-1 record`
+- accepted_kernel: `triton_grouped_topk_r2_001.py` (sha256 `4ae64cad913267f2198fec735e08f1b9490cafa1139d3a48ee11400aacb80de3`)
+- accepted_report: `rounds/report_001.md`
+- recent_three_round_evidence: `rounds 000 (baseline) and 001 (+11.41% wall, accepted) canonical; deeper history remains labeled NONCANONICAL epoch-1 record`
 - open_hypotheses: `5-item bounded backlog (SEL-FUSE-01, DISPATCH-02, FUSION-TOPK-03, CHECK-TIE-audit, HOST-SLIM-04)`
 - artifact_read_hashes: `see Artifact Read Hashes ledger`
 
@@ -163,6 +163,9 @@ Campaign-local rounds: round 000 BASELINE established (canonical).
 | Round | Result | Change family | Key Verifier-backed numbers | Pointer |
 |---|---|---|---|---|
 | 000 | baseline | identity adapter from immutable base | wall 0.483530/0.481109 ms (identity +0.50%, recorded as evidence, not an optimization claim); kernels/call 14.94; device 180.11/178.84 us/call; ratio 0.372/0.372; kernel-mode attempt logged `KsCompareError ... requires a callable ModelNew.run_out`; forward-mode fallback used | `rounds/report_000.md` |
+| 001 | accepted | preprocess-fusion-triton-stages (Decision H-001 verdict confirmed) | paired medians 0.470655 -> 0.416933 ms (+11.41%; anchor bases +13.34%/+13.77%); kernels/call 14.93 -> 6.97; device 180.448 -> 105.310 us/call (-41.4%); stages observed: _softmax_group_scores 7.344 / _group_mask 5.732 / _renorm_scale_narrow 5.575 us/call; retained gatherTopK 49.371 x~1.99/call + bitonicSortKVInPlace 37.288 x~1.99/call (86.7 of 105.3 us device); device_ratio 0.253; host ~75% of wall; tie suites bit-stable incl. duplicate-max-pairs-cross-group | `rounds/report_001.md` @`f9fbb9bf...`, verdict @`ff1e49c6...` |
+
+Canonical residual bottleneck after round 001: the two library top-k sites (86.7 us/call device) plus launch/dispatch overhead outside kernels (~75% of wall). Paths into the top-k sites require CHECK-TIE-style on-device derivation and cannot use tl.argmax ordering (profile Constrained); stage-trio kernel merging is dataflow-illegal across library-selection barriers.
 
 Labeled historical record —
 final three TERMINAL rounds of the read-only epoch-1 lineage
@@ -198,6 +201,15 @@ expected gains are priors, never measurements):
   Metadata change_family recorded as `preprocess-fusion-triton-stages`; scope
   mixed including the MANDATORY `ModelNew.run_out` surface; expected wall
   improvement declared 8.0%.
+  **ACCEPTED round 001** (+11.41% wall, verdict confirmed; canonical pointer).
+- **DISPATCH-02** — change_family `compile-graph.capture` [...]
+  **SELECTED for round 002 as `compile-graph-default`** (default mode first;
+  reduce-overhead deliberately deferred) via `rounds/decision_002.md`
+  (sha `31c972fb31d9760acf4bb271bbff9d919c910cf0231b5b9215f9c871af82ff37`)
+  + normative Sketch `rounds/sketch_002.json`
+  (sha `0ccbec4756d447d1365d0cae81ff2f8e3a020ecc3b99d84bbe2d4d7ce5d84cf3`);
+  change_scope `host`; reference implementation `triton_grouped_topk_r2_001.py`;
+  expected wall improvement declared 10.0%; validator-green on first run.
 - **DISPATCH-02** — change_family `compile-graph.capture`. Wrap the accepted
   fixed-shape forward in `torch.compile` (default mode first, reduce-overhead
   only as a separate follow-on decision given its profiler-attribution
@@ -290,3 +302,8 @@ Standing checks:
 | `rounds/report_000.md` | `320b8b03f3d25a43904b1499db0af251ea324051470d55e2309088100bb56fdd` | 001 |
 | `rounds/sketch_001.json` (WRITTEN, normative; unchanged by amendment) | `637917e07b4461258ea714d42021e2e5537e21d19765b57bc9cc1552ef6f6985` | 001 |
 | `rounds/decision_001.md` (WRITTEN + promotion amendment, validator green) | `93783baafdc4c4c022773e30ca2d90f7bc94e954ae25cae057fe625b7c43532b` | 001 |
+| `triton_grouped_topk_r2_001.py` (canonical last_accepted_kernel) | `4ae64cad913267f2198fec735e08f1b9490cafa1139d3a48ee11400aacb80de3` | 002 |
+| `rounds/report_001.md` | `f9fbb9bf38f8d63ff9eeeed39bbd2e823ed6a34784f5121901a86e279c7a4fcc` | 002 |
+| `rounds/verdict_001.json` | `ff1e49c6108fb046e320d7936e377cfc9ce775eb2772ab5ffd44f8d621c32c52` | 002 |
+| `rounds/sketch_002.json` (WRITTEN, normative; validator green) | `0ccbec4756d447d1365d0cae81ff2f8e3a020ecc3b99d84bbe2d4d7ce5d84cf3` | 002 |
+| `rounds/decision_002.md` (WRITTEN, validator exit=0 valid:true first run) | `31c972fb31d9760acf4bb271bbff9d919c910cf0231b5b9215f9c871af82ff37` | 002 |
