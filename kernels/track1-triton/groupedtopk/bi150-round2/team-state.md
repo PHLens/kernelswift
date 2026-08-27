@@ -5,11 +5,11 @@ contract_version: 3
 semantic_contract: typed-sketch-v1
 attribution_contract: verdict-v1
 runtime: claude-code
-phase: ready
+phase: coding
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-27T12:35:00Z
-current_round: "004"
+current_round: "005"
 last_completed_round: "004"
 last_accepted_round: "004"
 last_accepted_kernel: triton_grouped_topk_r2_004.py
@@ -80,3 +80,5 @@ Manifest updated only by the Orchestrator. Round artifacts back every value.
 | 2026-08-27T22:15:00Z | designing | coding | - | decision_004 gate PASS by orchestrator rerun (exit 0 "valid":true; decision sha e5465d7dfdbc35cdba8251b9d43a5d43eb05c64d63c57d89eb299723b0be3be1, sketch ccf277f422ce254d09dc1402c997a6c311a1f63457423f23afd60a71b4d9ae59; pins unchanged dc8fa4c0.../2e6ee49d...); H-004 expected 15%; three-tier manual-replay->compiled-default->staged, reduce-overhead tier RETIRED (binding must FAIL on reduce-overhead strings); copy-in/copy-out workspace design keeps bitwise==r002 retention proof |
 | 2026-08-27T22:55:00Z | coding | verifying | candidate-ready | coder_004 gate PASS (candidate triton_grouped_topk_r2_004.py sha c02d956c6bb5c27c229623b01b99b85f5962db79b5ead09df6fbca7a52e721eb; smoke 21/21 EXIT0; capture-fired proven via 4-fact behavioral intersection incl. stale-trap input sensitivity, compiled-default never constructed in healthy instances; bitwise==r002 through replayed route all suites + warm new bytes; Edge A/A2/B permanent-once all green; T=41 zero artifacts + recovery; run_out in-place both orderings + leak-trap; reduce-overhead token count 0; segments byte-frozen vs r002) |
 | 2026-08-27T23:35:00Z | verifying | ready | accepted | report_004 @c79cc018... verdict_004 @13340553... (validate_verdict exit 0); ACTIVE TIER manual-replay, zero down-tier events; wall ref 0.474386 -> cand 0.196909 ms paired = +58.50% (2.41x); vs r002 same-session +42.54%; cross-anchor +41.89%; campaign cumulative vs manifest anchor +59.28%; outputs bitwise==r002 incl. stale-trap fresh-recompute proof; two-branch BRANCH B PASS with positive single-submission evidence (attributed kernels ZERO in scope, ~3 aten copy memcpys/call census vs ~700 launches in r002 structure); workspace boundary copies O(10us) did NOT eat the gain; P-C named attempt (empty-kernel-scope rc=2) root-caused read-only; counters reset |
+| 2026-08-27T23:59:00Z | ready | designing | - | round-005 designer dispatch; designer chose PROCEED: re-priced adoption bar (~9.85us absolute) lifts sub-round-scale levers into plausible-clearing family |
+| 2026-08-28T00:20:00Z | designing | coding | - | decision_005 gate PASS by orchestrator rerun (exit 0 "valid":true; decision sha 4a549653a939eafa2c36ade9b51e849633e702cdbd6d2f7463597f6257ed6021, sketch 21d13b983a4bf1ac1e6913bbaff635dd2932006bf9df04cd888406edcd6c92de; pins unchanged dc8fa4c0.../2e6ee49d...); H-005 expected 6% boundary-dispatch-coalescing (foreach_copy_ batch + non_blocking + build-time bound callables); tie-gate re-write-off upheld with unchanged blockers; new observable boundary_host_trip_count_per_call two-branch PASS |

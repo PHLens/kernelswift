@@ -11,9 +11,9 @@
 - role_contract_sha256: `7227706c7068ad4a20caebb95c045721f643a409473fc9768e73d828fb2e5ab5`
 - context_epoch: `1`
 - last_completed_round: `null`
-- accepted_kernel: `triton_grouped_topk_r2_002.py` (sha256 `ad703266eb727f7725c8fa61ceaedcffc269e94291def703cb34279e5275ab12`) — unchanged after r003 NO-IMPROVEMENT
-- accepted_report: `rounds/report_002.md`
-- recent_three_round_evidence: `rounds 000/001/002 canonical (trajectory 0.483530 -> 0.416933 -> 0.338824 ms, ~+29.93% vs anchor); r003 no-improvement/regression archived noncanonical-evidence only`
+- accepted_kernel: `triton_grouped_topk_r2_004.py` (sha256 `c02d956c6bb5c27c229623b01b99b85f5962db79b5ead09df6fbca7a52e721eb`)
+- accepted_report: `rounds/report_004.md`
+- recent_three_round_evidence: `trajectory 0.483530 anchor -> 0.416933 (r001) -> 0.338824 (r002) -> [r003 retired] -> 0.196909 ms (r004 manual-replay); cumulative +59.28% (~2.41x)`
 - open_hypotheses: `5-item bounded backlog (SEL-FUSE-01, DISPATCH-02, FUSION-TOPK-03, CHECK-TIE-audit, HOST-SLIM-04)`
 - artifact_read_hashes: `see Artifact Read Hashes ledger`
 
@@ -167,8 +167,9 @@ Campaign-local rounds: round 000 BASELINE established (canonical).
 | 002 | accepted | compile-graph-default (torch.compile mode='default', dynamic=False; H-002 confirmed host-side mechanism) | protocol pair 0.475034 -> 0.338824 ms (+28.67%); same-session direct accepted-pair r001 0.4170528 -> r002 0.3410717 = **+18.2186%**; device flat 103.985 us/call inside declared band; kernels/call 6.90 <= cap 7.5; vendor pair persists 1.97/call each (48.62+36.89 us/call); stage kernels byte-named unchanged; compiled route bitwise==r001 on all cases incl. all four tie suites; non-target T=41 staged fallback selective w/ recovery; cold compile ~2.81 s outside medians | `rounds/report_002.md` @`bd0932b9...`, verdict @`db173df8...` |
 
 | 003 | NO-IMPROVEMENT (−8.0875% same-session vs r002) | compile-graph-replay-reduce-overhead | ROOT CAUSE structural: inductor logged "skipping cudagraphs due to mutated inputs" EVERY invocation — CUDA-graph replay NEVER fired on this build; r003 delivered pure wrapper overhead 0.345122 -> 0.373034 ms; all bitwise guardrails green; branch A fail by letter (6.94 attributed launches/call, composition byte-identical to r002, device flat +1.0%); replay family CLOSED for this build/harness pattern; candidate archived as evidence only, canonical tree unchanged | `rounds/report_003.md` @`e00efc94...`, verdict @`9336749c...` |
+| 004 | accepted (+58.4951% protocol pair; +42.5449% direct accepted-pair vs r002) | manual-cuda-graph-workspace-replay (H-004 confirmed; expected 15.0 exceeded ~2.8-3.9x) | paired medians -> **0.196909 ms** (cumulative +59.28%, 2.41x); ACTIVE TIER = manual-replay with ZERO down-tier events; attributed cat=kernel count ZERO (branch-B positive single-submission evidence via host census: exactly ~3 aten::copy_ DtoD boundary memcpys/call, gpu_memcpy 298/100 calls); bitwise==r002 on seed42 + warm-new-bytes + stale-trap + all four tie suites + run_out poisoned x2 + cross-instance alternation; T=41-first instance created zero artifacts then captured tier-1; cold capture ~145 ms host outside medians; residual now ~93 us host share of wall; vendor pair ~87 us still tie-gate-locked | `rounds/report_004.md` @`c79cc018...`, verdict @`13340553...` |
 
-Canonical residual bottleneck after round 003 closure: unchanged from round 002 — host-side time outside kernels ~72% of wall (~0.235 ms/call of 0.3388 ms); device block dominated by the two retained top-k sites (85.5 us/call of ~104). Paths into those sites remain gated by CHECK-TIE-style on-device derivation without tl.argmax ordering (audit-only rounds cannot profitably exist at miss-streak 1/3). The INDUCTOR-level graph replay lever is CLOSED by root cause, but MANUAL torch.cuda.CUDAGraph workspace capture is not subject to that heuristic and is the remaining large legal mechanism family — selected for round 004.
+Canonical residual bottleneck after round 004: host share shrank to ~93 us/call; adoption bar re-priced to ~9.85 us absolute (5% of paired basis). Remaining legal levers are report_004's named sub-round-scale items (copy-out batching, guard micro-costs) — selected for round 005 as `boundary-dispatch-coalescing`. The tie-gate blocks the only large device lever (~87 us in vendor top-k sites): audit slots remain unprofitable and cross-implementation exp-bit ambiguity stands regardless of scale.
 
 Labeled historical record —
 final three TERMINAL rounds of the read-only epoch-1 lineage
@@ -240,6 +241,19 @@ expected gains are priors, never measurements):
   compiled-default -> framework-eager staged; attribution scoping carried
   forward (bitwise==r002 transfer + two-branch kernel-count PASS);
   expected wall improvement declared 15.0%; validator-green first run.
+  **ACCEPTED round 004** (+42.54% direct accepted-pair; +58.50% protocol pair;
+  canonical pointer advanced; counters reset).
+  **`boundary-dispatch-coalescing` SELECTED for round 005** via
+  `rounds/decision_005.md`
+  (sha `4a549653a939eafa2c36ade9b51e849633e702cdbd6d2f7463597f6257ed6021`)
+  + Sketch `rounds/sketch_005.json`
+  (sha `21d13b983a4bf1ac1e6913bbaff635dd2932006bf9df04cd888406edcd6c92de`);
+  mode/handle/workspace machinery unchanged from r004 — the change is host
+  boundary/hot-path coalescing only (batched copy-out capability-bound at
+  construction with recorded legacy downgrade, non_blocking boundary copies,
+  bound-callable hot path, guard micro-trims); adoption arithmetic re-priced:
+  bar ≈9.85 us absolute vs report_004-named levers ~10-17 us reachable;
+  expected wall improvement declared 6.0%; validator-green first run.
 - **DISPATCH-02** — change_family `compile-graph.capture`. Wrap the accepted
   fixed-shape forward in `torch.compile` (default mode first, reduce-overhead
   only as a separate follow-on decision given its profiler-attribution
@@ -346,3 +360,8 @@ Standing checks:
 | `rounds/verdict_003.json` | `9336749cd44539fb4522b43ac07ea97dcbe45412037624951772a3ea2de78cae` | 004 |
 | `rounds/sketch_004.json` (WRITTEN, normative; validator green) | `ccf277f422ce254d09dc1402c997a6c311a1f63457423f23afd60a71b4d9ae59` | 004 |
 | `rounds/decision_004.md` (WRITTEN, validator exit=0 valid:true first run) | `e5465d7dfdbc35cdba8251b9d43a5d43eb05c64d63c57d89eb299723b0be3be1` | 004 |
+| `triton_grouped_topk_r2_004.py` (canonical last_accepted_kernel) | `c02d956c6bb5c27c229623b01b99b85f5962db79b5ead09df6fbca7a52e721eb` | 005 |
+| `rounds/report_004.md` | `c79cc018f9c61ec34f084fc589b06b61d9b8e9ba634710d2ba365e3d1c34fe35` | 005 |
+| `rounds/verdict_004.json` | `13340553ee3a5f5d10b812b29891519fb85ee946f71b9314390755c0ca644a46` | 005 |
+| `rounds/sketch_005.json` (WRITTEN, normative; validator green) | `21d13b983a4bf1ac1e6913bbaff635dd2932006bf9df04cd888406edcd6c92de` | 005 |
+| `rounds/decision_005.md` (WRITTEN, validator exit=0 valid:true first run) | `4a549653a939eafa2c36ade9b51e849633e702cdbd6d2f7463597f6257ed6021` | 005 |
