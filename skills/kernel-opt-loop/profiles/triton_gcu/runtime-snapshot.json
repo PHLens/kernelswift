@@ -1,0 +1,18 @@
+{
+  "interpreter": "/usr/bin/python3",
+  "device": "gcu",
+  "toolchain": "triton 3.6.0 / triton_gcu 3.6.0+1.0.20260722",
+  "device_arch": "gcu-major3-minor0",
+  "runner_adapter": "python-command",
+  "bootstrap_modules": "torch_gcu,triton_gcu",
+  "synchronize_api": "torch.gcu.synchronize()",
+  "target_id": "s60",
+  "implementation_profile_id": "triton_gcu",
+  "torch_version": "2.10.0+cpu",
+  "torch_gcu_version": "2.10.0+3.8.0.2",
+  "triton_version": "3.6.0",
+  "triton_gcu_version": "3.6.0+1.0.20260722",
+  "device_name": "GCU",
+  "multi_processor_count": 2,
+  "sip_count": 24
+}
