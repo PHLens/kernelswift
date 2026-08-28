@@ -9,22 +9,22 @@ phase: ready
 workflow_status: running
 run_epoch: 1
 project_started_at: 2026-08-28T23:20:00Z
-current_round: "000"
-last_completed_round: "000"
+current_round: "001"
+last_completed_round: "001"
 last_accepted_round: "000"
 last_accepted_kernel: baseline_adapter.py
 last_accepted_report: rounds/report_000.md
-last_completed_decision: null
-last_completed_sketch: null
-last_completed_binding: null
-last_completed_verdict: null
+last_completed_decision: rounds/decision_001.md
+last_completed_sketch: rounds/sketch_001.json
+last_completed_binding: triton_mm_encoder_attention_e2_001.py
+last_completed_verdict: rounds/verdict_001.json
 last_attribution: none
-last_completed_coder_result: null
-last_completed_report: rounds/report_000.md
-last_result: baseline
-performance_miss_streak: 0
+last_completed_coder_result: rounds/coder_result_001.md
+last_completed_report: rounds/report_001.md
+last_result: no-improvement
+performance_miss_streak: 1
 failed_attempt_streak: 0
-total_rounds: 0
+total_rounds: 1
 max_rounds: 20
 valid_no_improvement_limit: 3
 adoption_threshold_pct: 5
@@ -63,3 +63,5 @@ Manifest updated only by the Orchestrator. Round artifacts back every value.
 |---|---|---|---|---|
 | 2026-08-28T23:20:00Z | — | initializing | - | phase0 scaffold commit (s60/epoch2/ layout, epoch-1 archive preserved at ../; triton_gcu profile v1 onboarded) |
 | 2026-08-28T23:22:00Z | initializing | ready | baseline | report_000 gate PASS (wall v0=0.227194 v1=0.228385 identity speedup 0.995x; census: base SDPA -> _scaled_dot_product_flash_attention 2 launches/call topsLaunchKernel 21.99us/call, 8 transpose + 8 as_strided + 4 view + 3 empty + empty_like + empty_strided + reshape aten ops/call; device-duration unavailable on GCU trace, runtime-launch evidence recorded; measurement_fingerprint c335b39c...) |
+| 2026-08-28T23:31:00Z | ready | designing | - | round-001 designer dispatch; capability preflight probe (orchestrator-scoped): tl.arange power-of-2, tl.max/tl.sum no-keepdim, tl.dot same-dtype, tl.dot power-of-2 (NOT mult-of-16; 96=16x6 FAILS); direct-Triton MHA pad128 nw2 = 148.6us vs base 139.9us (-6.2%); launcher tax 17.4us/call (far below bi150 84.77us); num_warps 2 optimal |
+| 2026-08-28T23:56:00Z | designing | ready | no-improvement | round-001 terminal: correctness PASS, candidate ~0.906x (paired -10.5% vs +5% bar). S60 DEVICE-BOUND: hand tl.dot (TP=128 padding 58% FLOP waste) device ~166us slower than CNNL SDPA ~158us floor; launcher tax 17.4us + host chain 11us << device deficit, graph-replay has no prize. tl.dot/tl.arange power-of-2 constraint written back to triton_gcu profile. Deliverable banked (correctness-PASS Triton, forward + 4-arg run_out) |

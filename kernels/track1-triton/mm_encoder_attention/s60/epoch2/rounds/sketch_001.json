@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "sketch_id": "sketch-mmenc-attn-s60-direct-tldot-001",
+  "round": "001",
+  "scope": {
+    "kind": "changed-computation-boundary",
+    "entrypoints": [
+      "ModelNew.forward",
+      "ModelNew.run_out"
+    ],
+    "unchanged_boundary": [
+      "mathematical semantics: BIDIRECTIONAL (non-causal) full MHA with scale=0.125 exact power-of-two, per-(batch,head) softmax(QK^T*scale)*V over ALL S=83 keys (no causal skip, no attention mask; only tile-padding keys beyond S are masked to -inf and contribute exactly zero), num_kv_heads == num_heads == 8",
+      "output structure: single fp16 tensor [B, S, H*D] = [2, 83, 512]",
+      "public ModelNew(num_heads, head_size, num_kv_heads=8) constructor and forward(query, key, value) signature; run_out(query,key,value,out) 4-arg preallocated-output surface per project.md public_contract",
+      "capability legality: tl.dot used ONLY at the mult-of-16 envelope (M/N/K all multiples of 16; S=83 padded to TP=128 power-of-2 for tl.arange) with same-dtype operands (fp16 inputs widened to fp32 by cast BEFORE dot, fp32 accumulator); num_warps in {1,2,4}; tl.max/tl.sum called WITHOUT keepdim (broadcast via [:,None]); no algorithm substitution (primary matrix.dot consumed at its constrained signature, not replaced)",
+      "stateless module contract: zero cross-call state, zero caches, zero workspace; caller device and current stream preserved; no torch.compile anywhere"
+    ]
+  },
+  "declarations": [
+    {
+      "id": "query",
+      "kind": "tensor",
+      "shape": ["B", "S", "HD"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "key",
+      "kind": "tensor",
+      "shape": ["B", "S", "HD"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "value",
+      "kind": "tensor",
+      "shape": ["B", "S", "HD"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "out_flat",
+      "kind": "tensor",
+      "shape": ["B", "S", "HD"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "q_tile",
+      "kind": "tile",
+      "shape": ["TP", "D"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "register"
+    },
+    {
+      "id": "k_tile",
+      "kind": "tile",
+      "shape": ["TP", "D"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "register"
+    },
+    {
+      "id": "v_tile",
+      "kind": "tile",
+      "shape": ["TP", "D"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "register"
+    }
+  ],
+  "operations": [
+    {
+      "id": "op.load.q",
+      "kind": "load",
+      "inputs": ["query"],
+      "outputs": ["q_tile"],
+      "index_domain": "batch x head x token x dim",
+      "mask": "token < S",
+      "effects": { "reads": ["query"], "writes": [] }
+    },
+    {
+      "id": "op.load.k",
+      "kind": "load",
+      "inputs": ["key"],
+      "outputs": ["k_tile"],
+      "index_domain": "batch x head x token x dim",
+      "mask": "token < S",
+      "effects": { "reads": ["key"], "writes": [] }
+    },
+    {
+      "id": "op.load.v",
+      "kind": "load",
+      "inputs": ["value"],
+      "outputs": ["v_tile"],
+      "index_domain": "batch x head x token x dim",
+      "mask": "token < S",
+      "effects": { "reads": ["value"], "writes": [] }
+    },
+    {
+      "id": "op.compute.qk",
+      "kind": "compute",
+      "inputs": ["q_tile", "k_tile"],
+      "outputs": ["scores"],
+      "causal_nodes": ["cn.dispatch-collapse", "cn.device-time-delta"],
+      "effects": { "reads": ["q_tile", "k_tile"], "writes": [] }
+    },
+    {
+      "id": "op.compute.mask_softmax",
+      "kind": "compute",
+      "inputs": ["scores"],
+      "outputs": ["attn"],
+      "effects": { "reads": ["scores"], "writes": [] }
+    },
+    {
+      "id": "op.compute.pv",
+      "kind": "compute",
+      "inputs": ["attn", "v_tile"],
+      "outputs": ["out_tile"],
+      "causal_nodes": ["cn.device-time-delta"],
+      "effects": { "reads": ["attn", "v_tile"], "writes": [] }
+    },
+    {
+      "id": "op.store.out",
+      "kind": "store",
+      "inputs": ["out_tile"],
+      "outputs": ["out_flat"],
+      "index_domain": "batch x head x token x dim",
+      "mask": "token < S",
+      "causal_nodes": ["cn.dispatch-collapse"],
+      "effects": { "reads": ["out_tile"], "writes": ["out_flat"] }
+    }
+  ],
+  "control": [
+    {
+      "id": "ctrl.parallel.batch_head",
+      "kind": "parallel",
+      "variable": "pid",
+      "domain": "0 <= pid < B*H (B=2, H=8 => 16 programs)"
+    },
+    {
+      "id": "ctrl.guard.token",
+      "kind": "guard",
+      "condition": "token < S"
+    }
+  ],
+  "effects": {
+    "outputs": ["out_flat"],
+    "mutations": [],
+    "aliases": []
+  },
+  "hints": [
+    { "name": "num_warps_2", "modality": "preferred" },
+    { "name": "pad_to_power_of_2_128", "modality": "required" },
+    { "name": "tl_dot_same_dtype_fp32", "modality": "required" }
+  ],
+  "causal_nodes": [
+    {
+      "id": "cn.dispatch-collapse",
+      "kind": "mechanism",
+      "expected": "one direct-launched Triton kernel (grid = B*H = 16 programs) replaces the entire base path — SDPA dispatch stack, 28 aten cpu_ops (8 transpose + 8 as_strided + 4 view + 3 empty + sdpa chain + empty_like + empty_strided + reshape per report_000), 2 vendor topsLaunchKernel launches — with TWO python ops (one torch.empty + one kernel launch) writing results directly into the final [2,83,512] fp16 layout with ZERO .contiguous()/view/copy host ops; tl.dot stays strictly inside the mult-of-16 envelope via fp16->fp32 widening casts; bidirectional: all 83 keys visited, no causal skip"
+    },
+    {
+      "id": "cn.device-time-delta",
+      "kind": "mechanism",
+      "expected": "the Triton kernel's device time D_cand replaces the base's ~118 us/call device floor (base wall 139.9us - 21.99us launch); probe measured direct nw2 = 148.6us wall, base = 139.9us (candidate -6.2% pre-adoption); expected D_cand band 120-150 us; measured via launch-count + launch-API-time (GCU device-duration unavailable)"
+    }
+  ]
+}

@@ -122,7 +122,7 @@
       "family": "matrix",
       "id": "matrix.dot.fp16-fp16-fp32.mult-of-16-tiles",
       "implementation_symbol": "tl.dot",
-      "notes": "epoch-2 probe: M/N/K must all be multiples of 16 (16/32/64/128 pass; 48/80/83/96/112 fail with shape constraint). fp16/fp32/bf16 inputs all numerically correct; fp32 error 0.0, fp16 ~2e-6.",
+      "notes": "epoch-2 probe (CORRECTED): M/N/K must all be POWERS OF TWO, not merely multiples of 16 (16/32/64/128 pass; 48/80/96/112/160/192 FAIL — note 96=16x6 fails, so the constraint is power-of-2). tl.arange has the same power-of-2 constraint. fp16/fp32/bf16 inputs all numerically correct; fp32 error 0.0, fp16 ~2e-6. Practical consequence: seq_len 83 must pad to TP=128.",
       "signature": {
         "accumulator_dtype": "fp32",
         "lhs_dtype": "fp16",
