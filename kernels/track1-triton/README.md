@@ -13,7 +13,7 @@ task 编号 ↔ 算子目录映射见 [docs/competition/track1-triton.md](../../
 | `fused_moe` | ✅ **50.4x** · v5 · **6.940→0.138 ms** | ✅ **13.1x** · r002 · **5.112→0.390 ms**（逐-token 路由 + selection 融合） | — | ✅ **14.81x** · e2r001 · **3.193→0.220 ms** | ✅ **19.4x** · r002 · **7.159→0.369 ms** |
 | `sparse_pooler` | ✅ **1.60x** · v4 · **0.910→0.567 ms** | 🟡 **0.79x** · r001 · **0.861→1.092 ms** | — | ✅ **1.22x** · r001 · **1.070→0.880 ms** | ✅ **1.51x** · r001 · **0.935→0.619 ms** |
 | `music_flamingo_rotary_embedding` | 📦 — · — · — | 🟡 **0.9x** · r002（elementwise 融合，measurement-bound） | ✅ **2.38x** · r001 · **0.191→0.080 ms** | ✅ **1.95x** · r001 · **0.353→0.176 ms** | ✅ **1.86x** · r001 · **0.622→0.334 ms** |
-| `mm_encoder_attention` | 📦 — · — · — | 🟡 **0.27x** · r001（手写 SDPA，慢因 `tl.dot` 缺失） | 🟡 **0.91x** · r002 · **0.116→0.128 ms**（手写 Triton MHA，flash-attn 已最优） | ✅ **1.05x** · e2r003 · **0.1499→0.1423 ms** | 🟡 **0.92x** · r001 · **0.349→0.340 ms** |
+| `mm_encoder_attention` | 📦 — · — · — | 🟡 **0.92x** · e2r002 · **0.2516→0.2750 ms**（fp16 `tl.dot` 单 kernel MHA，epoch-1 0.27x → 3.4x，device-bound 未超 CNNL） | 🟡 **0.91x** · r002 · **0.116→0.128 ms**（手写 Triton MHA，flash-attn 已最优） | ✅ **1.05x** · e2r003 · **0.1499→0.1423 ms** | 🟡 **0.92x** · r001 · **0.349→0.340 ms** |
 | `mhc_post_layer_mix` | 📦 — · — · — | 🟡 **0.56x** · r001（einsum 用 `tl.sum` 展开） | ✅ **31.66x** · r001 · **7.636→0.241 ms** | ✅ **1.20x** · r001 · **8.189→6.427 ms** | ✅ **3.64x** · r001 · **3.198→0.880 ms** |
 | `mhc_head_compute_mix` | 📦 — · — · — | ✅ **6.8x** · r001（Sinkhorn 迭代融合） | ✅ **14.07x** · r001 · **1.515→0.118 ms** | ✅ **7.79x** · r001 · **1.433→0.184 ms** | ✅ **9.00x** · r001 · **3.527→0.392 ms** |
 | `centre_random_augmentation` | 📦 — · — · — | 🟡 **0.95x** · r001（四元数旋转） | — | ✅ **4.49x** · r002 · **1.073→0.239 ms** | ✅ **1.22x** · r001 · **2.463→2.024 ms** |
@@ -37,11 +37,13 @@ task 编号 ↔ 算子目录映射见 [docs/competition/track1-triton.md](../../
 - **campaign-backed**：**MLU**（`fused_moe` / `flexattention` 已用 `tl.dot` 拿到实战收益）
 - **probe-backed + 部分 campaign 兑现**：**BI150**（`(32,32)@(32,32)` 的 fp32/bf16 `tl.dot` 已实测，`fused_moe` 已把 per-expert GEMM 融合转成显著 device 收益）
 - **已有小规模 probe**：**910B**（`(16,16)@(16,16)` fp32 probe 成功，`num_warps=1/2/4` 也已 probe；当前 attention/GEMM campaign 的主收益来源以 launch/fusion 路径为主，大 shape dot 路线仍待建立）
-- **Unknown**：**S60 / C500**
+- **probe-backed（power-of-2 约束）**：**S60**（`tl.dot` 可用但 M/N/K 必须为 2 的幂——`48/80/96/112` 均 FAIL，`16/32/64/128` 通过；`num_warps=1/2/4/8` 已 probe；`mm_encoder_attention` 已用 fp16 `tl.dot` 拿到 0.27x→0.92x 收益）
+- **Unknown**：**C500**
 
 因此：
 
-- **S60 / C500** 的 attention/GEMM 一旦离不开矩阵单元，通常会退化成 `tl.sum(a*b)` 标量 FMA，并被 CNNL / mcblas 压制；
+- **C500** 的 attention/GEMM 一旦离不开矩阵单元，通常会退化成 `tl.sum(a*b)` 标量 FMA，并被 mcblas 压制；
+- **S60** 的 `tl.dot` 受 2 的幂约束：S=83 只能 pad 到 128（58% FLOP 浪费），attention 撞 CNNL 库时 device-bound 难翻盘，但相对「无 dot」的标量展开仍有 3~4x 提升；
 - **MLU / BI150 / 910B** 的上限更高，分析时需要区分“probe 可用”“候选可编译”“任务 shape 上可兑现收益”三个层级。
 
 ### 2. attention 类算子的胜负 = base 库调用开销 × launch 成熟度 × dot 路径是否能兑现
@@ -54,7 +56,7 @@ task 编号 ↔ 算子目录映射见 [docs/competition/track1-triton.md](../../
 | **910B** | 原生 FA | 偏高 | 成熟 | ✅ 1.45x / 0.92x |
 | C500 | flash-attn SDPA | 低 | 一般 | 🟡 0.91x |
 | BI150 | Ixmma FA（单 kernel 深度调优） | 极低 | 一般 | 🟡 0.55x/0.61x |
-| S60 | CNNL FA | 低 | 弱 | ❌ 0.27x/0.42x |
+| S60 | CNNL FA | 低 | 弱 | 🟡 0.92x（mm_encoder，fp16 dot）/ 0.42x（flexattention 待 e2） |
 
 **关键洞察**：910B 的 flexattention 1.45x 说明，attention 胜负同时受当前任务 shape 下的 **base 库调用开销、Triton launch 成熟度、以及可兑现的 dot 路径成熟度** 影响。910B 当前已有小 fp32 `tl.dot` probe，但现有 attention campaign 的主收益来源仍以 launch/fusion 为主；BI150 也已探明 `tl.dot`，不过 base FA（`FlashAttnFwdF16Ixmma`）是单 kernel 且厂商深度调优，13~15 us device 已接近下限，手写 Triton attention 仍难跑赢。
 
@@ -82,7 +84,7 @@ Sinkhorn 融合是跨后端最稳定的大赢家（6.8x~14x）：它是纯 launc
 ### 5. 证据质量本身也是后端差异
 
 - **MLU / C500**：device kernel 证据相对直接，Designer/Verifier 更容易判断瓶颈；
-- **S60**：当前只有 `gcu_runtime` launch 事件，没有 `cat=kernel` device-duration，很多判断只能停留在 launch 诊断；
+- **S60**：当前只有 `gcu_runtime` launch 事件，没有 `cat=kernel` device-duration，很多判断只能停留在 launch 诊断（device 时间靠 wall − launch-API 反推）；已建立 machine-readable `triton_gcu` profile（`tl.dot` power-of-2、`num_warps 1/2/4/8` 两条 approved probe evidence）；
 - **910B**：device time 可得，但要走 `torch_npu.profiler` + CANN sqlite，不能把 raw `torch.profiler` 当成 device 证据；
 - **BI150**：campaign 已有 device 侧总结，但 target profile 对 profiler 字段仍偏保守，后续仍应补正式 probe / promote。
 
@@ -92,8 +94,8 @@ Sinkhorn 融合是跨后端最稳定的大赢家（6.8x~14x）：它是纯 launc
 
 | 维度 | MLU590 | S60 | C500 | BI150 | 910B |
 |---|---|---|---|---|---|
-| `tl.dot` | ✅ campaign-backed | ❌ Unknown | ❌ Unknown | ✅ probe-backed + `fused_moe` 已兑现 | ⚠️ `(16,16)` fp32 probe-backed，任务 shape 仍待验证 |
-| `num_warps>1` | ⚠️ `2` 已失败，当前 `1` 最稳 | ❌ 未建立 | ❌ 未建立 | ⚠️ Unknown | ✅ `1/2/4` 已 probe |
+| `tl.dot` | ✅ campaign-backed | ⚠️ probe-backed：可用但 M/N/K 须为 **2 的幂**（96=16×6 FAIL），fp16/fp32/bf16 均正确 | ❌ Unknown | ✅ probe-backed + `fused_moe` 已兑现 | ⚠️ `(16,16)` fp32 probe-backed，任务 shape 仍待验证 |
+| `num_warps>1` | ⚠️ `2` 已失败，当前 `1` 最稳 | ✅ `1/2/4/8` 已 probe（fp16 dot 下 `1` 最优） | ❌ 未建立 | ⚠️ Unknown | ✅ `1/2/4` 已 probe |
 | 快速 launch 机制 | ✅ `fast_libentry` | — | — | ⚠️ direct launch + `torch.compile(reduce-overhead)`，无已证明 fast launcher | ✅ 成熟 launch |
 | 设备侧 profiler 证据 | ✅ 相对成熟 | ❌ launch-only | ✅ 有 kernel events | ⚠️ campaign 有 summary，profile 仍待补齐 | ✅ 经 CANN/msprof 可得 |
 | 厂商库压制力 | 中（attention 可被超） | 强（CNNL） | 强（mcblas） | 强（Ixmma/TCU） | 强（原生 FA） |
@@ -101,11 +103,11 @@ Sinkhorn 融合是跨后端最稳定的大赢家（6.8x~14x）：它是纯 launc
 
 ## 结论
 
-1. **当前已有三类 `tl.dot` 证据**：MLU 属于 campaign-backed，BI150 属于 probe-backed 且已有 `fused_moe` 实战收益，910B 已有小 fp32 probe；S60 / C500 仍把 `tl.dot` 可用性列为第一优先级。
+1. **当前已有四类 `tl.dot` 证据**：MLU 属于 campaign-backed，BI150 属于 probe-backed 且已有 `fused_moe` 实战收益，910B 已有小 fp32 probe，S60 属于 probe-backed（power-of-2 约束）且已在 `mm_encoder_attention` 兑现 0.27x→0.92x；仅 C500 仍把 `tl.dot` 可用性列为第一优先级。
 
 2. **赛道主旋律仍是「kernel fusion 对抗厂商库」**：能绕开 GEMM/attention 主核的算子（Sinkhorn、逐-token 路由、elementwise 链），Triton 融合普遍拿到 6x~50x；撞上厂商张量核心主路径的算子（大 GEMM、flash attention），收益取决于 dot 路线成熟度和 baseline 库的接近下限程度。
 
-3. **`tl.dot` 仍是全局杠杆点**：分析时需要区分三个层级——`probe 可用`、`候选可编译`、`任务 shape 上可兑现收益`。当前 S60 / C500 缺第一层，910B / BI150 还在补第三层，MLU 已证明部分路径。
+3. **`tl.dot` 仍是全局杠杆点**：分析时需要区分三个层级——`probe 可用`、`候选可编译`、`任务 shape 上可兑现收益`。当前 C500 缺第一层；S60 已补第一层（power-of-2 约束）并在 attention 上兑现第二层；910B / BI150 还在补第三层，MLU 已证明部分路径。
 
 4. **两条独立的胜负线**：GEMM 类看矩阵单元能力与 `tl.dot` 覆盖面；attention 类还要看「base 库调用开销 vs Triton launch/融合收益」。910B 当前的 flexattention 1.45x 主要体现后者，现有证据对应的小规模 `tl.dot` probe 仍不足以外推出全面替代厂商 FA 的结论。
 

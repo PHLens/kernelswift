@@ -44,24 +44,22 @@ MLU 是唯一「打赢厂商 attention 库」的后端（flexattention 7.08x）�
 | `music_flamingo_rotary_embedding` | 0.9x | 纯 elementwise 融合，measurement-bound |
 | `mhc_post_layer_mix` | 0.56x | einsum 用 tl.sum 展开 |
 | `flexattention` | 0.42x | 手写 causal SDPA |
-| `mm_encoder_attention` | 0.27x | 手写 SDPA |
+| `mm_encoder_attention` | **0.92x**（e2r002） | fp16 `tl.dot` 单 kernel MHA（epoch-1 0.27x → 3.4x） |
 | `sparse_pooler` | — | 库算子占优，正确性优先提交 |
 
-### 根因：`tl.dot` Unknown
+### 根因（epoch-2 已修正）：`tl.dot` 可用但受 2 的幂约束
 
-GCU 的 `triton_gcu` 未实现 `tl.dot`，任何 GEMM 退化成 `tl.sum(a*b)` 标量 FMA，无法利用 Matrix Core。手写 SDPA 三处致命退化：
+epoch-1 误判「`tl.dot` Unknown」导致手写 SDPA 用 `tl.sum(a*b)` 标量 FMA（0.27x）。epoch-2 通过 probe 证伪：**`tl.dot` 在 S60 上可用**（`triton_gcu` profile 已更新为 `constrained`），但 M/N/K 必须为 **2 的幂**（`48/80/96/112` 全 FAIL，`16/32/64/128` 通过）；`tl.arange` 同约束；`num_warps 1/2/4/8` 均可用。`mm_encoder_attention` 据此切到 fp16 `tl.dot` 单 tile，0.27x→0.92x。
 
-1. QK^T 与 PV 用标量乘加（未用张量核心）
-2. `num_warps=1` 且每 query 一个 program，K/V 无跨 program 复用
-3. fp16 输入全程转 fp32，失去 fp16 张量核心吞吐
+但 S60 仍是 **device-bound**：base 的 SDPA/einsum 落到 CNNL（张量核心 + fp16 优化），手写 Triton 即便用上 `tl.dot`，也受 2 的幂约束（T=83→pad 128，58% FLOP 浪费）+ launcher 税仅 17.4us（图回放无收益），device floor 打不赢 CNNL。**结论：S60 上 attention/GEMM 手写 Triton 能拿 3~4x 相对 epoch-1 的提升，但难追平厂商库——交付标准应是「比 epoch-1 强」而非「打赢 base」。**
 
-而 base 的 SDPA/einsum 都 dispatch 到 CNNL（汇编级张量核心 + fp16 优化），**Triton 标量 FMA vs CNNL 张量核心，天然差一个数量级**。
+详见 [docs/s60-gcu-triton-lessons.md](../../docs/s60-gcu-triton-lessons.md)。
 
 ### 可优化方向
 
-1. 提高 `num_warps` 与 tile 并行度（预计 0.27x→0.5x，但无法追平张量核心）
-2. 实测 `tl.dot` 可用性（哪怕降级实现也比纯 `tl.sum` 好）
-3. 混合方案：核心 GEMM 用 `torch.mm`（CNNL），Triton 只做 softmax/mask 融合
+1. ~~提高 `num_warps` 与 tile 并行度~~（已探明：fp16 dot 下 `num_warps=1` 最优，`2/4/8` 均退化）
+2. ✅ 实测 `tl.dot` 可用性（已完成：2 的幂约束，fp16/fp32/bf16 均正确）
+3. 混合方案：核心 GEMM 用 `torch.mm`（CNNL），Triton 只做 softmax/mask 融合（待试，`flexattention`/`mhc_post_layer_mix` 可评估）
 
 ---
 
