@@ -1,0 +1,584 @@
+{
+  "schema": {
+    "name": "kernel-opt-loop/sketch",
+    "version": 1
+  },
+  "schema_version": 1,
+  "round": "001",
+  "sketch_id": "S-001",
+  "created_by": "designer",
+  "hypothesis_id": "H-001",
+  "change_family": "manual-graph-replay-fused",
+  "change_families": [
+    "manual-graph-replay-fused",
+    "moe-grouped-dispatch",
+    "kernel-fusion"
+  ],
+  "status": "draft",
+  "description": "Grouped-dispatch fused MoE replayed through a manual CUDA graph. A counting-sort kernel buckets the 166 (token, k) rows by expert so the expert kernel can tile rows at BLOCK_M=16 instead of 256, collapsing GEMM work from 100.66 MFLOP to about 6.29 MFLOP and lifting active programs from 8 to about 16 on 16 SMs. The second Triton launch raises N_triton from 1 to 2, which is the break-even the manual graph needs to have launcher tax to remove.",
+  "declarations": [
+    {
+      "id": "x",
+      "kind": "tensor",
+      "shape": [83, 128],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "router_logits",
+      "kind": "tensor",
+      "shape": [83, 8],
+      "dtype": "fp32",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "scores",
+      "kind": "tile",
+      "shape": [83, 8],
+      "dtype": "fp32",
+      "layout": "row-major",
+      "memory": "device-register"
+    },
+    {
+      "id": "topk_w",
+      "kind": "tensor",
+      "shape": [83, 2],
+      "dtype": "fp32",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "topk_ids",
+      "kind": "tensor",
+      "shape": [83, 2],
+      "dtype": "int32",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "flat_ids",
+      "kind": "tensor",
+      "shape": [166],
+      "dtype": "int32",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "flat_w",
+      "kind": "tensor",
+      "shape": [166],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "w1_f16",
+      "kind": "tensor",
+      "shape": [8, 128, 128],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "w2_f16",
+      "kind": "tensor",
+      "shape": [8, 128, 64],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "sorted_rows",
+      "kind": "tensor",
+      "shape": [166],
+      "dtype": "int32",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "sorted_w",
+      "kind": "tensor",
+      "shape": [166],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "expert_counts",
+      "kind": "tensor",
+      "shape": [8],
+      "dtype": "int32",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "expert_offsets",
+      "kind": "tensor",
+      "shape": [8],
+      "dtype": "int32",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "out_ws",
+      "kind": "tensor",
+      "shape": [83, 128],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "out",
+      "kind": "tensor",
+      "shape": [83, 128],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "row_ids",
+      "kind": "tile",
+      "shape": [256],
+      "dtype": "int32",
+      "layout": "row-major",
+      "memory": "device-register"
+    },
+    {
+      "id": "row_experts",
+      "kind": "tile",
+      "shape": [256],
+      "dtype": "int32",
+      "layout": "row-major",
+      "memory": "device-register"
+    },
+    {
+      "id": "bucket_counts",
+      "kind": "tile",
+      "shape": [8],
+      "dtype": "int32",
+      "layout": "row-major",
+      "memory": "device-register"
+    },
+    {
+      "id": "bucket_offsets",
+      "kind": "tile",
+      "shape": [8],
+      "dtype": "int32",
+      "layout": "row-major",
+      "memory": "device-register"
+    },
+    {
+      "id": "tile_rows",
+      "kind": "tile",
+      "shape": [16],
+      "dtype": "int32",
+      "layout": "row-major",
+      "memory": "device-register"
+    },
+    {
+      "id": "tile_w",
+      "kind": "tile",
+      "shape": [16],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-register"
+    },
+    {
+      "id": "x_tile",
+      "kind": "tile",
+      "shape": [16, 128],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-register"
+    },
+    {
+      "id": "gw_tile",
+      "kind": "tile",
+      "shape": [128, 128],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-register"
+    },
+    {
+      "id": "uw_tile",
+      "kind": "tile",
+      "shape": [128, 128],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-register"
+    },
+    {
+      "id": "w2_tile",
+      "kind": "tile",
+      "shape": [128, 64],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-register"
+    },
+    {
+      "id": "gate",
+      "kind": "tile",
+      "shape": [16, 64],
+      "dtype": "fp32",
+      "layout": "row-major",
+      "memory": "device-register"
+    },
+    {
+      "id": "up",
+      "kind": "tile",
+      "shape": [16, 64],
+      "dtype": "fp32",
+      "layout": "row-major",
+      "memory": "device-register"
+    },
+    {
+      "id": "act",
+      "kind": "tile",
+      "shape": [16, 64],
+      "dtype": "fp32",
+      "layout": "row-major",
+      "memory": "device-register"
+    },
+    {
+      "id": "y",
+      "kind": "tile",
+      "shape": [16, 128],
+      "dtype": "fp32",
+      "layout": "row-major",
+      "memory": "device-register"
+    },
+    {
+      "id": "tile_n",
+      "kind": "scalar",
+      "shape": [1],
+      "dtype": "int32",
+      "layout": "scalar",
+      "memory": "device-register"
+    },
+    {
+      "id": "base_off",
+      "kind": "scalar",
+      "shape": [1],
+      "dtype": "int32",
+      "layout": "scalar",
+      "memory": "device-register"
+    },
+    {
+      "id": "n_rows",
+      "kind": "scalar",
+      "shape": [1],
+      "dtype": "int32",
+      "layout": "scalar",
+      "memory": "device-register"
+    }
+  ],
+  "operations": [
+    {
+      "id": "op_softmax",
+      "kind": "load",
+      "inputs": ["router_logits"],
+      "outputs": ["scores"],
+      "index_domain": "t in [0, 83), e in [0, 8)",
+      "mask": "t < 83",
+      "effects": {"reads": ["router_logits"], "writes": []},
+      "causal_nodes": ["counting_sort_groups_rows_by_expert"],
+      "conversion": "aten torch.softmax in fp32 followed by aten torch.topk with tie semantics preserved verbatim"
+    },
+    {
+      "id": "op_topk",
+      "kind": "store",
+      "inputs": ["scores"],
+      "outputs": ["topk_w", "topk_ids"],
+      "index_domain": "t in [0, 83), k in [0, 2)",
+      "mask": "t < 83",
+      "effects": {"reads": ["scores"], "writes": ["topk_w", "topk_ids"]},
+      "causal_nodes": ["counting_sort_groups_rows_by_expert"],
+      "conversion": "aten topk writes fp32 weights and int32 ids"
+    },
+    {
+      "id": "op_renorm",
+      "kind": "store",
+      "inputs": ["topk_w"],
+      "outputs": ["flat_w"],
+      "index_domain": "row in [0, 256)",
+      "mask": "row < num_rows",
+      "effects": {"reads": ["topk_w"], "writes": ["flat_w"]},
+      "causal_nodes": ["counting_sort_groups_rows_by_expert"],
+      "conversion": "aten renormalize div then cast fp32 to fp16"
+    },
+    {
+      "id": "op_flatten",
+      "kind": "store",
+      "inputs": ["topk_ids"],
+      "outputs": ["flat_ids"],
+      "index_domain": "row in [0, 256)",
+      "mask": "row < num_rows",
+      "effects": {"reads": ["topk_ids"], "writes": ["flat_ids"]},
+      "causal_nodes": ["counting_sort_groups_rows_by_expert"]
+    },
+    {
+      "id": "op_zero_out",
+      "kind": "store",
+      "inputs": ["out_ws"],
+      "outputs": ["out_ws"],
+      "index_domain": "t in [0, 83), h in [0, 128)",
+      "mask": "t < 83",
+      "effects": {"reads": ["out_ws"], "writes": ["out_ws"]},
+      "causal_nodes": ["graph_removes_170us_launcher_tax"]
+    },
+    {
+      "id": "op_load_rows",
+      "kind": "load",
+      "inputs": ["flat_ids"],
+      "outputs": ["row_ids", "row_experts"],
+      "index_domain": "row in [0, 256)",
+      "mask": "row < num_rows",
+      "effects": {"reads": ["flat_ids"], "writes": ["row_ids", "row_experts"]},
+      "causal_nodes": ["counting_sort_groups_rows_by_expert"]
+    },
+    {
+      "id": "op_bucket_count",
+      "kind": "compute",
+      "inputs": ["row_experts"],
+      "outputs": ["v_bucket_counts"],
+      "effects": {"reads": ["row_experts"], "writes": []},
+      "causal_nodes": ["counting_sort_groups_rows_by_expert"]
+    },
+    {
+      "id": "op_bucket_scan",
+      "kind": "compute",
+      "inputs": ["v_bucket_counts"],
+      "outputs": ["v_bucket_offsets"],
+      "effects": {"reads": ["v_bucket_counts"], "writes": []},
+      "causal_nodes": ["counting_sort_groups_rows_by_expert"]
+    },
+    {
+      "id": "op_store_meta",
+      "kind": "store",
+      "inputs": ["v_bucket_counts", "v_bucket_offsets"],
+      "outputs": ["expert_counts", "expert_offsets"],
+      "index_domain": "e in [0, 8)",
+      "mask": "e < 8",
+      "effects": {"reads": ["v_bucket_counts", "v_bucket_offsets"], "writes": ["expert_counts", "expert_offsets"]},
+      "causal_nodes": ["counting_sort_groups_rows_by_expert"]
+    },
+    {
+      "id": "op_scatter",
+      "kind": "store",
+      "inputs": ["row_ids", "flat_w", "v_bucket_offsets", "v_bucket_counts"],
+      "outputs": ["sorted_rows", "sorted_w"],
+      "index_domain": "row in [0, 256)",
+      "mask": "row < num_rows",
+      "effects": {"reads": ["row_ids", "flat_w", "v_bucket_offsets", "v_bucket_counts"], "writes": ["sorted_rows", "sorted_w"]},
+      "causal_nodes": ["counting_sort_groups_rows_by_expert"]
+    },
+    {
+      "id": "op_load_meta",
+      "kind": "load",
+      "inputs": ["expert_offsets", "expert_counts"],
+      "outputs": ["base_off", "n_rows"],
+      "index_domain": "e in [0, 8)",
+      "mask": "e < 8",
+      "effects": {"reads": ["expert_offsets", "expert_counts"], "writes": ["base_off", "n_rows"]},
+      "causal_nodes": ["n_triton_rises_1_to_2"]
+    },
+    {
+      "id": "op_tile_extent",
+      "kind": "compute",
+      "inputs": ["n_rows", "base_off"],
+      "outputs": ["v_tile_n"],
+      "effects": {"reads": ["n_rows", "base_off"], "writes": []},
+      "causal_nodes": ["block_m_drops_256_to_16"]
+    },
+    {
+      "id": "op_load_tile_rows",
+      "kind": "load",
+      "inputs": ["sorted_rows", "sorted_w"],
+      "outputs": ["tile_rows", "tile_w"],
+      "index_domain": "m in [0, 16)",
+      "mask": "tile_n > 0",
+      "effects": {"reads": ["sorted_rows", "sorted_w"], "writes": ["tile_rows", "tile_w"]},
+      "causal_nodes": ["block_m_drops_256_to_16"]
+    },
+    {
+      "id": "op_load_x",
+      "kind": "load",
+      "inputs": ["x", "tile_rows"],
+      "outputs": ["x_tile"],
+      "index_domain": "m in [0, 16), h in [0, 128)",
+      "mask": "tile_n > 0",
+      "effects": {"reads": ["x", "tile_rows"], "writes": ["x_tile"]},
+      "causal_nodes": ["gemm_work_falls_100p66_to_6p29_mflop"]
+    },
+    {
+      "id": "op_load_w",
+      "kind": "load",
+      "inputs": ["w1_f16", "w2_f16"],
+      "outputs": ["gw_tile", "uw_tile", "w2_tile"],
+      "index_domain": "n1 in [0, 128), h in [0, 128)",
+      "mask": "tile_n > 0",
+      "effects": {"reads": ["w1_f16", "w2_f16"], "writes": ["gw_tile", "uw_tile", "w2_tile"]},
+      "causal_nodes": ["gemm_work_falls_100p66_to_6p29_mflop"]
+    },
+    {
+      "id": "op_dot_gate",
+      "kind": "compute",
+      "inputs": ["x_tile", "gw_tile"],
+      "outputs": ["v_gate"],
+      "effects": {"reads": ["x_tile", "gw_tile"], "writes": []},
+      "causal_nodes": ["gemm_work_falls_100p66_to_6p29_mflop"],
+      "conversion": "tl.dot fp16 operands with fp32 accumulation, M=16, contraction 128 over N=64"
+    },
+    {
+      "id": "op_dot_up",
+      "kind": "compute",
+      "inputs": ["x_tile", "uw_tile"],
+      "outputs": ["v_up"],
+      "effects": {"reads": ["x_tile", "uw_tile"], "writes": []},
+      "causal_nodes": ["gemm_work_falls_100p66_to_6p29_mflop"],
+      "conversion": "tl.dot fp16 operands with fp32 accumulation, M=16, contraction 128 over N=64"
+    },
+    {
+      "id": "op_act",
+      "kind": "compute",
+      "inputs": ["v_gate", "v_up"],
+      "outputs": ["v_act"],
+      "effects": {"reads": ["v_gate", "v_up"], "writes": []},
+      "causal_nodes": ["gemm_work_falls_100p66_to_6p29_mflop"]
+    },
+    {
+      "id": "op_dot_down",
+      "kind": "compute",
+      "inputs": ["v_act", "w2_tile"],
+      "outputs": ["v_y"],
+      "effects": {"reads": ["v_act", "w2_tile"], "writes": []},
+      "causal_nodes": ["gemm_work_falls_100p66_to_6p29_mflop"],
+      "conversion": "tl.dot fp16 operands with fp32 accumulation, M=16, contraction 64 over N=128"
+    },
+    {
+      "id": "op_accum",
+      "kind": "store",
+      "inputs": ["v_y", "tile_w", "tile_rows"],
+      "outputs": ["out_ws"],
+      "index_domain": "m in [0, 16), n2 in [0, 128)",
+      "mask": "tile_n > 0",
+      "effects": {"reads": ["v_y", "tile_w", "tile_rows"], "writes": ["out_ws"]},
+      "causal_nodes": ["active_programs_rise_8_to_16"]
+    },
+    {
+      "id": "op_copy_out",
+      "kind": "store",
+      "inputs": ["out_ws"],
+      "outputs": ["out"],
+      "index_domain": "t in [0, 83), h in [0, 128)",
+      "mask": "t < 83",
+      "effects": {"reads": ["out_ws"], "writes": ["out"]},
+      "causal_nodes": ["graph_removes_170us_launcher_tax"]
+    }
+  ],
+  "control": [
+    {"kind": "parallel", "variable": "row", "domain": "[0, 256)"},
+    {"kind": "parallel", "variable": "e", "domain": "[0, 8)"},
+    {"kind": "parallel", "variable": "t", "domain": "[0, 11)"},
+    {"kind": "parallel", "variable": "m", "domain": "[0, 16)"},
+    {"kind": "parallel", "variable": "h", "domain": "[0, 128)"},
+    {"kind": "parallel", "variable": "n1", "domain": "[0, 128)"},
+    {"kind": "parallel", "variable": "n2", "domain": "[0, 128)"},
+    {"kind": "guard", "condition": "row < num_rows"},
+    {"kind": "guard", "condition": "tile_n > 0"},
+    {"kind": "guard", "condition": "e < 8"},
+    {"kind": "guard", "condition": "t < 83"}
+  ],
+  "effects": {
+    "outputs": ["out"],
+    "mutations": [
+      "out_ws",
+      "sorted_rows",
+      "sorted_w",
+      "expert_counts",
+      "expert_offsets",
+      "topk_w",
+      "topk_ids",
+      "flat_ids",
+      "flat_w"
+    ],
+    "aliases": []
+  },
+  "causal_nodes": [
+    {
+      "id": "counting_sort_groups_rows_by_expert",
+      "kind": "restructure",
+      "expected": "the 166 rows are bucketed by expert into static index, count, and offset buffers by a single-program counting sort"
+    },
+    {
+      "id": "block_m_drops_256_to_16",
+      "kind": "tile-shape",
+      "expected": "the expert kernel tiles rows at BLOCK_M=16, the proven tl.dot minimum, instead of 256"
+    },
+    {
+      "id": "gemm_work_falls_100p66_to_6p29_mflop",
+      "kind": "arithmetic",
+      "expected": "GEMM work falls from 100.66 MFLOP to about 6.29 MFLOP and padding from 12.34x to about 1.3x"
+    },
+    {
+      "id": "active_programs_rise_8_to_16",
+      "kind": "occupancy",
+      "expected": "active programs rise from 8 to about 16, filling all 16 SMs instead of half"
+    },
+    {
+      "id": "n_triton_rises_1_to_2",
+      "kind": "launch-count",
+      "expected": "the pipeline carries two Triton launches per call instead of one"
+    },
+    {
+      "id": "graph_removes_170us_launcher_tax",
+      "kind": "host-launch",
+      "expected": "the manual graph removes about 170 us/call of python launcher tax against 112 us of R plus F"
+    }
+  ],
+  "hints": [
+    {
+      "name": "num_warps",
+      "modality": "preferred",
+      "value": 1,
+      "search_space": [1, 2, 4],
+      "note": "swept in-round; adopt the argmin that stays bitwise-identical. num_warps is constrained in the frozen claim, so 1 is the only profile-recorded stable value and is the control."
+    },
+    {
+      "name": "BLOCK_M",
+      "modality": "preferred",
+      "value": 16,
+      "search_space": [16, 32],
+      "note": "16 is the proven tl.dot minimum and gives the smallest padding; 32 is the fallback if the 16-row tile under-fills the tensor core."
+    },
+    {
+      "name": "num_stages",
+      "modality": "exploratory",
+      "value": 1,
+      "search_space": [1, 2],
+      "note": "no value recorded in the frozen claim, so treat as unknown; probe only if the num_warps sweep leaves device time above target."
+    }
+  ],
+  "verification_plan": [
+    "run correctness: auto_bench.py --v0_file kernels/track1-triton/fused_moe/base.py --v1_file kernels/track1-triton/fused_moe/bi150/epoch2/triton_fused_moe_e2_001.py --seed 42 --atol 1e-2 --rtol 1e-2 --warmup 0 --repeat 1",
+    "run decision-scoped probes: tl.dot fp16-operand tile qualification at M=16 contraction 128/64; num_warps sweep over {1,2,4} with bitwise-identical-output tie-break; graph capture stability over 80 attempts",
+    "run screening: three auto_bench.py invocations with --warmup 0 --repeat 5",
+    "run benchmark: interleaved wall timing, three ordered pairs, --warmup 50 --repeat 100",
+    "run profiler: --profile --profile-mode forward --profile-warmup 20 --profile-iterations 100 under KS_E2_REPLAY=0 (device tier) and KS_E2_REPLAY=1 (replay tier); summarize with scripts/summarize_trace.py --iterations 100",
+    "report: fill mechanism_observables, evaluate FR-1 through FR-5"
+  ],
+  "constraints": [
+    "preserve public contract: Model(num_experts, top_k, hidden_size, intermediate_size, renormalize=True) and forward(hidden_states, router_logits)",
+    "preserve torch.topk tie semantics: do not reimplement top-k selection or sorting",
+    "capture a fixed-shape Triton candidate: static grid (8,11), no host data-dependent branch, no .item() on a device tensor, no D2H read inside the capture region",
+    "empty-tile early exit must be on-device only, never a host-read row count",
+    "never return graph-pool or workspace memory: copy out into a fresh invocation-owned tensor before returning",
+    "keep w1/w2 as fp32 nn.Parameter and cast inside the captured region; do not pre-cast",
+    "do not use reduction.sum or reduction.argmax: counting sort uses tl.static_range masked adds only",
+    "run_out(hidden_states, router_logits, out) 3-arg surface must exist; kernel-mode profiling remains unavailable so --profile-mode forward is canonical",
+    "device observables must be collected with KS_E2_REPLAY=0; the replay scope's missing kernel events are unattributable, not zero"
+  ],
+  "notes": "N_triton goes 1 to 2, which is the explicit break-even for the manual graph: 2x85 = 170 us of removable launcher tax against R+F = 112 us. Predicted -153 us/call against the epoch-1 493 us wall. Against the canonical 3.255288 ms base.py baseline the same absolute delta is a smaller percentage, so the 5% adoption gate is the binding constraint and is why FR-5 reads mean_wall_ms."
+}

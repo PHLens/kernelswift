@@ -187,6 +187,20 @@ base 的发射结构，而非 kernel 写得好坏。
 **跨三算子的一致结论**：Triton kernel 质量 × 手动图回放 = 这台 BI150 上打 host 主导算子的
 标准公式。图是乘号不是公式本身——groupedtopk 因 base 有 123 次发射可压缩而大赢 +59%，
 mm_encoder 只有 1 次发射只挣 +5%，flexattention 无货可装则持平。
+
+### 8. Epoch-2 补充：fused_moe（✅ 14.81x，一轮的 2.2 倍）
+
+一句话：**公式的最强兑现——多发射 + 可压缩 + 图回放三者齐全**。
+- base 跑 123.95 个 kernel/调用，device 只占 29.7%，其中 65.6% 是 dispatch/indexing
+  （scatter/mask-gather/nonzero/mask.any/cub reduce），GEMM 只占 12.27%。
+- 二轮第一步（counting-sort 分组 GEMM）把复制计算消掉（12.34x 浪费）、把 Triton 发射
+  压成 2 个，再录进手动图：9.82 个 aten 发射 → 2.0 次提交，~85µs launcher 税归零。
+  结果 wall 3.193 → 0.220 ms = **14.81x**（一轮 6.60x）。
+- host 杠杆实测 423µs（远超建模的 170µs——`N×85µs` 恒等式低估了 aten 发射折叠的收益）；
+  device 重构实测**中性**而非赢（FR-2 触发但决策允许单靠 host 采纳）。
+- 三条后续杠杆全部实测关闭：G1 分配复用（empty_like 实测 ~4.13µs < 门限）、device 重构
+  （算术削减不转化为 device 时间）、G2 前奏融合（~0 wall 且 softmax fold 踩未授予的
+  reduction.sum 豁免）。最终天花板 ≈ harness 内置 ~122µs 同步 + ~58µs device ≈ 214µs。
 ---
 
 ## 五、Ascend 910B（昇腾）
