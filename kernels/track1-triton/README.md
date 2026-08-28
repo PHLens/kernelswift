@@ -8,8 +8,8 @@ task 编号 ↔ 算子目录映射见 [docs/competition/track1-triton.md](../../
 
 | 算子 | `mlu`（寒武纪 MLU590） | `s60`（燧原 GCU） | `maca`（沐曦 C500） | `bi150`（天数智芯） | `ascend910b`（昇腾） |
 |---|---|---|---|---|---|
-| `groupedtopk` | ✅ **6.56x** · v4 · **0.840→0.128 ms** | ✅ **1.68x** · r003 · **0.459→0.274 ms** | ✅ **3.29x** · r001 · **0.225→0.068 ms** | ✅ **2.41x** · e2r004 · **0.4835→0.1969 ms**（二轮：Triton 三段融合 + 手动 CUDA Graph 重放；详见 `bi150-round2/final_summary.md`） | ✅ **2.84x** · r002 · **0.760→0.267 ms** |
-| `flexattention` | ✅ **7.08x** · v3 · **1.006→0.140 ms** | 🟡 **0.42x** · r001 · **0.269→0.64 ms**（correctness PASS，手写 causal SDPA，慢因 `tl.dot` 缺失） | — | 🟡 **0.61x** · r001 · **0.150→0.238 ms** | ✅ **1.45x** · r002 · **0.409→0.282 ms** |
+| `groupedtopk` | ✅ **6.56x** · v4 · **0.840→0.128 ms** | ✅ **1.68x** · r003 · **0.459→0.274 ms** | ✅ **3.29x** · r001 · **0.225→0.068 ms** | ✅ **2.41x** · e2r004 · **0.4835→0.1969 ms** | ✅ **2.84x** · r002 · **0.760→0.267 ms** |
+| `flexattention` | ✅ **7.08x** · v3 · **1.006→0.140 ms** | 🟡 **0.42x** · r001 · **0.269→0.64 ms**（correctness PASS，手写 causal SDPA，慢因 `tl.dot` 缺失） | — | 🟡 **1.00x** · e2r003 · **0.150→0.149 ms** | ✅ **1.45x** · r002 · **0.409→0.282 ms** |
 | `fused_moe` | ✅ **50.4x** · v5 · **6.940→0.138 ms** | ✅ **13.1x** · r002 · **5.112→0.390 ms**（逐-token 路由 + selection 融合） | — | ✅ **6.60x** · r002 · **3.259→0.493 ms** | ✅ **19.4x** · r002 · **7.159→0.369 ms** |
 | `sparse_pooler` | ✅ **1.60x** · v4 · **0.910→0.567 ms** | 🟡 **0.79x** · r001 · **0.861→1.092 ms** | — | ✅ **1.22x** · r001 · **1.070→0.880 ms** | ✅ **1.51x** · r001 · **0.935→0.619 ms** |
 | `music_flamingo_rotary_embedding` | 📦 — · — · — | 🟡 **0.9x** · r002（elementwise 融合，measurement-bound） | ✅ **2.38x** · r001 · **0.191→0.080 ms** | ✅ **1.95x** · r001 · **0.353→0.176 ms** | ✅ **1.86x** · r001 · **0.622→0.334 ms** |
@@ -25,6 +25,8 @@ task 编号 ↔ 算子目录映射见 [docs/competition/track1-triton.md](../../
 - `🟡` correctness 通过，已提交 Triton code，但 wall speedup 未达到 `5%` threshold，仍保留实测加速比；
 - `⛔` 没有可接受的 Triton candidate；`—` 表示没有对应 campaign artifact 或没有可测 candidate；
 - `📦` 仅有 `base.py`，尚无该后端的 Triton submission。
+- 记号 `eMrN`：第 `M` 个 campaign epoch 的第 `N` 轮。历史一轮格子沿用当时的
+  `vN`/`rNNN` 记号，未回溯改名。
 
 ## 横向对比分析
 

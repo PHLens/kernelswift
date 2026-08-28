@@ -150,6 +150,31 @@ device 提升远大于 wall 提升，正说明这是 kernel 优化成果（融�
 
 ---
 
+### 6. Epoch-2 二轮战役（2026-08-28，kernel-opt-loop v3 契约）
+
+矩阵中 `e2N` / `e2` 标记即指本轮。两算子、两种结局，全部结论带普查级根因：
+
+**groupedtopk（✅ 再提 29%，1.41x）**：一轮最优 0.277 ms → 二轮 0.197 ms。三层叠加：
+① 把 softmax/分组取最大/掩码/归一化这串小操作合并成 3 个 Triton kernel（base 原本要发
+~15 个，device 时间 −42%）；② 编译器默认模式压掉重复调用开销；③ 整条流水线"录一遍、
+之后直接回放"（手动 CUDA Graph，绕开 Inductor 在该构建上的 mutation-skip 失效）。
+详见 `bi150-round2/final_summary.md`。
+
+**flexattention（🟡 e2r003 Triton 提交 1.00x，较一轮候选 1.60x）**：一轮提交的 naive Triton 比
+base 还慢（0.61x）。二轮连试三种机制全部证伪，量出来的原因：
+- base 整条 device 路径只有 **1 个厂商融合 kernel（13.6 µs）**，host 占墙 ~91%——没有可压缩的多次启动；
+- 自写单 kernel 注意力只比厂商慢 2.9 µs，但这套构建上 **Triton 的 python launcher 固定开销 ~85 µs/call**，是被替换掉的整条 base host 路径的 1.6 倍；
+- 图重放路线再叠加 **69 µs/call 的构建内在 replay 同步罚**（LEAN 路线源审计零 sync 仍现形）。
+按比赛规则交付物必须是 Triton：最终提交为 e2r003 候选（单 Triton kernel + 三层链，
+0.149 ms，与 base 持平 1.00x，correctness PASS），较一轮提交快 60%。
+详见 `bi150/epoch2/final_summary.md`。
+
+**一条可复用边界**：手动 CUDA 图重放适用于「多 kernel 可压缩」形态（groupedtopk 赢 +59%），
+在「单 kernel + 高 launcher 税」形态（flexattention）被内在同步罚挡死——适用与否取决于
+base 的发射结构，而非 kernel 写得好坏。
+
+---
+
 ## 五、Ascend 910B（昇腾）
 
 10/10 算子全部 correctness PASS，无留空。环境：Ascend910B4、Triton-Ascend 3.2.1、CANN 9.0.0。
