@@ -1,0 +1,39 @@
+# Round Status 000
+
+- phase: `baseline-complete`
+- result: `baseline`
+- measurement_exclusive: `true until Orchestrator records durable completion of round 000`
+- started_at_utc: `2026-08-27T12:50:00Z`
+- ended_at_utc: `2026-08-27T13:02:00Z`
+- completed_commands:
+  - sha256 verification of inputs against project.md: PASS
+    - `../base.py`: `12f3324896d6b72bd4eac556839db53fb7045b2965b7f8caf2734551daad0f58` (3541 bytes)
+    - harness `auto_bench.py`: `71fb3ad0c3ad23c5c156c898f85abcee3d42a15800f75ff97769cfca9152fe29` (29428 bytes)
+    - candidate `baseline_adapter.py`: `ecce4dacee211a86ba38584b6b78fc2f575ba60cedccdc6f79ac4f6fb0139fa5`
+  - measurement fingerprint recomputation: PASS — recomputed `8deb1b012de31b18887562e736c7b9e120b9d9f9500230e237ee003c5fa5a431` == declared
+  - CoreX bootstrap runtime probe: PASS
+    - `/usr/local/bin/python3`, nvcc V10.2.89, CoreX 4.4.0, ixsmi Iluvatar BI-V150 @ 00000000:54:00.0
+    - triton 3.1.0 (`/usr/local/corex-4.4.0/lib64/python3/dist-packages/triton`), torch 2.7.1
+    - capability major=7 minor=1 multi_processor_count=16 total_memory=17179869184 — == `project.md#runtime-fingerprint`
+  - timing pair 1: `auto_bench.py --v0_file kernels/track1-triton/groupedtopk/base.py --v1_file kernels/track1-triton/groupedtopk/bi150-round2/baseline_adapter.py --warmup 50 --repeat 100 --full-traceback` → correctness PASS; v0 `0.484525` ms, v1 `0.481109` ms (speedup 1.007x), exit 0
+  - timing pair 2: same command → correctness PASS; v0 `0.483530` ms, v1 `0.482140` ms (speedup 1.003x), exit 0
+  - timing pair 3: same command → correctness PASS; v0 `0.452363` ms, v1 `0.451582` ms (speedup 1.002x), exit 0
+  - kernel-mode profile attempt (`--profile-mode kernel`, warmup 5 / repeat 10 + profile_warmup 20 / profile_iterations 100): correctness/timing passed, profiling aborted by harness `KsCompareError: candidate_baseline_adapter: kernel profiling requires a callable ModelNew.run_out`, exit 1 (recorded limitation)
+  - forward-mode profile (`--profile-mode forward --profile-warmup 20 --profile-iterations 100`, warmup 50 / repeat 100): PASS accuracy; v0 `0.478918` ms, v1 `0.485354` ms; dual-scope trace exported, exit 0
+  - `summarize_trace.py` scope normalization: reference scope PASS, candidate scope PASS (14.94 kernels/call both)
+- artifacts:
+  - `rounds/report_000.md` — Result: baseline (written)
+  - `rounds/round_status_000.md` (this file)
+  - `log/groupedtopk_baseline_forward_100iter.pt.trace.json`: `666c9d2fb8db86eb0cab7f39f52020107fb7f597cccd3e0e40c7542599275228`
+  - `log/summary_baseline_base.json`, `log/summary_candidate_baseline_adapter.json`, `log/kernel_mode_attempt.pt.trace.json` absent (trace not written — failure pre-export), raw stderr retained in run history above
+- runtime:
+  - `Iluvatar BI-V150`, `torch 2.7.1`, `triton 3.1.0`, capability `7.1`, CoreX `4.4.0` bootstrap required
+- raw_samples:
+  - reference: `[0.484525, 0.483530, 0.452363] ms` → median `0.483530`
+  - baseline_adapter: `[0.481109, 0.482140, 0.451582] ms` → median `0.481109`
+- profiler:
+  - reference device time: `180.114755859375 us/call`, kernels `14.94/call`, ratio `0.3724996501962133`
+  - candidate device time: `178.84361328125 us/call`, kernels `14.94/call`, ratio `0.3717320051822975`
+  - mode deviation: `profile_mode=kernel` impossible for Phase-0 adapter (no `ModelNew.run_out`); fallback `forward` with regime-matched profile_warmup/profile_iterations
+- measurement_fingerprint: `8deb1b012de31b18887562e736c7b9e120b9d9f9500230e237ee003c5fa5a431`
+- next_safe_action: `hand report_000.md classification (baseline) to Orchestrator; await round 001 decision dispatch`

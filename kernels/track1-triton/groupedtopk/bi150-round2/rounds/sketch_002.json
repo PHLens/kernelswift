@@ -1,0 +1,333 @@
+{
+  "schema_version": 1,
+  "sketch_id": "sketch-groupedtopk-compile-default-002",
+  "round": "002",
+  "scope": {
+    "kind": "changed-computation-boundary",
+    "entrypoints": [
+      "ModelNew.forward",
+      "ModelNew.run_out"
+    ],
+    "unchanged_boundary": [
+      "both library torch.topk selection calls and their argument values, shapes, dtypes, descending order, and tie behavior (they remain the ONLY selectors; no algorithm substitution)",
+      "the three direct Triton stages softmax+group-max, group-membership masking, renorm/scale/narrowing (byte-for-byte unchanged kernels)",
+      "public ModelNew constructor and forward signatures",
+      "output tuple structure: fp32 weights and int32 ids",
+      "base.py operator decomposition steps including routed_scaling_factor and scoring_func semantics; dynamo/inductor lowering must not alter mathematical results or selection ordering"
+    ]
+  },
+  "declarations": [
+    {
+      "id": "gating",
+      "kind": "tensor",
+      "shape": ["T", "E"],
+      "dtype": "fp32",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "hidden_states",
+      "kind": "tensor",
+      "shape": ["T", "H"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "row_tile",
+      "kind": "tile",
+      "shape": ["E"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "register"
+    },
+    {
+      "id": "row2",
+      "kind": "tile",
+      "shape": ["E"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "register"
+    },
+    {
+      "id": "sel_tile",
+      "kind": "tile",
+      "shape": ["KG"],
+      "dtype": "i64",
+      "layout": "contiguous",
+      "memory": "register"
+    },
+    {
+      "id": "vals_tile",
+      "kind": "tile",
+      "shape": ["K"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "register"
+    },
+    {
+      "id": "ids_tile",
+      "kind": "tile",
+      "shape": ["K"],
+      "dtype": "i64",
+      "layout": "contiguous",
+      "memory": "register"
+    },
+    {
+      "id": "scores_out",
+      "kind": "tensor",
+      "shape": ["T", "E"],
+      "dtype": "fp32",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "group_scores_out",
+      "kind": "tensor",
+      "shape": ["T", "G"],
+      "dtype": "fp32",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "sel_groups",
+      "kind": "tensor",
+      "shape": ["T", "KG"],
+      "dtype": "i64",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "masked_scores",
+      "kind": "tensor",
+      "shape": ["T", "E"],
+      "dtype": "fp32",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "topk_vals",
+      "kind": "tensor",
+      "shape": ["T", "K"],
+      "dtype": "fp32",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "topk_ids",
+      "kind": "tensor",
+      "shape": ["T", "K"],
+      "dtype": "i64",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "out_weights",
+      "kind": "tensor",
+      "shape": ["T", "K"],
+      "dtype": "fp32",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "out_ids",
+      "kind": "tensor",
+      "shape": ["T", "K"],
+      "dtype": "i32",
+      "layout": "row_major",
+      "memory": "global"
+    }
+  ],
+  "operations": [
+    {
+      "id": "op.load.gating",
+      "kind": "load",
+      "inputs": ["gating"],
+      "outputs": ["row_tile"],
+      "index_domain": "token x expert",
+      "mask": "expert < E",
+      "effects": { "reads": ["gating"], "writes": [] }
+    },
+    {
+      "id": "op.compute.softmax_row",
+      "kind": "compute",
+      "inputs": ["row_tile"],
+      "outputs": ["probs_row_values"],
+      "causal_nodes": ["cn.compile-dispatch-compression"],
+      "effects": { "reads": ["row_tile"], "writes": [] }
+    },
+    {
+      "id": "op.compute.group_max",
+      "kind": "compute",
+      "inputs": ["probs_row_values"],
+      "outputs": ["group_max_values"],
+      "causal_nodes": ["cn.compile-dispatch-compression"],
+      "effects": { "reads": ["probs_row_values"], "writes": [] }
+    },
+    {
+      "id": "op.store.scores_out",
+      "kind": "store",
+      "inputs": ["probs_row_values"],
+      "outputs": ["scores_out"],
+      "index_domain": "token x expert",
+      "mask": "expert < E",
+      "effects": { "reads": [], "writes": ["scores_out"] }
+    },
+    {
+      "id": "op.store.group_scores_out",
+      "kind": "store",
+      "inputs": ["group_max_values"],
+      "outputs": ["group_scores_out"],
+      "index_domain": "token x group",
+      "mask": "group < G",
+      "effects": { "reads": [], "writes": ["group_scores_out"] }
+    },
+    {
+      "id": "op.store.lib_topk_group",
+      "kind": "store",
+      "inputs": ["group_scores_out"],
+      "outputs": ["sel_groups"],
+      "index_domain": "token x kg",
+      "mask": "kg < KG",
+      "effects": { "reads": ["group_scores_out"], "writes": ["sel_groups"] }
+    },
+    {
+      "id": "op.load.sel_groups",
+      "kind": "load",
+      "inputs": ["sel_groups"],
+      "outputs": ["sel_tile"],
+      "index_domain": "token x kg",
+      "mask": "kg < KG",
+      "effects": { "reads": ["sel_groups"], "writes": [] }
+    },
+    {
+      "id": "op.load.scores_row2",
+      "kind": "load",
+      "inputs": ["scores_out"],
+      "outputs": ["row2"],
+      "index_domain": "token x expert",
+      "mask": "expert < E",
+      "effects": { "reads": ["scores_out"], "writes": [] }
+    },
+    {
+      "id": "op.compute.apply_group_mask",
+      "kind": "compute",
+      "inputs": ["row2", "sel_tile"],
+      "outputs": ["masked_row_values"],
+      "conversion": { "reason": "fp32 score lanes selected by comparing integer group ids against floor(expert / E_per_G)" },
+      "causal_nodes": ["cn.compile-dispatch-compression"],
+      "effects": { "reads": ["row2", "sel_tile"], "writes": [] }
+    },
+    {
+      "id": "op.store.masked_scores",
+      "kind": "store",
+      "inputs": ["masked_row_values"],
+      "outputs": ["masked_scores"],
+      "index_domain": "token x expert",
+      "mask": "expert < E",
+      "effects": { "reads": [], "writes": ["masked_scores"] }
+    },
+    {
+      "id": "op.store.lib_topk_expert",
+      "kind": "store",
+      "inputs": ["masked_scores"],
+      "outputs": ["topk_vals", "topk_ids"],
+      "index_domain": "token x k",
+      "mask": "k < K",
+      "effects": { "reads": ["masked_scores"], "writes": ["topk_vals", "topk_ids"] }
+    },
+    {
+      "id": "op.load.vals_tile",
+      "kind": "load",
+      "inputs": ["topk_vals"],
+      "outputs": ["vals_tile"],
+      "index_domain": "token x k",
+      "mask": "k < K",
+      "effects": { "reads": ["topk_vals"], "writes": [] }
+    },
+    {
+      "id": "op.compute.renorm_scale",
+      "kind": "compute",
+      "inputs": ["vals_tile"],
+      "outputs": ["wnorm_values"],
+      "causal_nodes": ["cn.compile-dispatch-compression"],
+      "effects": { "reads": ["vals_tile"], "writes": [] }
+    },
+    {
+      "id": "op.store.out_weights",
+      "kind": "store",
+      "inputs": ["wnorm_values"],
+      "outputs": ["out_weights"],
+      "index_domain": "token x k",
+      "mask": "k < K",
+      "effects": { "reads": [], "writes": ["out_weights"] }
+    },
+    {
+      "id": "op.load.ids_tile",
+      "kind": "load",
+      "inputs": ["topk_ids"],
+      "outputs": ["ids_tile"],
+      "index_domain": "token x k",
+      "mask": "k < K",
+      "effects": { "reads": ["topk_ids"], "writes": [] }
+    },
+    {
+      "id": "op.compute.narrow_ids",
+      "kind": "compute",
+      "inputs": ["ids_tile"],
+      "outputs": ["ids32_values"],
+      "conversion": { "reason": "int64 library ids narrowed to the int32 output dtype contract" },
+      "effects": { "reads": ["ids_tile"], "writes": [] }
+    },
+    {
+      "id": "op.store.out_ids",
+      "kind": "store",
+      "inputs": ["ids32_values"],
+      "outputs": ["out_ids"],
+      "index_domain": "token x k",
+      "mask": "k < K",
+      "effects": { "reads": [], "writes": ["out_ids"] }
+    }
+  ],
+  "control": [
+    {
+      "id": "ctrl.parallel.token",
+      "kind": "parallel",
+      "variable": "token",
+      "domain": "0 <= token < T"
+    },
+    {
+      "id": "ctrl.guard.expert",
+      "kind": "guard",
+      "condition": "expert < E"
+    },
+    {
+      "id": "ctrl.guard.group",
+      "kind": "guard",
+      "condition": "group < G"
+    },
+    {
+      "id": "ctrl.guard.kg",
+      "kind": "guard",
+      "condition": "kg < KG"
+    },
+    {
+      "id": "ctrl.guard.k",
+      "kind": "guard",
+      "condition": "k < K"
+    }
+  ],
+  "effects": {
+    "outputs": ["out_weights", "out_ids"],
+    "mutations": ["scores_out", "group_scores_out", "masked_scores", "sel_groups", "topk_vals", "topk_ids"],
+    "aliases": []
+  },
+  "hints": [],
+  "causal_nodes": [
+    {
+      "id": "cn.compile-dispatch-compression",
+      "kind": "mechanism",
+      "expected": "dynamo/inductor compilation of the fixed-shape staged pipeline replaces residual Python op-dispatch, temporary-allocation planning, and launch-wrapper overhead with compiled execution while every producer/consumer value, both retained torch.topk selections, and all three Triton stages remain mathematically and orderingly identical"
+    }
+  ]
+}
