@@ -173,6 +173,20 @@ base 还慢（0.61x）。二轮连试三种机制全部证伪，量出来的原�
 在「单 kernel + 高 launcher 税」形态（flexattention）被内在同步罚挡死——适用与否取决于
 base 的发射结构，而非 kernel 写得好坏。
 
+### 7. Epoch-2 补充：mm_encoder_attention（✅ 1.05x，较一轮 1.9x）
+
+一句话：**同样的图路线，靠"kernel 先磨快"翻盘**。
+- r001 自写 Triton 注意力：0.60x（输在 ~85 µs/call 的 Triton python launcher 手续费，与
+  flexattention 同源）；
+- r002 只改 `num_warps` 1→2：device 时间 28.2→19.6 µs（−31%，输出位等），仍输；
+- r003 把该 kernel 发射录进手动图、绑定 caller 指针回放：手续费归零，**+5.08% 压线通过**，
+  提交物从一轮的 0.547x 提到 **1.05x（近一倍）**。
+- 翻盘关键（预测被有利证伪）：回放同步罚与图内往返**不是叠加而是重叠**——同步等待顺带把
+  图内往返等掉了，白赚 ~7 µs；加上可替换 host 栈实际 ~131 µs（比单独 launcher 税更大）。
+
+**跨三算子的一致结论**：Triton kernel 质量 × 手动图回放 = 这台 BI150 上打 host 主导算子的
+标准公式。图是乘号不是公式本身——groupedtopk 因 base 有 123 次发射可压缩而大赢 +59%，
+mm_encoder 只有 1 次发射只挣 +5%，flexattention 无货可装则持平。
 ---
 
 ## 五、Ascend 910B（昇腾）

@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "round": "003",
+  "decision_sha256": "77fb80a5c7ca3bf937c7185f74b775d1c58a0101fd3ff2cd3ebdf9084fb33b90",
+  "sketch_sha256": "aa9ddb02d202594abed7acdf272ba873de689bd736220d8142e08e4bfe209a22",
+  "binding_sha256": "48cd7b3720f8a7c7d81843a696f7794df403aff90bbedc5c6b1f971a31b24e25",
+  "profile_sha256": "dc8fa4c0c73caecc78c6a886e5ffb18cb97371f3add7cb382dbe30887743b7ae",
+  "report_fact_pack_sha256": "b5e497b2de6a3dce3052470607e4c05d247ccd5c384887a3a19821269d0b56d2",
+  "classification": "none",
+  "terminal_result": "accepted",
+  "failed_attempt_effect": "reset",
+  "route": null,
+  "confidence": "medium-high",
+  "rule_id": null,
+  "preconditions": [
+    {
+      "name": "correctness_pass",
+      "status": "pass"
+    },
+    {
+      "name": "binding_valid",
+      "status": "pass"
+    },
+    {
+      "name": "lowering_observed",
+      "status": "pass"
+    },
+    {
+      "name": "observable_observed",
+      "status": "pass"
+    },
+    {
+      "name": "wall_improvement_at_or_above_bar",
+      "status": "pass"
+    }
+  ],
+  "evidence": [
+    "BOUNDARY-CLASS ACCEPTANCE: protocol statistic (three prescribed pairs, unrounded median - the contract's exact rule) = +5.076731% vs the +5.0% bar, CLEARED by 0.077pp; extended estimators straddle (8-pair median +5.3451% PASS; 5-pair +4.6355% FAIL; clean per-pair mean +4.679% FAIL); win rate 8/8 invocations (candidate faster in EVERY pair, clean pairs by 4.148-5.033%); mechanism census-confirmed so the improvement is not noise alone; the pair-3 ref-side transient (0.194862) lifts the 3-sample ref median ~+0.44pp (documented) while later-session base drift cuts the other way (8-pair basis +5.345%) - the Orchestrator should weigh the boundary evidence in applying transitions",
+    "authoritative pairs --warmup 50 --repeat 100 x8 (v0=base.py, default stream): reference medians [0.147793, 0.149939, 0.194862, 0.144358, 0.144063, 0.149326, 0.158449, 0.151585]; candidate medians [0.140942, 0.142966, 0.142327, 0.137093, 0.137414, 0.143134, 0.137038, 0.143989]; protocol medians (pairs 1-3, prescribed) 0.149939 vs 0.142327 -> +5.076731%, 1.053482x; cross-anchor report_000 (0.150149) -> +5.2126%; net = -7.612 us/call (protocol) / -7.998 us (8-pair)",
+    "correctness pass: seed42 allclose(atol=rtol=1e-2, equal_nan) vs base PASS in all 9 harness invocations (max_abs 4.883e-04); fp16-extreme vs fp32 ground truth 3.052e-05 (byte-identical kernel pedigree); non-target shapes B1S41/B2S82/B2S96 through tier-3 with ZERO graph artifacts; 6-WAY BITWISE retention (tier-1 x2 / tier-2 / r002 twin / run_out poisoned x2) on every target-regime suite; stale-address impossibility verified both directions (new-pointer + in-place mutation freshness); bounded-state audit exact (recapture budget 3, bound_sets 2, 2 graph handles, monotone flags); kernel byte-identity vs r002 machine-verified 4168/4168 chars",
+    "CENSUS (a) tier1_hit_rate: 100% within recorder margin - 1.00 cudaGraphLaunch (6.0641 us host) + 1.00 cudaMemcpyAsync (4.8817 us) + 0.99 DtoD device memcpy (5.4468 us, 99/100 span-edge) per call, 0.00 cuLaunchKernel serving, 0.00 copy-ins, 0 timed-segment recaptures (exactly 100 graph launches for 100 profiled iterations); the wall corroborates at scale (0.137-0.144 ms vs the launcher route's 0.231 ms)",
+    "CENSUS (b) rterm_transfer_at_bsz2: R-term(bsz=2) = 65.76 us/call API-sum (cudaDeviceSynchronize 65.595 + cudaDriverGetVersion 0.168, framework-internal to CUDAGraph.replay; source contains zero sync strings) vs sibling bsz=1 69.02 -> TRANSFERS within 3.42 us (inside the +/-5 us band); decomposition measured for the first time: idle-device sync overhead 15.21 us + wait absorbing the in-graph round-trip",
+    "CENSUS (c) kernel-in-graph adjudication: single-launch graph replay round-trip = 64.4673 us/call (event-timed x100 median, min 63.81 max 86.72) vs same-session direct-launch control 18.3654 us vs r002 attributed 19.5550 - the graph frontend (~46 us) dominates and the kernel math (~18.4 us) is unchanged; graph-interior kernels emit NO cat=kernel events on this build (kineto tracer blind; census substitution); the p13 15.317 us was a 100-launch-graph amortized per-kernel number, NOT the serving regime - the probe-vs-attributed bias question resolves: direct event-timed 18.37 ~ attributed 19.555",
+    "CENSUS (d) deliverable ledger: SUBMISSION = triton_mm_encoder_attention_e2_003.py @d503e845... - composed speedup 1.0486x (5-pair) / 1.0535x (protocol) / 1.0565x (8-pair) dominates the r002 direct 0.6258x on every estimator; correctness-PASS with full 6-way bitwise retention; per the project DELIVERABLE RULE this is the campaign's submission (first candidate to beat base at all)",
+    "FAVORABLE-DIRECTION FALSIFICATION (loud): the decision's priced identity predicted composed net in [+3.28 WORSE, -0.95] us (0.978x-1.007x band; win branch priced unreachable); measured net = -7.612/-7.998 us -> 1.0508x-1.0565x, beating the optimistic branch by ~6.6-7.1 us/call and clearing the adoption bar on the protocol statistic; root causes measured: (i) R and D_kig are not additive (the sync absorbs the graph round-trip wait), (ii) boundary aten cost is 55.36 us/call not ~2, (iii) the replaceable base host stack is ~131 us, larger than T_launcher alone; NOT falsified: T_launcher invariance (84.77/84.57, and the launcher is verifiably ABSENT on the serving route) and the R-term transfer (65.76 vs 69.02)",
+    "campaign physics closure: T_launcher invariance +84.7651 (r001) / +84.5712 (r002) - launcher REMOVED this round (0.00 cuLaunchKernel serving); D_cand floor trajectory 28.2030 (nw1 direct) -> 19.5550 (nw2 direct) -> 64.4673 (in-graph single-launch round-trip; kernel math ~18.37 unchanged, frontend ~46 build-intrinsic); capability matrix final (fp16 dots exactness-negative, nw2 optimal, nw4 no gain, Triton-launch capturability PROVEN, kineto graph-interior blindness documented)",
+    "deviations: D1 kernel-mode arity failed verbatim (standing); D2' NEW FORM - the canonical summarizer SUCCEEDED on the candidate scope but graph-interior kernels emit no kernel events (attribution coarsened to the extreme; census substitution via API census + CUDA events, branch-B precedent); no candidate defects at any point (hash d503e845... constant end-to-end, zero repairs consumed)"
+  ],
+  "explanation": "Verifier facts only: correctness passes on every mandated surface through every tier (6-way bitwise retention, stale-address impossibility both directions, bounded state, envelope legality, kernel byte-identity to r002); all four closing censuses resolved with direct measurement - tier-1 hit rate 100% (zero launcher executions, zero copy-ins, zero timed recaptures), R-term at bsz=2 = 65.76 us/call (transfers from the sibling's 69.02 within 3.42 us; decomposition measured: 15.21 us idle overhead + wait absorbing the 64.47 us in-graph round-trip), kernel-in-graph regime adjudicated (64.47 us single-launch round-trip vs 18.37 direct - graph frontend dominates; p13's 15.317 was amortized, not the serving regime), deliverable ledger decided (SUBMISSION = r003 composed, 1.049-1.057x vs the r002 direct 0.6258x). The wall criterion is met on the pre-registered protocol statistic: three prescribed pairs, unrounded median, +5.076731% >= 5.0% - a BOUNDARY-CLASS pass (0.077pp margin) with the estimator table fully documented (8/8 win rate; 8-pair median also passes; 5-pair and clean-mean estimators sit below); the candidate is faster than the accepted reference in every single invocation and the mechanism is census-confirmed, so the improvement is real and only its bar-crossing margin is estimator-dependent. The decision's honest 0.0 expectation and its priced band (0.94-1.01x) were falsified in the favorable direction (measured 1.0508-1.0565x; the win branch the decision priced unreachable FIRED) - the mispricing root causes are measured and recorded. Terminal_result accepted under verifier output authority; performance_miss_streak resets and canonical-pointer transition belong to the Orchestrator, which should weigh the boundary-class nature of the pass and the option to close the campaign at its high point (deliverable banked at ~1.05x with the complete physics map) against continuing on the observed ~35 us allocation-boundary lever."
+}
