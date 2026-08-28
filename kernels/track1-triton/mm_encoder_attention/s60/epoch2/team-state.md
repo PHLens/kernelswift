@@ -47,7 +47,7 @@ project_capability_claim_ref: profile_snapshot/capability_claim.json
 project_capability_claim_sha256: a175f2727b9198a92da978aca9e8f87834a74884372746699412931890d9748e
 runtime_fingerprint_ref: project.md#runtime-fingerprint
 blocked_incident: null
-stop_reason: measurement-bound (device-bound; no remaining unexplored device lever after fp16-dot + num_warps exhaustion)
+stop_reason: complete (deliverable shipped: e2_002 ~0.915x vs base, ~3.39x vs epoch-1 0.27x; further rounds would chase the vendor-library device floor, which is out of scope under the delivery standard)
 stop_timestamp: 2026-08-29T00:10:00Z
 resume_eligible: always
 resume_constraints: []
