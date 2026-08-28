@@ -1,0 +1,162 @@
+{
+  "schema_version": 1,
+  "sketch_id": "sketch-flexattn-manual-replay-001",
+  "round": "001",
+  "scope": {
+    "kind": "changed-computation-boundary",
+    "entrypoints": [
+      "ModelNew.forward",
+      "ModelNew.run_out"
+    ],
+    "unchanged_boundary": [
+      "the retained vendor call site F.scaled_dot_product_attention(q, k, v, scale=0.125, is_causal=True) with identical argument values, dtypes, and ordering — it remains the ONLY attention computation (retained library call, not an algorithm substitution; no tl.dot is introduced this round)",
+      "the view chain unsqueeze(0)/transpose(1,2) prelude and squeeze(0)/transpose(0,1)/reshape(T, H*D) epilogue semantics of base.py",
+      "output structure: single fp16 tensor [T, H*D] = [83, 512]",
+      "GQA broadcast omission-by-construction is behaviorally identical to base.py because num_kv_heads == num_heads == 8 makes its repeat_interleave branch unreachable",
+      "public ModelNew constructor and forward(query, key, value) signatures; run_out(query, key, value, out) added per project.md public_contract and report_000 named limitation",
+      "manual CUDA-graph replay buffering must not alter any mathematical result"
+    ]
+  },
+  "declarations": [
+    {
+      "id": "query",
+      "kind": "tensor",
+      "shape": ["T", "H", "D"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "key",
+      "kind": "tensor",
+      "shape": ["T", "H", "D"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "value",
+      "kind": "tensor",
+      "shape": ["T", "H", "D"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "q_in",
+      "kind": "tensor",
+      "shape": ["T", "H", "D"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "k_in",
+      "kind": "tensor",
+      "shape": ["T", "H", "D"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "v_in",
+      "kind": "tensor",
+      "shape": ["T", "H", "D"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "attn_flat_ws",
+      "kind": "tensor",
+      "shape": ["T", "HD"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "out_caller",
+      "kind": "tensor",
+      "shape": ["T", "HD"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    }
+  ],
+  "operations": [
+    {
+      "id": "op.store.qin_copyin",
+      "kind": "store",
+      "inputs": ["query"],
+      "outputs": ["q_in"],
+      "index_domain": "token x head x dim",
+      "mask": "token < T",
+      "effects": { "reads": ["query"], "writes": ["q_in"] }
+    },
+    {
+      "id": "op.store.kin_copyin",
+      "kind": "store",
+      "inputs": ["key"],
+      "outputs": ["k_in"],
+      "index_domain": "token x head x dim",
+      "mask": "token < T",
+      "effects": { "reads": ["key"], "writes": ["k_in"] }
+    },
+    {
+      "id": "op.store.vin_copyin",
+      "kind": "store",
+      "inputs": ["value"],
+      "outputs": ["v_in"],
+      "index_domain": "token x head x dim",
+      "mask": "token < T",
+      "effects": { "reads": ["value"], "writes": ["v_in"] }
+    },
+    {
+      "id": "op.compute.sdpa_causal_fused",
+      "kind": "compute",
+      "inputs": ["q_in", "k_in", "v_in"],
+      "outputs": ["attn_values"],
+      "causal_nodes": ["cn.workspace-manual-replay"],
+      "effects": { "reads": ["q_in", "k_in", "v_in"], "writes": [] }
+    },
+    {
+      "id": "op.store.attn_relayout",
+      "kind": "store",
+      "inputs": ["attn_values"],
+      "outputs": ["attn_flat_ws"],
+      "index_domain": "token x hd",
+      "mask": "token < T",
+      "effects": { "reads": [], "writes": ["attn_flat_ws"] }
+    },
+    {
+      "id": "op.store.out_copyout",
+      "kind": "store",
+      "inputs": ["attn_flat_ws"],
+      "outputs": ["out_caller"],
+      "index_domain": "token x hd",
+      "mask": "token < T",
+      "effects": { "reads": ["attn_flat_ws"], "writes": ["out_caller"] }
+    }
+  ],
+  "control": [
+    {
+      "id": "ctrl.parallel.token",
+      "kind": "parallel",
+      "variable": "token",
+      "domain": "0 <= token < T"
+    }
+  ],
+  "effects": {
+    "outputs": ["out_caller"],
+    "mutations": ["q_in", "k_in", "v_in", "attn_flat_ws"],
+    "aliases": []
+  },
+  "hints": [],
+  "causal_nodes": [
+    {
+      "id": "cn.workspace-manual-replay",
+      "kind": "mechanism",
+      "expected": "capturing the fixed-shape base pipeline once as a manual torch.cuda.CUDAGraph over instance-owned static workspace buffers (three small fp16 copy-ins of live query/key/value at the capture boundary, the retained F.scaled_dot_product_attention(scale=0.125, is_causal=True) vendor call plus its view/relayout epilogue recorded verbatim inside the graph, one [83,512] fp16 copy-out to caller-visible results outside the replay boundary) and replaying it per target-regime call elides all per-call Python op-dispatch, view-op routing, allocation planning, and per-launch CPU submission into ONE graph-launch submission while every device kernel, its argument values, and all output bits remain identical"
+    }
+  ]
+}

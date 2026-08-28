@@ -1,0 +1,257 @@
+{
+  "schema_version": 1,
+  "sketch_id": "sketch-mmenc-attn-kernel-config-002",
+  "round": "002",
+  "scope": {
+    "kind": "changed-computation-boundary",
+    "entrypoints": [
+      "ModelNew.forward",
+      "ModelNew.run_out"
+    ],
+    "unchanged_boundary": [
+      "mathematical semantics: BIDIRECTIONAL (non-causal) full MHA with scale=0.125 exact power-of-two, per-(batch,head) softmax(QK^T*scale)*V over ALL S=83 keys (no causal skip, no attention mask; only tile-padding keys beyond S are masked and contribute exactly zero), num_kv_heads == num_heads == 8",
+      "output structure: single fp16 tensor [B, S, H*D] = [2, 83, 512]",
+      "host boundary IDENTICAL to the r001-measured candidate: two-op forward (one torch.empty + one kernel launch, 1.00 aten op/call), run_out(query,key,value,out) 4-arg preallocated-output surface per project.md public_contract, exactly ONE submission per call, zero copies/memcpys/syncs, stateless module",
+      "kernel dataflow IDENTICAL to r001: grid (48,) = (B*H=16) x (ceil(S=83/BM=32)=3) programs, BM=BN=32 tiles, D=64 as two 32-chunks, online running-max fp32 softmax over 3 sequential key-tiles, direct strided addressing of the [B,S,H*D] views (zero .contiguous()), direct [B,S,HD] fp16 stores",
+      "capability legality: tl.dot used ONLY at the (32,32)@(32,32) tile shape with fp32 accumulator; operand dtype is EITHER fp32-widened (r001-proven) OR fp16 (probe-qualified THIS round BEFORE adoption — exactness <= 1e-2 on the seed42 target suite + fp16-extreme suite + non-target shapes); num_warps is the r001-proven value 1 OR a value in {2,4} probe-qualified THIS round BEFORE adoption; num_stages unset; NO algorithm substitution (primary matrix.dot consumed at its probed signature, not replaced), reduction.sum fallback stays BLOCKED (waiver NOT granted)",
+      "stateless module contract: zero cross-call state, zero caches, zero workspace; caller device and current stream preserved; no torch.compile anywhere"
+    ]
+  },
+  "declarations": [
+    {
+      "id": "query",
+      "kind": "tensor",
+      "shape": ["B", "S", "H", "D"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "key",
+      "kind": "tensor",
+      "shape": ["B", "S", "H", "D"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "value",
+      "kind": "tensor",
+      "shape": ["B", "S", "H", "D"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "out_flat",
+      "kind": "tensor",
+      "shape": ["B", "S", "HD"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "q_lo",
+      "kind": "tile",
+      "shape": ["BM", "BD"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "register"
+    },
+    {
+      "id": "q_hi",
+      "kind": "tile",
+      "shape": ["BM", "BD"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "register"
+    },
+    {
+      "id": "k_lo",
+      "kind": "tile",
+      "shape": ["BN", "BD"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "register"
+    },
+    {
+      "id": "k_hi",
+      "kind": "tile",
+      "shape": ["BN", "BD"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "register"
+    },
+    {
+      "id": "v_lo",
+      "kind": "tile",
+      "shape": ["BN", "BD"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "register"
+    },
+    {
+      "id": "v_hi",
+      "kind": "tile",
+      "shape": ["BN", "BD"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "register"
+    }
+  ],
+  "operations": [
+    {
+      "id": "op.load.q_lo",
+      "kind": "load",
+      "inputs": ["query"],
+      "outputs": ["q_lo"],
+      "index_domain": "batch x head x mtile x token x bd",
+      "mask": "token < S",
+      "effects": { "reads": ["query"], "writes": [] }
+    },
+    {
+      "id": "op.load.q_hi",
+      "kind": "load",
+      "inputs": ["query"],
+      "outputs": ["q_hi"],
+      "index_domain": "batch x head x mtile x token x bd",
+      "mask": "token < S",
+      "effects": { "reads": ["query"], "writes": [] }
+    },
+    {
+      "id": "op.load.k_lo",
+      "kind": "load",
+      "inputs": ["key"],
+      "outputs": ["k_lo"],
+      "index_domain": "batch x head x ntile x token x bd",
+      "mask": "token < S",
+      "effects": { "reads": ["key"], "writes": [] }
+    },
+    {
+      "id": "op.load.k_hi",
+      "kind": "load",
+      "inputs": ["key"],
+      "outputs": ["k_hi"],
+      "index_domain": "batch x head x ntile x token x bd",
+      "mask": "token < S",
+      "effects": { "reads": ["key"], "writes": [] }
+    },
+    {
+      "id": "op.load.v_lo",
+      "kind": "load",
+      "inputs": ["value"],
+      "outputs": ["v_lo"],
+      "index_domain": "batch x head x ntile x token x bd",
+      "mask": "token < S",
+      "effects": { "reads": ["value"], "writes": [] }
+    },
+    {
+      "id": "op.load.v_hi",
+      "kind": "load",
+      "inputs": ["value"],
+      "outputs": ["v_hi"],
+      "index_domain": "batch x head x ntile x token x bd",
+      "mask": "token < S",
+      "effects": { "reads": ["value"], "writes": [] }
+    },
+    {
+      "id": "op.compute.qk_score",
+      "kind": "compute",
+      "inputs": ["q_lo", "k_lo", "q_hi", "k_hi"],
+      "outputs": ["s_raw"],
+      "causal_nodes": ["cn.kernel-config"],
+      "effects": { "reads": ["q_lo", "k_lo", "q_hi", "k_hi"], "writes": [] }
+    },
+    {
+      "id": "op.compute.boundary_mask",
+      "kind": "compute",
+      "inputs": ["s_raw"],
+      "outputs": ["s_masked"],
+      "effects": { "reads": ["s_raw"], "writes": [] }
+    },
+    {
+      "id": "op.compute.init_state",
+      "kind": "compute",
+      "inputs": ["q_lo"],
+      "outputs": ["m_prev", "l_prev", "acc_prev_lo", "acc_prev_hi"],
+      "effects": { "reads": ["q_lo"], "writes": [] }
+    },
+    {
+      "id": "op.compute.online_update",
+      "kind": "compute",
+      "inputs": ["s_masked", "v_lo", "v_hi", "m_prev", "l_prev", "acc_prev_lo", "acc_prev_hi"],
+      "outputs": ["m_next", "l_next", "acc_next_lo", "acc_next_hi", "p_tilde"],
+      "causal_nodes": ["cn.kernel-config", "cn.device-time-delta"],
+      "effects": { "reads": ["s_masked", "v_lo", "v_hi", "m_prev", "l_prev", "acc_prev_lo", "acc_prev_hi"], "writes": [] }
+    },
+    {
+      "id": "op.compute.normalize",
+      "kind": "compute",
+      "inputs": ["acc_next_lo", "acc_next_hi", "l_next"],
+      "outputs": ["out_lo_vals", "out_hi_vals"],
+      "effects": { "reads": ["acc_next_lo", "acc_next_hi", "l_next"], "writes": [] }
+    },
+    {
+      "id": "op.store.out_flat",
+      "kind": "store",
+      "inputs": ["out_lo_vals", "out_hi_vals"],
+      "outputs": ["out_flat"],
+      "index_domain": "batch x head x mtile x token x hd",
+      "mask": "token < S",
+      "causal_nodes": ["cn.kernel-config", "cn.device-time-delta"],
+      "effects": { "reads": ["out_lo_vals", "out_hi_vals"], "writes": ["out_flat"] }
+    }
+  ],
+  "control": [
+    {
+      "id": "ctrl.parallel.batch",
+      "kind": "parallel",
+      "variable": "batch",
+      "domain": "0 <= batch < B (B=2)"
+    },
+    {
+      "id": "ctrl.parallel.head",
+      "kind": "parallel",
+      "variable": "head",
+      "domain": "0 <= head < H (H=8)"
+    },
+    {
+      "id": "ctrl.parallel.mtile",
+      "kind": "parallel",
+      "variable": "mtile",
+      "domain": "0 <= mtile < 3 (ceil(S=83/BM=32))"
+    },
+    {
+      "id": "ctrl.for.ntile",
+      "kind": "for",
+      "variable": "ntile",
+      "domain": "0 <= ntile < 3 (ceil(S=83/BN=32), SEQUENTIAL — online softmax running-state dependency)"
+    },
+    {
+      "id": "ctrl.guard.token",
+      "kind": "guard",
+      "condition": "token < S"
+    }
+  ],
+  "effects": {
+    "outputs": ["out_flat"],
+    "mutations": [],
+    "aliases": []
+  },
+  "hints": [
+    { "name": "num_warps_probe_qualified", "modality": "required" },
+    { "name": "dot_envelope_32_probe_qualified", "modality": "required" }
+  ],
+  "causal_nodes": [
+    {
+      "id": "cn.kernel-config",
+      "kind": "mechanism",
+      "expected": "the kernel's EXECUTION CONFIGURATION is the only change: a Verifier-owned pre-adoption capability sweep over num_warps {1,2,4} x dot-operand {fp32-widened, fp16-with-fp32-accumulator} at the unchanged (32,32)@(32,32) tile shape; the candidate ships the fastest exactness-passing configuration (pre-declared selection rule); host boundary, grid, tiles, masking, and store layout are byte-identical to the r001-measured candidate"
+    },
+    {
+      "id": "cn.device-time-delta",
+      "kind": "mechanism",
+      "expected": "D_cand moves from the measured 28.203 us/call baseline toward the F2 composition gate bands: >=25 no headroom (F3 closed); 18-25 partial; <= ~16.5 parity-class unlocked (graph-family net = D - 16.5 us); <= ~9.2 win-class unlocked (graph-family net <= -7.27 us = the +5% bar); diagnosis: num_warps=1 holds ~9 live (32,32) fp32 register tiles ~= 288 regs/thread (spill-class vs the 255 budget) and fp32 dots ride the FFMA path at ~8% of peak while fp16-operand dots unlock the Ixmma MMA units the 17.39 us/call vendor kernel itself uses"
+    }
+  ]
+}

@@ -1,0 +1,545 @@
+{
+  "schema": {
+    "name": "kernel-opt-loop/sketch",
+    "version": 1
+  },
+  "schema_version": 1,
+  "round": "002",
+  "sketch_id": "S-002",
+  "created_by": "designer",
+  "hypothesis_id": "H-002",
+  "change_family": "manual-graph-replay-fused",
+  "change_families": [
+    "manual-graph-replay-fused",
+    "host-lifecycle-optimization"
+  ],
+  "status": "draft",
+  "description": "Eliminate the per-call fresh allocation of the copy-out destination on the tier-1 replay path. A persistent, non-graph-pool output tensor allocated ONCE outside the capture region becomes the fixed copy_ TARGET; the graph still writes into out_ws and the copy still runs, so the tensor handed back to the caller is never graph-pool memory. forward() keeps returning a NON-ALIASED tensor (the persistent buffer is the destination, never a returned alias), which is what preserves the harness's retained v1_output across compare -> time -> profile. num_stages is swept as an exploratory free rider.",
+  "declarations": [
+    {
+      "id": "x",
+      "kind": "tensor",
+      "shape": [83, 128],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "router_logits",
+      "kind": "tensor",
+      "shape": [83, 8],
+      "dtype": "fp32",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "scores",
+      "kind": "tile",
+      "shape": [83, 8],
+      "dtype": "fp32",
+      "layout": "row-major",
+      "memory": "device-register"
+    },
+    {
+      "id": "topk_w",
+      "kind": "tensor",
+      "shape": [83, 2],
+      "dtype": "fp32",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "topk_ids",
+      "kind": "tensor",
+      "shape": [83, 2],
+      "dtype": "int32",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "flat_ids",
+      "kind": "tensor",
+      "shape": [166],
+      "dtype": "int32",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "flat_w",
+      "kind": "tensor",
+      "shape": [166],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "w1_f16",
+      "kind": "tensor",
+      "shape": [8, 128, 128],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "w2_f16",
+      "kind": "tensor",
+      "shape": [8, 128, 64],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "sorted_rows",
+      "kind": "tensor",
+      "shape": [166],
+      "dtype": "int32",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "sorted_w",
+      "kind": "tensor",
+      "shape": [166],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "expert_counts",
+      "kind": "tensor",
+      "shape": [8],
+      "dtype": "int32",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "expert_offsets",
+      "kind": "tensor",
+      "shape": [8],
+      "dtype": "int32",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "out_ws",
+      "kind": "tensor",
+      "shape": [83, 128],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "out_dest",
+      "kind": "tensor",
+      "shape": [83, 128],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "out",
+      "kind": "tensor",
+      "shape": [83, 128],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-global"
+    },
+    {
+      "id": "row_ids",
+      "kind": "tile",
+      "shape": [256],
+      "dtype": "int32",
+      "layout": "row-major",
+      "memory": "device-register"
+    },
+    {
+      "id": "row_experts",
+      "kind": "tile",
+      "shape": [256],
+      "dtype": "int32",
+      "layout": "row-major",
+      "memory": "device-register"
+    },
+    {
+      "id": "tile_rows",
+      "kind": "tile",
+      "shape": [16],
+      "dtype": "int32",
+      "layout": "row-major",
+      "memory": "device-register"
+    },
+    {
+      "id": "tile_w",
+      "kind": "tile",
+      "shape": [16],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-register"
+    },
+    {
+      "id": "x_tile",
+      "kind": "tile",
+      "shape": [16, 128],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-register"
+    },
+    {
+      "id": "gw_tile",
+      "kind": "tile",
+      "shape": [128, 128],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-register"
+    },
+    {
+      "id": "uw_tile",
+      "kind": "tile",
+      "shape": [128, 128],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-register"
+    },
+    {
+      "id": "w2_tile",
+      "kind": "tile",
+      "shape": [128, 64],
+      "dtype": "fp16",
+      "layout": "row-major",
+      "memory": "device-register"
+    },
+    {
+      "id": "tile_n",
+      "kind": "scalar",
+      "shape": [1],
+      "dtype": "int32",
+      "layout": "scalar",
+      "memory": "device-register"
+    },
+    {
+      "id": "base_off",
+      "kind": "scalar",
+      "shape": [1],
+      "dtype": "int32",
+      "layout": "scalar",
+      "memory": "device-register"
+    },
+    {
+      "id": "n_rows",
+      "kind": "scalar",
+      "shape": [1],
+      "dtype": "int32",
+      "layout": "scalar",
+      "memory": "device-register"
+    }
+  ],
+  "operations": [
+    {
+      "id": "op_softmax",
+      "kind": "load",
+      "inputs": ["router_logits"],
+      "outputs": ["scores"],
+      "index_domain": "t in [0, 83), e in [0, 8)",
+      "mask": "t < 83",
+      "effects": {"reads": ["router_logits"], "writes": []},
+      "causal_nodes": ["out_dest_allocated_once"],
+      "conversion": "aten torch.softmax in fp32 followed by aten torch.topk with tie semantics preserved verbatim"
+    },
+    {
+      "id": "op_topk",
+      "kind": "store",
+      "inputs": ["scores"],
+      "outputs": ["topk_w", "topk_ids"],
+      "index_domain": "t in [0, 83), k in [0, 2)",
+      "mask": "t < 83",
+      "effects": {"reads": ["scores"], "writes": ["topk_w", "topk_ids"]},
+      "causal_nodes": ["out_dest_allocated_once"],
+      "conversion": "aten topk writes fp32 weights and int32 ids"
+    },
+    {
+      "id": "op_renorm",
+      "kind": "store",
+      "inputs": ["topk_w"],
+      "outputs": ["flat_w"],
+      "index_domain": "row in [0, 256)",
+      "mask": "row < num_rows",
+      "effects": {"reads": ["topk_w"], "writes": ["flat_w"]},
+      "causal_nodes": ["out_dest_allocated_once"],
+      "conversion": "aten renormalize div then cast fp32 to fp16"
+    },
+    {
+      "id": "op_flatten",
+      "kind": "store",
+      "inputs": ["topk_ids"],
+      "outputs": ["flat_ids"],
+      "index_domain": "row in [0, 256)",
+      "mask": "row < num_rows",
+      "effects": {"reads": ["topk_ids"], "writes": ["flat_ids"]},
+      "causal_nodes": ["out_dest_allocated_once"]
+    },
+    {
+      "id": "op_zero_out",
+      "kind": "store",
+      "inputs": ["out_ws"],
+      "outputs": ["out_ws"],
+      "index_domain": "t in [0, 83), h in [0, 128)",
+      "mask": "t < 83",
+      "effects": {"reads": ["out_ws"], "writes": ["out_ws"]},
+      "causal_nodes": ["out_dest_allocated_once"]
+    },
+    {
+      "id": "op_alloc_dest",
+      "kind": "alloc",
+      "inputs": ["out_dest"],
+      "outputs": ["out_dest"],
+      "effects": {"reads": [], "writes": ["out_dest"]},
+      "causal_nodes": ["out_dest_allocated_once"]
+    },
+    {
+      "id": "op_load_rows",
+      "kind": "load",
+      "inputs": ["flat_ids"],
+      "outputs": ["row_ids", "row_experts"],
+      "index_domain": "row in [0, 256)",
+      "mask": "row < num_rows",
+      "effects": {"reads": ["flat_ids"], "writes": ["row_ids", "row_experts"]},
+      "causal_nodes": ["out_dest_allocated_once"]
+    },
+    {
+      "id": "op_bucket_count",
+      "kind": "compute",
+      "inputs": ["row_experts"],
+      "outputs": ["v_bucket_counts"],
+      "effects": {"reads": ["row_experts"], "writes": []},
+      "causal_nodes": ["out_dest_allocated_once"]
+    },
+    {
+      "id": "op_bucket_scan",
+      "kind": "compute",
+      "inputs": ["v_bucket_counts"],
+      "outputs": ["v_bucket_offsets"],
+      "effects": {"reads": ["v_bucket_counts"], "writes": []},
+      "causal_nodes": ["out_dest_allocated_once"]
+    },
+    {
+      "id": "op_store_meta",
+      "kind": "store",
+      "inputs": ["v_bucket_counts", "v_bucket_offsets"],
+      "outputs": ["expert_counts", "expert_offsets"],
+      "index_domain": "e in [0, 8)",
+      "mask": "e < 8",
+      "effects": {"reads": ["v_bucket_counts", "v_bucket_offsets"], "writes": ["expert_counts", "expert_offsets"]},
+      "causal_nodes": ["out_dest_allocated_once"]
+    },
+    {
+      "id": "op_scatter",
+      "kind": "store",
+      "inputs": ["row_ids", "flat_w", "v_bucket_offsets", "v_bucket_counts"],
+      "outputs": ["sorted_rows", "sorted_w"],
+      "index_domain": "row in [0, 256)",
+      "mask": "row < num_rows",
+      "effects": {"reads": ["row_ids", "flat_w", "v_bucket_offsets", "v_bucket_counts"], "writes": ["sorted_rows", "sorted_w"]},
+      "causal_nodes": ["out_dest_allocated_once"]
+    },
+    {
+      "id": "op_load_meta",
+      "kind": "load",
+      "inputs": ["expert_offsets", "expert_counts"],
+      "outputs": ["base_off", "n_rows"],
+      "index_domain": "e in [0, 8)",
+      "mask": "e < 8",
+      "effects": {"reads": ["expert_offsets", "expert_counts"], "writes": ["base_off", "n_rows"]},
+      "causal_nodes": ["out_dest_allocated_once"]
+    },
+    {
+      "id": "op_tile_extent",
+      "kind": "compute",
+      "inputs": ["n_rows", "base_off"],
+      "outputs": ["v_tile_n"],
+      "effects": {"reads": ["n_rows", "base_off"], "writes": []},
+      "causal_nodes": ["out_dest_allocated_once"]
+    },
+    {
+      "id": "op_load_tile_rows",
+      "kind": "load",
+      "inputs": ["sorted_rows", "sorted_w"],
+      "outputs": ["tile_rows", "tile_w"],
+      "index_domain": "m in [0, 16)",
+      "mask": "tile_n > 0",
+      "effects": {"reads": ["sorted_rows", "sorted_w"], "writes": ["tile_rows", "tile_w"]},
+      "causal_nodes": ["out_dest_allocated_once"]
+    },
+    {
+      "id": "op_load_x",
+      "kind": "load",
+      "inputs": ["x", "tile_rows"],
+      "outputs": ["x_tile"],
+      "index_domain": "m in [0, 16), h in [0, 128)",
+      "mask": "tile_n > 0",
+      "effects": {"reads": ["x", "tile_rows"], "writes": ["x_tile"]},
+      "causal_nodes": ["out_dest_allocated_once"]
+    },
+    {
+      "id": "op_load_w",
+      "kind": "load",
+      "inputs": ["w1_f16", "w2_f16"],
+      "outputs": ["gw_tile", "uw_tile", "w2_tile"],
+      "index_domain": "n1 in [0, 128), h in [0, 128)",
+      "mask": "tile_n > 0",
+      "effects": {"reads": ["w1_f16", "w2_f16"], "writes": ["gw_tile", "uw_tile", "w2_tile"]},
+      "causal_nodes": ["out_dest_allocated_once"]
+    },
+    {
+      "id": "op_dot_gate",
+      "kind": "compute",
+      "inputs": ["x_tile", "gw_tile"],
+      "outputs": ["v_gate"],
+      "effects": {"reads": ["x_tile", "gw_tile"], "writes": []},
+      "causal_nodes": ["out_dest_allocated_once"],
+      "conversion": "tl.dot fp16 operands with fp32 accumulation, M=BLOCK_M, contraction 128 over N=64"
+    },
+    {
+      "id": "op_dot_up",
+      "kind": "compute",
+      "inputs": ["x_tile", "uw_tile"],
+      "outputs": ["v_up"],
+      "effects": {"reads": ["x_tile", "uw_tile"], "writes": []},
+      "causal_nodes": ["out_dest_allocated_once"],
+      "conversion": "tl.dot fp16 operands with fp32 accumulation, M=BLOCK_M, contraction 128 over N=64"
+    },
+    {
+      "id": "op_act",
+      "kind": "compute",
+      "inputs": ["v_gate", "v_up"],
+      "outputs": ["v_act"],
+      "effects": {"reads": ["v_gate", "v_up"], "writes": []},
+      "causal_nodes": ["out_dest_allocated_once"]
+    },
+    {
+      "id": "op_dot_down",
+      "kind": "compute",
+      "inputs": ["v_act", "w2_tile"],
+      "outputs": ["v_y"],
+      "effects": {"reads": ["v_act", "w2_tile"], "writes": []},
+      "causal_nodes": ["out_dest_allocated_once"],
+      "conversion": "tl.dot fp16 operands with fp32 accumulation, M=BLOCK_M, contraction 64 over N=128"
+    },
+    {
+      "id": "op_accum",
+      "kind": "store",
+      "inputs": ["v_y", "tile_w", "tile_rows"],
+      "outputs": ["out_ws"],
+      "index_domain": "m in [0, BLOCK_M), n2 in [0, 128)",
+      "mask": "tile_n > 0",
+      "effects": {"reads": ["v_y", "tile_w", "tile_rows"], "writes": ["out_ws"]},
+      "causal_nodes": ["out_dest_allocated_once"]
+    },
+    {
+      "id": "op_copy_out",
+      "kind": "store",
+      "inputs": ["out_ws", "out_dest"],
+      "outputs": ["out_dest"],
+      "index_domain": "t in [0, 83), h in [0, 128)",
+      "mask": "t < 83",
+      "effects": {"reads": ["out_ws"], "writes": ["out_dest"]},
+      "causal_nodes": ["per_call_alloc_removed"]
+    },
+    {
+      "id": "op_return_fresh",
+      "kind": "store",
+      "inputs": ["out_dest"],
+      "outputs": ["out"],
+      "index_domain": "t in [0, 83), h in [0, 128)",
+      "mask": "t < 83",
+      "effects": {"reads": ["out_dest"], "writes": ["out"]},
+      "causal_nodes": ["retained_output_unchanged"]
+    }
+  ],
+  "control": [
+    {"kind": "parallel", "variable": "row", "domain": "[0, 256)"},
+    {"kind": "parallel", "variable": "e", "domain": "[0, 8)"},
+    {"kind": "parallel", "variable": "t", "domain": "[0, 11)"},
+    {"kind": "parallel", "variable": "m", "domain": "[0, BLOCK_M)"},
+    {"kind": "parallel", "variable": "h", "domain": "[0, 128)"},
+    {"kind": "parallel", "variable": "n1", "domain": "[0, 128)"},
+    {"kind": "parallel", "variable": "n2", "domain": "[0, 128)"},
+    {"kind": "guard", "condition": "row < num_rows"},
+    {"kind": "guard", "condition": "tile_n > 0"},
+    {"kind": "guard", "condition": "e < 8"},
+    {"kind": "guard", "condition": "t < 83"}
+  ],
+  "effects": {
+    "outputs": ["out"],
+    "mutations": [
+      "out_ws",
+      "out_dest",
+      "sorted_rows",
+      "sorted_w",
+      "expert_counts",
+      "expert_offsets",
+      "topk_w",
+      "topk_ids",
+      "flat_ids",
+      "flat_w"
+    ],
+    "aliases": []
+  },
+  "causal_nodes": [
+    {
+      "id": "out_dest_allocated_once",
+      "kind": "host-lifecycle",
+      "expected": "out_dest is allocated once outside the capture region and reused as the fixed copy-out target on every subsequent call"
+    },
+    {
+      "id": "per_call_alloc_removed",
+      "kind": "host-launch",
+      "expected": "aten::empty_strided and aten::empty_like fall from 1.00 per call to 0.00 on the timed path"
+    },
+    {
+      "id": "retained_output_unchanged",
+      "kind": "correctness",
+      "expected": "a tensor returned by forward and retained across N further forward calls is byte-identical before and after"
+    }
+  ],
+  "hints": [
+    {
+      "name": "BLOCK_M",
+      "modality": "preferred",
+      "value": 16,
+      "search_space": [16, 32],
+      "note": "16 is the round-001 accepted value; 32 is the only remaining tile variant worth a sweep, and the device win is expected to be small because round 001 showed arithmetic reduction does not convert to device time on this rig."
+    },
+    {
+      "name": "num_stages",
+      "modality": "exploratory",
+      "value": 1,
+      "search_space": [1, 2],
+      "note": "no value recorded in the frozen capability claim, so Unknown; probe only, adopt on a bitwise-identical argmin with a margin outside the tie band."
+    },
+    {
+      "name": "num_warps",
+      "modality": "required",
+      "value": 1,
+      "note": "SETTLED at round 001 with a 24.4 percent margin (92.855 vs 122.253 us). FR-4 fired. Not re-swept; changing it is out of scope for this round."
+    }
+  ],
+  "verification_plan": [
+    "run correctness: auto_bench.py --v0_file kernels/track1-triton/fused_moe/base.py --v1_file kernels/track1-triton/fused_moe/bi150/epoch2/triton_fused_moe_e2_002.py --seed 42 --atol 1e-2 --rtol 1e-2 --warmup 0 --repeat 1",
+    "run the new HARNESS RETENTION test: call forward, retain the returned tensor, run 50 further forwards, assert the retained tensor is byte-identical",
+    "run the existing run_out poisoned x2 test and the full round-001 correctness suite unchanged",
+    "run screening: three auto_bench.py invocations with --warmup 0 --repeat 5",
+    "run benchmark: interleaved wall timing, three ordered pairs, --warmup 50 --repeat 100",
+    "run the host API census and confirm aten::empty_strided + aten::empty_like fall to 0.00 per call while cudaGraphLaunch stays at 1.00",
+    "report: fill mechanism_observables, evaluate FR-1 through FR-5"
+  ],
+  "constraints": [
+    "preserve public contract: ModelNew(num_experts, top_k, hidden_size, intermediate_size, renormalize=True) and forward(hidden_states, router_logits)",
+    "forward() must return a tensor that does NOT alias across calls; the persistent out_dest is a copy TARGET only and is never returned",
+    "run_out keeps its 3-arg contract and must not write into a buffer the caller retains as a reference output",
+    "out_ws remains graph-pool memory and is never returned",
+    "num_warps stays at 1; do not re-sweep (FR-4)",
+    "the captured region keeps a static grid, no host data-dependent branch, no .item(), and no D2H read",
+    "device observables must be collected with KS_E2_REPLAY=0; the replay scope's missing kernel events are unattributable, not zero"
+  ],
+  "notes": "Orchestrator ruling: option (i) returning a persistent buffer is DENIED because compare_case retains v1_output at auto_bench.py:743 and passes it to make_profile_call, so time_forward would overwrite it. Option (ii) allocation reuse with the copy retained is APPROVED: it removes the 16.219 us per-call empty_strided+empty_like host cost (7.4 percent of the 219.792 us wall, clearing the 10.99 us gate) while keeping a fresh non-aliased returned tensor. The residual copy (13.936 + 6.160 + 2.401 = 22.497 us) is the price of correctness and stays."
+}

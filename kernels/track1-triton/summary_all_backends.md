@@ -150,6 +150,59 @@ device 提升远大于 wall 提升，正说明这是 kernel 优化成果（融�
 
 ---
 
+### 6. Epoch-2 二轮战役（2026-08-28，kernel-opt-loop v3 契约）
+
+矩阵中 `e2N` / `e2` 标记即指本轮。两算子、两种结局，全部结论带普查级根因：
+
+**groupedtopk（✅ 再提 29%，1.41x）**：一轮最优 0.277 ms → 二轮 0.197 ms。三层叠加：
+① 把 softmax/分组取最大/掩码/归一化这串小操作合并成 3 个 Triton kernel（base 原本要发
+~15 个，device 时间 −42%）；② 编译器默认模式压掉重复调用开销；③ 整条流水线"录一遍、
+之后直接回放"（手动 CUDA Graph，绕开 Inductor 在该构建上的 mutation-skip 失效）。
+详见 `bi150-round2/final_summary.md`。
+
+**flexattention（🟡 e2r003 Triton 提交 1.00x，较一轮候选 1.60x）**：一轮提交的 naive Triton 比
+base 还慢（0.61x）。二轮连试三种机制全部证伪，量出来的原因：
+- base 整条 device 路径只有 **1 个厂商融合 kernel（13.6 µs）**，host 占墙 ~91%——没有可压缩的多次启动；
+- 自写单 kernel 注意力只比厂商慢 2.9 µs，但这套构建上 **Triton 的 python launcher 固定开销 ~85 µs/call**，是被替换掉的整条 base host 路径的 1.6 倍；
+- 图重放路线再叠加 **69 µs/call 的构建内在 replay 同步罚**（LEAN 路线源审计零 sync 仍现形）。
+按比赛规则交付物必须是 Triton：最终提交为 e2r003 候选（单 Triton kernel + 三层链，
+0.149 ms，与 base 持平 1.00x，correctness PASS），较一轮提交快 60%。
+详见 `bi150/epoch2/final_summary.md`。
+
+**一条可复用边界**：手动 CUDA 图重放适用于「多 kernel 可压缩」形态（groupedtopk 赢 +59%），
+在「单 kernel + 高 launcher 税」形态（flexattention）被内在同步罚挡死——适用与否取决于
+base 的发射结构，而非 kernel 写得好坏。
+
+### 7. Epoch-2 补充：mm_encoder_attention（✅ 1.05x，较一轮 1.9x）
+
+一句话：**同样的图路线，靠"kernel 先磨快"翻盘**。
+- r001 自写 Triton 注意力：0.60x（输在 ~85 µs/call 的 Triton python launcher 手续费，与
+  flexattention 同源）；
+- r002 只改 `num_warps` 1→2：device 时间 28.2→19.6 µs（−31%，输出位等），仍输；
+- r003 把该 kernel 发射录进手动图、绑定 caller 指针回放：手续费归零，**+5.08% 压线通过**，
+  提交物从一轮的 0.547x 提到 **1.05x（近一倍）**。
+- 翻盘关键（预测被有利证伪）：回放同步罚与图内往返**不是叠加而是重叠**——同步等待顺带把
+  图内往返等掉了，白赚 ~7 µs；加上可替换 host 栈实际 ~131 µs（比单独 launcher 税更大）。
+
+**跨三算子的一致结论**：Triton kernel 质量 × 手动图回放 = 这台 BI150 上打 host 主导算子的
+标准公式。图是乘号不是公式本身——groupedtopk 因 base 有 123 次发射可压缩而大赢 +59%，
+mm_encoder 只有 1 次发射只挣 +5%，flexattention 无货可装则持平。
+
+### 8. Epoch-2 补充：fused_moe（✅ 14.81x，一轮的 2.2 倍）
+
+一句话：**公式的最强兑现——多发射 + 可压缩 + 图回放三者齐全**。
+- base 跑 123.95 个 kernel/调用，device 只占 29.7%，其中 65.6% 是 dispatch/indexing
+  （scatter/mask-gather/nonzero/mask.any/cub reduce），GEMM 只占 12.27%。
+- 二轮第一步（counting-sort 分组 GEMM）把复制计算消掉（12.34x 浪费）、把 Triton 发射
+  压成 2 个，再录进手动图：9.82 个 aten 发射 → 2.0 次提交，~85µs launcher 税归零。
+  结果 wall 3.193 → 0.220 ms = **14.81x**（一轮 6.60x）。
+- host 杠杆实测 423µs（远超建模的 170µs——`N×85µs` 恒等式低估了 aten 发射折叠的收益）；
+  device 重构实测**中性**而非赢（FR-2 触发但决策允许单靠 host 采纳）。
+- 三条后续杠杆全部实测关闭：G1 分配复用（empty_like 实测 ~4.13µs < 门限）、device 重构
+  （算术削减不转化为 device 时间）、G2 前奏融合（~0 wall 且 softmax fold 踩未授予的
+  reduction.sum 豁免）。最终天花板 ≈ harness 内置 ~122µs 同步 + ~58µs device ≈ 214µs。
+---
+
 ## 五、Ascend 910B（昇腾）
 
 10/10 算子全部 correctness PASS，无留空。环境：Ascend910B4、Triton-Ascend 3.2.1、CANN 9.0.0。

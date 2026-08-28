@@ -1,0 +1,52 @@
+# Round Status 004
+
+- phase: `verification-complete`
+- result: `accepted` (verifier output authority; commit of last_accepted=triton_grouped_topk_r2_004.py owned by Orchestrator)
+- measurement_exclusive: `true until Orchestrator records durable completion of round 004`
+- ended_at_utc: `2026-08-27T16:35:00Z`
+- completed_commands:
+  - input hash verification against bootstrap/coder_result_004 declarations: PASS
+    - candidate `triton_grouped_topk_r2_004.py`: `c02d956c6bb5c27c229623b01b99b85f5962db79b5ead09df6fbca7a52e721eb` (19783 bytes)
+    - decision `rounds/decision_004.md`: `e5465d7dfdbc35cdba8251b9d43a5d43eb05c64d63c57d89eb299723b0be3be1`
+    - sketch `rounds/sketch_004.json`: pinned by decision metadata `ccf277f422ce254d09dc1402c997a6c311a1f63457423f23afd60a71b4d9ae59`
+    - accepted source `triton_grouped_topk_r2_002.py`: `ad703266eb727f7725c8fa61ceaedcffc269e94291def703cb34279e5275ab12` (unchanged; r003 RETIRED — no benchmarking against it)
+    - binding artifact `log/probes/binding_statement_report.json`: pinned `1e6b44a5d6db200d91a7686dea39069046e7e184c38de83eb54444a693ddf9bc` (Coder-produced, consumed read-only; DANGER rule 'reduce-overhead' count=0 verified by Coder machine audit)
+    - harness `auto_bench.py` / base `../base.py` unchanged (`71fb3ad0…` / `12f33248…`)
+  - candidate source read-through vs Decision-004 allowed_changes/invariants: structural pass
+    - tier-1 `_build_manual_graph`: workspace allocation BEFORE capture window → side-stream 3 warmup iterations → single `torch.cuda.graph` capture of the UNMODIFIED eager `_triton_forward` over static addresses
+    - tier-1 `_manual_replay_call`: strict ordering copy-in(gating) → ONE `.replay()` → copy-out(out_weights/out_ids) → return (fresh invocation-owned results when out args None)
+    - three-tier monotonic fallback shared by forward AND run_out; retired reduce-overhead tier absent from source entirely; strict regime guards unchanged; six+1 inherited segments byte-frozen per Coder binding statement
+- artifacts pending: `rounds/report_004.md`, `rounds/verdict_004.json`, lifecycle updates, ledger
+  - verifier correctness probe: PASS exit 0 → `log/probes/verifier_tie_runout_result_004.json`
+    - ACTIVE TIER finding: **`manual-replay`** serving all target-regime calls on both instances (`_manual_graph` is a real `torch.cuda.CUDAGraph`, workspace present, `_replay_failed=false`, `_compiled_staged=None`, `_compile_failed=false`)
+    - seed42-regime + warm NEW-input bytes (seed 31415) + first-input-again stale-trap + all four tie suites: ids exact vs base AND **bitwise==r002 True/True everywhere** through the manual-replay route
+    - selectivity: separate instance first call T=41 created ZERO artifacts (no graph handle, NO workspace attribute, no compilers, flags false), staged outputs bitwise==r002; same instance then warmed+captured and served tier-1 anchors
+    - run_out vs forward: bitwise ×2 over poisoned buffers with data_ptr preserved (copy-out boundary correct)
+    - cross-instance alternation bitwise-correct to per-input anchors
+    - cold-capture completion sanity `144.7` ms (observation only), warm replays `0.30–0.40` ms
+- screening_pairs (short regime `--warmup 10 --repeat 20`, same command both sides):
+  - pair S1: reference `0.483520` ms, candidate `0.204180` ms, speedup `2.368x`, exit 0
+  - pair S2: reference `0.484725` ms, candidate `0.198360` ms, speedup `2.444x`, exit 0
+  - screen verdict: not screened-out → proceed to authoritative timing (candidate wall ~0.20 ms vs accepted r002 ~0.34 ms — replay mechanism visibly firing)
+- authoritative_pairs (`--warmup 50 --repeat 100`, byte-identical flags; correctness gate in-run):
+  - pair A1: reference `0.477596` ms, candidate `0.197615` ms, speedup `2.417x`, exit 0
+  - pair A2: reference `0.474386` ms, candidate `0.196909` ms, speedup `2.409x`, exit 0
+  - pair A3: reference `0.467383` ms, candidate `0.195931` ms, speedup `2.385x`, exit 0
+  - unrounded medians: reference `0.474386`, candidate `0.196909` → paired protocol-basis improvement **+58.4950%** (H-004 expected 15.0 exceeded ~3.9x)
+  - decisive supplementary same-session accepted-pair probe (`auto_bench.time_forward` warmup50/repeat100/seed42, one process): r002 `0.3463206812739372` ms → r004 `0.19897893071174622` ms = **+42.54488932633068%** vs last_accepted, outputs bitwise-equal pre-timing → `log/probes/verifier_paired_r002_vs_r004_result_004.json`
+  - canonical kernel-mode profile (--profile-mode kernel pw=20/pi=100) via run_out first-attempt export success → trace @`54d22cb150435626706879f0ba46c918c9f3e48d95cfa69e6100be373fb393d3`; forward dual-scope supplementary → @`6bc6fb1018c4d1cb95682a4e3cf32799ca8b6387bf0366b089802ddf81714e46`
+  - named attempt P-C (counted per convention): canonical `summarize_trace.py --scope candidate_triton_grouped_topk_r2_004` rc=2 `scope has no kernel events` — this IS branch B surfacing in tooling (graph internals unattributable under manual replay, unlike rounds 001–003 where launches appeared individually); read-only category census saved as `log/diagnostic_scope_census_round004.json`:
+    - candidate kernel-mode scope: user_annotation ×1 (18761 µs window), cpu_op aten::copy_ ×300 (≈3/call: copy-in + 2 copy-outs), cuda_runtime submissions ×700, gpu_memcpy DtoD ×298, **cat=kernel ×0**
+    - forward candidate scope: same shape — cpu_op ×500 (≈5/call incl. 2 fresh-buffer allocs), gpu_memcpy ×298, kernels only 3 stray span-edge events
+    - reference forward scope normal: 1497 cat=kernel events attributed
+  - two-branch adjudication: **branch B taken with positive single-submission evidence**; failure clause moot because wall is decisively non-flat (+42% vs accepted) while firing evidence at measurement scale carried by census + 4-fact behavioral proof + timing collapse
+- artifacts & bases (final):
+  - all four anchor bases recorded in report_004.md: prescribed paired basis ref median `0.474386` / cand `0.196909` = **+58.4951%**; direct same-session accepted-pair r002 `0.3463206812739372` → r004 `0.19897893071174622` = **+42.54488932633068%**; cross-anchor vs report_002 wall `0.338824` → +41.8851%; manifest anchor `0.483530` cumulative context → +59.2784%
+  - correctness/bitwise/selectivity/run_out guardrails ALL PASS through the manual-replay tier (see probe summary above)
+  - cold warmup+capture ≈144.7 ms observed one-time outside timed medians (cache-warm vs coder smoke's 139 ms — consistent order); no flags altered
+- artifacts:
+  - `rounds/report_004.md` @sha256 `c79cc018f9c61ec34f084fc589b06b61d9b8e9ba634710d2ba365e3d1c34fe35` (Result: accepted; H-004 confirmed; P-C documented)
+  - `rounds/verdict_004.json` @sha256 `13340553ee3a5f5d10b812b29891519fb85ee946f71b9314390755c0ca644a46` (rule-less accepted; fact-pack pin `19992a187af9d925192b279ab70af9c1232e5ed526c444fe60db3ee262093e62` extracted post-write and CONFIRMED)
+  - probes/traces/census/summaries under `log/`
+- measurement_fingerprint: `8deb1b012de31b18887562e736c7b9e120b9d9f9500230e237ee003c5fa5a431` unchanged
+- next_safe_action: `Orchestrator validates report_004.md + verdict_004.json, applies accepted transitions (last_accepted_kernel=triton_grouped_topk_r2_004.py @c02d956c…, last_accepted_report=rounds/report_004.md), resets no-improvement streak bookkeeping as applicable, commits, then dispatches round 005 design or stop evaluation`
