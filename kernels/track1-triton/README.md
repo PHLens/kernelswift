@@ -9,12 +9,12 @@ task 编号 ↔ 算子目录映射见 [docs/competition/track1-triton.md](../../
 | 算子 | `mlu`（寒武纪 MLU590） | `s60`（燧原 GCU） | `maca`（沐曦 C500） | `bi150`（天数智芯） | `ascend910b`（昇腾） |
 |---|---|---|---|---|---|
 | `groupedtopk` | ✅ **6.56x** · v4 · **0.840→0.128 ms** | ✅ **1.68x** · r003 · **0.459→0.274 ms** | ✅ **3.29x** · r001 · **0.225→0.068 ms** | ✅ **2.41x** · e2r004 · **0.4835→0.1969 ms** | ✅ **2.84x** · r002 · **0.760→0.267 ms** |
-| `flexattention` | ✅ **7.08x** · v3 · **1.006→0.140 ms** | 🟡 **0.42x** · r001 · **0.269→0.64 ms**（correctness PASS，手写 causal SDPA，慢因 `tl.dot` 缺失） | — | 🟡 **1.00x** · e2r003 · **0.150→0.149 ms** | ✅ **1.45x** · r002 · **0.409→0.282 ms** |
+| `flexattention` | ✅ **7.08x** · v3 · **1.006→0.140 ms** | 🟡 **0.94x** · e2r001 · **0.251→0.267 ms**（causal fp16 `tl.dot` 单 kernel，epoch-1 0.42x → 2.2x） | — | 🟡 **1.00x** · e2r003 · **0.150→0.149 ms** | ✅ **1.45x** · r002 · **0.409→0.282 ms** |
 | `fused_moe` | ✅ **50.4x** · v5 · **6.940→0.138 ms** | ✅ **13.1x** · r002 · **5.112→0.390 ms**（逐-token 路由 + selection 融合） | — | ✅ **14.81x** · e2r001 · **3.193→0.220 ms** | ✅ **19.4x** · r002 · **7.159→0.369 ms** |
 | `sparse_pooler` | ✅ **1.60x** · v4 · **0.910→0.567 ms** | 🟡 **0.79x** · r001 · **0.861→1.092 ms** | — | ✅ **1.22x** · r001 · **1.070→0.880 ms** | ✅ **1.51x** · r001 · **0.935→0.619 ms** |
 | `music_flamingo_rotary_embedding` | 📦 — · — · — | 🟡 **0.9x** · r002（elementwise 融合，measurement-bound） | ✅ **2.38x** · r001 · **0.191→0.080 ms** | ✅ **1.95x** · r001 · **0.353→0.176 ms** | ✅ **1.86x** · r001 · **0.622→0.334 ms** |
 | `mm_encoder_attention` | 📦 — · — · — | 🟡 **0.92x** · e2r002 · **0.2516→0.2750 ms**（fp16 `tl.dot` 单 kernel MHA，epoch-1 0.27x → 3.4x，device-bound 未超 GCU 厂商库） | 🟡 **0.91x** · r002 · **0.116→0.128 ms**（手写 Triton MHA，flash-attn 已最优） | ✅ **1.05x** · e2r003 · **0.1499→0.1423 ms** | 🟡 **0.92x** · r001 · **0.349→0.340 ms** |
-| `mhc_post_layer_mix` | 📦 — · — · — | 🟡 **0.56x** · r001（einsum 用 `tl.sum` 展开） | ✅ **31.66x** · r001 · **7.636→0.241 ms** | ✅ **1.20x** · r001 · **8.189→6.427 ms** | ✅ **3.64x** · r001 · **3.198→0.880 ms** |
+| `mhc_post_layer_mix` | 📦 — · — · — | 🟡 **0.73x** · e2r001 · **4.25→5.87 ms**（BLOCK_H 256→1024，epoch-1 0.56x → +29%） | ✅ **31.66x** · r001 · **7.636→0.241 ms** | ✅ **1.20x** · r001 · **8.189→6.427 ms** | ✅ **3.64x** · r001 · **3.198→0.880 ms** |
 | `mhc_head_compute_mix` | 📦 — · — · — | ✅ **6.8x** · r001（Sinkhorn 迭代融合） | ✅ **14.07x** · r001 · **1.515→0.118 ms** | ✅ **7.79x** · r001 · **1.433→0.184 ms** | ✅ **9.00x** · r001 · **3.527→0.392 ms** |
 | `centre_random_augmentation` | 📦 — · — · — | 🟡 **0.95x** · r001（四元数旋转） | — | ✅ **4.49x** · r002 · **1.073→0.239 ms** | ✅ **1.22x** · r001 · **2.463→2.024 ms** |
 | `mhc_head_compute_mix_backward` | 📦 — · — · — | 🟡 **1.26x** · r001（sigmoid-backward 融合） | — | ✅ **1.76x** · r001 · **0.351→0.199 ms** | 🟡 **1.03x** · r001 · **0.446→0.431 ms** |
@@ -56,7 +56,7 @@ task 编号 ↔ 算子目录映射见 [docs/competition/track1-triton.md](../../
 | **910B** | 原生 FA | 偏高 | 成熟 | ✅ 1.45x / 0.92x |
 | C500 | flash-attn SDPA | 低 | 一般 | 🟡 0.91x |
 | BI150 | Ixmma FA（单 kernel 深度调优） | 极低 | 一般 | 🟡 0.55x/0.61x |
-| S60 | GCU 厂商 FA（TOPS runtime） | 低 | 弱 | 🟡 0.92x（mm_encoder，fp16 dot）/ 0.42x（flexattention 待 e2） |
+| S60 | GCU 厂商 FA（TOPS runtime） | 低 | 弱 | 🟡 0.92x（mm_encoder）/ 0.94x（flexattention，均 fp16 dot） |
 
 **关键洞察**：910B 的 flexattention 1.45x 说明，attention 胜负同时受当前任务 shape 下的 **base 库调用开销、Triton launch 成熟度、以及可兑现的 dot 路径成熟度** 影响。910B 当前已有小 fp32 `tl.dot` probe，但现有 attention campaign 的主收益来源仍以 launch/fusion 为主；BI150 也已探明 `tl.dot`，不过 base FA（`FlashAttnFwdF16Ixmma`）是单 kernel 且厂商深度调优，13~15 us device 已接近下限，手写 Triton attention 仍难跑赢。
 
