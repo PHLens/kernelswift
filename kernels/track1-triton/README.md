@@ -13,7 +13,7 @@ task 编号 ↔ 算子目录映射见 [docs/competition/track1-triton.md](../../
 | `fused_moe` | ✅ **50.4x** · v5 · **6.940→0.138 ms** | ✅ **13.1x** · r002 · **5.112→0.390 ms**（逐-token 路由 + selection 融合） | — | ✅ **14.81x** · e2r001 · **3.193→0.220 ms** | ✅ **19.4x** · r002 · **7.159→0.369 ms** |
 | `sparse_pooler` | ✅ **1.60x** · v4 · **0.910→0.567 ms** | 🟡 **0.79x** · r001 · **0.861→1.092 ms** | — | ✅ **1.22x** · r001 · **1.070→0.880 ms** | ✅ **1.51x** · r001 · **0.935→0.619 ms** |
 | `music_flamingo_rotary_embedding` | 📦 — · — · — | 🟡 **0.9x** · r002（elementwise 融合，measurement-bound） | ✅ **2.38x** · r001 · **0.191→0.080 ms** | ✅ **1.95x** · r001 · **0.353→0.176 ms** | ✅ **1.86x** · r001 · **0.622→0.334 ms** |
-| `mm_encoder_attention` | 📦 — · — · — | 🟡 **0.92x** · e2r002 · **0.2516→0.2750 ms**（fp16 `tl.dot` 单 kernel MHA，epoch-1 0.27x → 3.4x，device-bound 未超 CNNL） | 🟡 **0.91x** · r002 · **0.116→0.128 ms**（手写 Triton MHA，flash-attn 已最优） | ✅ **1.05x** · e2r003 · **0.1499→0.1423 ms** | 🟡 **0.92x** · r001 · **0.349→0.340 ms** |
+| `mm_encoder_attention` | 📦 — · — · — | 🟡 **0.92x** · e2r002 · **0.2516→0.2750 ms**（fp16 `tl.dot` 单 kernel MHA，epoch-1 0.27x → 3.4x，device-bound 未超 GCU 厂商库） | 🟡 **0.91x** · r002 · **0.116→0.128 ms**（手写 Triton MHA，flash-attn 已最优） | ✅ **1.05x** · e2r003 · **0.1499→0.1423 ms** | 🟡 **0.92x** · r001 · **0.349→0.340 ms** |
 | `mhc_post_layer_mix` | 📦 — · — · — | 🟡 **0.56x** · r001（einsum 用 `tl.sum` 展开） | ✅ **31.66x** · r001 · **7.636→0.241 ms** | ✅ **1.20x** · r001 · **8.189→6.427 ms** | ✅ **3.64x** · r001 · **3.198→0.880 ms** |
 | `mhc_head_compute_mix` | 📦 — · — · — | ✅ **6.8x** · r001（Sinkhorn 迭代融合） | ✅ **14.07x** · r001 · **1.515→0.118 ms** | ✅ **7.79x** · r001 · **1.433→0.184 ms** | ✅ **9.00x** · r001 · **3.527→0.392 ms** |
 | `centre_random_augmentation` | 📦 — · — · — | 🟡 **0.95x** · r001（四元数旋转） | — | ✅ **4.49x** · r002 · **1.073→0.239 ms** | ✅ **1.22x** · r001 · **2.463→2.024 ms** |
@@ -43,7 +43,7 @@ task 编号 ↔ 算子目录映射见 [docs/competition/track1-triton.md](../../
 因此：
 
 - **C500** 的 attention/GEMM 一旦离不开矩阵单元，通常会退化成 `tl.sum(a*b)` 标量 FMA，并被 mcblas 压制；
-- **S60** 的 `tl.dot` 受 2 的幂约束：S=83 只能 pad 到 128（58% FLOP 浪费），attention 撞 CNNL 库时 device-bound 难翻盘，但相对「无 dot」的标量展开仍有 3~4x 提升；
+- **S60** 的 `tl.dot` 受 2 的幂约束：S=83 只能 pad 到 128（58% FLOP 浪费），attention 撞 GCU 厂商库（TOPS runtime 的 flash-attention）时 device-bound 难翻盘，但相对「无 dot」的标量展开仍有 3~4x 提升；
 - **MLU / BI150 / 910B** 的上限更高，分析时需要区分“probe 可用”“候选可编译”“任务 shape 上可兑现收益”三个层级。
 
 ### 2. attention 类算子的胜负 = base 库调用开销 × launch 成熟度 × dot 路径是否能兑现
@@ -56,7 +56,7 @@ task 编号 ↔ 算子目录映射见 [docs/competition/track1-triton.md](../../
 | **910B** | 原生 FA | 偏高 | 成熟 | ✅ 1.45x / 0.92x |
 | C500 | flash-attn SDPA | 低 | 一般 | 🟡 0.91x |
 | BI150 | Ixmma FA（单 kernel 深度调优） | 极低 | 一般 | 🟡 0.55x/0.61x |
-| S60 | CNNL FA | 低 | 弱 | 🟡 0.92x（mm_encoder，fp16 dot）/ 0.42x（flexattention 待 e2） |
+| S60 | GCU 厂商 FA（TOPS runtime） | 低 | 弱 | 🟡 0.92x（mm_encoder，fp16 dot）/ 0.42x（flexattention 待 e2） |
 
 **关键洞察**：910B 的 flexattention 1.45x 说明，attention 胜负同时受当前任务 shape 下的 **base 库调用开销、Triton launch 成熟度、以及可兑现的 dot 路径成熟度** 影响。910B 当前已有小 fp32 `tl.dot` probe，但现有 attention campaign 的主收益来源仍以 launch/fusion 为主；BI150 也已探明 `tl.dot`，不过 base FA（`FlashAttnFwdF16Ixmma`）是单 kernel 且厂商深度调优，13~15 us device 已接近下限，手写 Triton attention 仍难跑赢。
 
@@ -98,7 +98,7 @@ Sinkhorn 融合是跨后端最稳定的大赢家（6.8x~14x）：它是纯 launc
 | `num_warps>1` | ⚠️ `2` 已失败，当前 `1` 最稳 | ✅ `1/2/4/8` 已 probe（fp16 dot 下 `1` 最优） | ❌ 未建立 | ⚠️ Unknown | ✅ `1/2/4` 已 probe |
 | 快速 launch 机制 | ✅ `fast_libentry` | — | — | ⚠️ direct launch + `torch.compile(reduce-overhead)`，无已证明 fast launcher | ✅ 成熟 launch |
 | 设备侧 profiler 证据 | ✅ 相对成熟 | ❌ launch-only | ✅ 有 kernel events | ⚠️ campaign 有 summary，profile 仍待补齐 | ✅ 经 CANN/msprof 可得 |
-| 厂商库压制力 | 中（attention 可被超） | 强（CNNL） | 强（mcblas） | 强（Ixmma/TCU） | 强（原生 FA） |
+| 厂商库压制力 | 中（attention 可被超） | 强（GCU 厂商库） | 强（mcblas） | 强（Ixmma/TCU） | 强（原生 FA） |
 | 覆盖完整度 | 4/10 | 10/10 | 5/10 | **10/10** | 10/10 |
 
 ## 结论

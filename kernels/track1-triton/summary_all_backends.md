@@ -51,7 +51,7 @@ MLU 是唯一「打赢厂商 attention 库」的后端（flexattention 7.08x）�
 
 epoch-1 误判「`tl.dot` Unknown」导致手写 SDPA 用 `tl.sum(a*b)` 标量 FMA（0.27x）。epoch-2 通过 probe 证伪：**`tl.dot` 在 S60 上可用**（`triton_gcu` profile 已更新为 `constrained`），但 M/N/K 必须为 **2 的幂**（`48/80/96/112` 全 FAIL，`16/32/64/128` 通过）；`tl.arange` 同约束；`num_warps 1/2/4/8` 均可用。`mm_encoder_attention` 据此切到 fp16 `tl.dot` 单 tile，0.27x→0.92x。
 
-但 S60 仍是 **device-bound**：base 的 SDPA/einsum 落到 CNNL（张量核心 + fp16 优化），手写 Triton 即便用上 `tl.dot`，也受 2 的幂约束（T=83→pad 128，58% FLOP 浪费）+ launcher 税仅 17.4us（图回放无收益），device floor 打不赢 CNNL。**结论：S60 上 attention/GEMM 手写 Triton 能拿 3~4x 相对 epoch-1 的提升，但难追平厂商库——交付标准应是「比 epoch-1 强」而非「打赢 base」。**
+但 S60 仍是 **device-bound**：base 的 SDPA/einsum 落到 GCU 厂商库（TOPS runtime，张量核心 + fp16 优化），手写 Triton 即便用上 `tl.dot`，也受 2 的幂约束（T=83→pad 128，58% FLOP 浪费）+ launcher 税仅 17.4us（图回放无收益），device floor 打不赢厂商库。**结论：S60 上 attention/GEMM 手写 Triton 能拿 3~4x 相对 epoch-1 的提升，但难追平厂商库——交付标准应是「比 epoch-1 强」而非「打赢 base」。**
 
 详见 [docs/s60-gcu-triton-lessons.md](../../docs/s60-gcu-triton-lessons.md)。
 
@@ -59,7 +59,7 @@ epoch-1 误判「`tl.dot` Unknown」导致手写 SDPA 用 `tl.sum(a*b)` 标量 F
 
 1. ~~提高 `num_warps` 与 tile 并行度~~（已探明：fp16 dot 下 `num_warps=1` 最优，`2/4/8` 均退化）
 2. ✅ 实测 `tl.dot` 可用性（已完成：2 的幂约束，fp16/fp32/bf16 均正确）
-3. 混合方案：核心 GEMM 用 `torch.mm`（CNNL），Triton 只做 softmax/mask 融合（待试，`flexattention`/`mhc_post_layer_mix` 可评估）
+3. 混合方案：核心 GEMM 用 `torch.mm`（GCU 厂商库），Triton 只做 softmax/mask 融合（待试，`flexattention`/`mhc_post_layer_mix` 可评估）
 
 ---
 
@@ -240,5 +240,5 @@ mm_encoder 只有 1 次发射只挣 +5%，flexattention 无货可装则持平。
 | `num_warps>1` | ⚠️ `2` 已失败，当前 `1` 最稳 | ❌ 未建立 | ❌ 未建立 | ⚠️ Unknown | ✅ `1/2/4` 已 probe |
 | 快速 launch 机制 | ✅ `fast_libentry` | — | — | ⚠️ direct launch + `torch.compile(reduce-overhead)`，无已证明 fast launcher | ✅ 成熟 launch |
 | 设备侧 profiler 证据 | ✅ 相对成熟 | ❌ launch-only | ✅ 有 kernel events | ⚠️ campaign 有 summary，profile 仍待补齐 | ✅ 经 CANN/msprof 可得 |
-| 厂商库压制力 | 中（attention 可被超） | 强（CNNL） | 强（mcblas） | 强（Ixmma/TCU） | 强（原生 FA） |
+| 厂商库压制力 | 中（attention 可被超） | 强（GCU 厂商库） | 强（mcblas） | 强（Ixmma/TCU） | 强（原生 FA） |
 | 覆盖完整度 | 4/10 | 10/10 | 5/10 | **10/10** | 10/10 |
