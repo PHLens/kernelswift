@@ -4,6 +4,7 @@ from copy import deepcopy
 import ast
 import json
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -17,9 +18,17 @@ TESTS = Path(__file__).resolve().parent
 SKILL_ROOT = TESTS.parent
 SCRIPTS = SKILL_ROOT / "scripts"
 sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(0, str(TESTS))
 
-from historical_capture import build_historical_proposal, load_historical_manifest, write_historical_proposal  # noqa: E402
-from kernelwiki_common import KernelWikiError, sha256_bytes  # noqa: E402
+from corpus import load_corpus, validate_corpus  # noqa: E402
+from fixture_factory import make_valid_corpus, remove_tree  # noqa: E402
+from historical_capture import (  # noqa: E402
+    build_historical_proposal,
+    load_historical_manifest,
+    materialize_reviewed_historical_source,
+    write_historical_proposal,
+)
+from kernelwiki_common import KernelWikiError, parse_markdown, sha256_bytes  # noqa: E402
 from lift_schema import validate_lift_document  # noqa: E402
 
 
@@ -208,6 +217,72 @@ class HistoricalCaptureTests(unittest.TestCase):
         }
         self.assertNotIn("campaign_import", imported)
         self.assertNotIn("validate_campaign", (SCRIPTS / "historical_capture.py").read_text(encoding="utf-8"))
+
+    def test_reviewed_source_round_trip(self):
+        root = make_valid_corpus(card_id="technique-kernel-fusion")
+        try:
+            shutil.rmtree(root / "sources" / "local")
+            (root / "examples.yaml").unlink()
+            proposal = SKILL_ROOT / "candidates" / "experience" / "experience-historical-source-local-ascend-groupedtopk-round-001.json"
+            review = SKILL_ROOT / "candidates" / "experience" / "reviews" / "experience-historical-source-local-ascend-groupedtopk-round-001.yaml"
+            source_path = materialize_reviewed_historical_source(proposal, review, root)
+            first = source_path.read_bytes()
+            self.assertEqual(source_path, materialize_reviewed_historical_source(proposal, review, root))
+            self.assertEqual(first, source_path.read_bytes())
+            metadata, body = parse_markdown(source_path)
+            self.assertEqual("source-local-ascend-groupedtopk-round-001", metadata["id"])
+            self.assertEqual("local-campaign", metadata["source_kind"])
+            self.assertEqual(["designer"], metadata["audiences"])
+            self.assertEqual("historical-noncanonical", metadata["profile_authority"])
+            self.assertFalse(metadata["strict_vnext_validated"])
+            self.assertNotIn("artifact_dir", metadata)
+            self.assertIn("81bbe728d35e498584996a862ee2ae546807c3906b30e828c7b3031f28e5adc7", body)
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPTS / "capture_source.py"),
+                    "reviewed-historical",
+                    "--root",
+                    str(root),
+                    "--proposal",
+                    str(proposal),
+                    "--review",
+                    str(review),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(0, completed.returncode, completed.stderr)
+            self.assertEqual(metadata["id"], json.loads(completed.stdout)["source_id"])
+            validate_corpus(load_corpus(root))
+            self.assertFalse((root / "artifacts" / "local").exists())
+        finally:
+            remove_tree(root)
+
+    def test_reviewed_include_and_defer_behavior(self):
+        root = make_valid_corpus(card_id="pattern-device-win-wall-loss")
+        try:
+            shutil.rmtree(root / "sources" / "local")
+            (root / "examples.yaml").unlink()
+            candidate_root = SKILL_ROOT / "candidates" / "experience"
+            included = materialize_reviewed_historical_source(
+                candidate_root / "experience-historical-source-local-ascend-flexattention-round-003.json",
+                candidate_root / "reviews" / "experience-historical-source-local-ascend-flexattention-round-003.yaml",
+                root,
+            )
+            self.assertTrue(included.is_file())
+            with self.assertRaises(KernelWikiError):
+                materialize_reviewed_historical_source(
+                    candidate_root / "experience-historical-source-local-ascend-mhc-post-layer-mix-final-stop-003.json",
+                    candidate_root / "reviews" / "experience-historical-source-local-ascend-mhc-post-layer-mix-final-stop-003.yaml",
+                    root,
+                )
+            self.assertFalse(
+                (root / "sources" / "local" / "ascend" / "source-local-ascend-mhc-post-layer-mix-final-stop-003.md").exists()
+            )
+        finally:
+            remove_tree(root)
 
 
 if __name__ == "__main__":

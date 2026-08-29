@@ -3,7 +3,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
-from kernelwiki_common import KernelWikiError, canonical_json_bytes, run_cli
+from historical_capture import materialize_reviewed_historical_source
+from kernelwiki_common import KernelWikiError, canonical_json_bytes, run_cli, sha256_file
 from source_capture import (
     GitHubClient,
     GitHubCommitCaptureRequest,
@@ -48,6 +49,11 @@ def main(argv: Sequence[str]) -> int:
     manual.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
     manual.add_argument("--metadata", type=Path, required=True)
 
+    reviewed_historical = subparsers.add_parser("reviewed-historical")
+    reviewed_historical.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
+    reviewed_historical.add_argument("--proposal", type=Path, required=True)
+    reviewed_historical.add_argument("--review", type=Path, required=True)
+
     args = parser.parse_args(list(argv))
     root = validate_capture_skill_root(args.root)
     if args.command == "discover":
@@ -63,6 +69,20 @@ def main(argv: Sequence[str]) -> int:
         for term in args.terms or ():
             delegated.extend(("--term", term))
         return discovery_main(delegated)
+    if args.command == "reviewed-historical":
+        source_path = materialize_reviewed_historical_source(args.proposal, args.review, root)
+        print(
+            canonical_json_bytes(
+                {
+                    "artifact_dir": None,
+                    "source_id": source_path.stem,
+                    "source_path": source_path.relative_to(root).as_posix(),
+                    "source_sha256": sha256_file(source_path),
+                }
+            ).decode("utf-8"),
+            end="",
+        )
+        return 0
     if args.command == "github-pr":
         metadata, selections = load_github_capture_manifest(args.metadata)
         result = capture_github_pr(

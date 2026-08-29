@@ -16,7 +16,7 @@
 
 ### Patterns
 
-- [pattern-device-win-wall-loss](../wiki/patterns/device-win-wall-loss.md) — Preserve the distinction between a kernel-time result and end-to-end wall behavior. — target `unknown:ascend` — evidence `inferred` — reproduction `concept` — sources `1`
+- [pattern-device-win-wall-loss](../wiki/patterns/device-win-wall-loss.md) — Preserve the distinction between a kernel-time result and end-to-end wall behavior. — target `unknown:ascend` — evidence `inferred, source-reported` — reproduction `concept, runnable` — sources `2`
 
 ### Candidate techniques
 

@@ -72,3 +72,12 @@ Successful evaluation prints deterministic canonical JSON containing the five ad
 [`../data/local-campaign-holdout.yaml`](../data/local-campaign-holdout.yaml) is sealed before any campaign-to-proposal mapping code is written. Its three development paths may be used only after Task 1; its two holdout paths are not inspected until both strict and historical lanes pass their focused tests.
 
 The local holdout does not influence outcome mapping, publication defaults, Card naming, or Coder eligibility. Historical campaign evidence remains noncanonical and Designer-only. Evaluation records include/defer/exclude outcomes without changing holdout membership or rewriting historical evidence.
+
+### Final category-level smoke
+
+The two holdout paths were inspected only after all three development reviews were committed. No holdout bytes were copied into KernelWiki and no taxonomy, alias, ranking, or Card was changed from these results.
+
+| Sealed holdout | Generic category query | Result |
+|---|---|---|
+| `mm_encoder_attention/ascend` | layout materialization, launch count, and wall time | The existing launch-bound materialization category surfaced in the first five Card results. |
+| `sparse_pooler/ascend` | output allocation reuse and wall time | Existing device-versus-wall and launch/materialization categories surfaced in the first five Card results; no operator or output-reuse Card was added. |

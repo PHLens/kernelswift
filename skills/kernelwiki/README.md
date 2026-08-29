@@ -70,14 +70,24 @@ Card admission and item admission are separate; readable metadata does not autom
 Always use this reviewed sequence:
 
 ```text
-discover candidates -> curator edits reviewed ledger -> capture immutable Source -> author/review generic Card -> validate -> generate views -> review diff -> commit
+explicit terminal bundle -> strict validation -> proposal -> Curator review
+historical manifest -> proposal candidate -> Curator review -> explicit noncanonical Source capture
+reviewed Source -> explicit generic Card edit -> validate -> generate -> diff review -> Git commit
 ```
 
-Capture never publishes a Card automatically. After authoring or editing a generic Card, run full validation and generation checks, inspect every generated query/catalog diff, and commit the reviewed Source/Card/generated set together as appropriate.
+An included historical proposal is materialized only through the explicit Source-only command:
+
+```bash
+python3 skills/kernelwiki/scripts/capture_source.py reviewed-historical \
+  --proposal skills/kernelwiki/candidates/experience/experience-historical-source-local-ascend-groupedtopk-round-001.json \
+  --review skills/kernelwiki/candidates/experience/reviews/experience-historical-source-local-ascend-groupedtopk-round-001.yaml
+```
+
+The command verifies the proposal ID/SHA and include review, then writes an immutable Designer-only `local-campaign` Source. Metadata-only candidates copy no code and have no artifact directory. It never edits a Card, generated output, active campaign, profile, prompt, or loop state. Card publication remains an explicit Git edit followed by validation, generation, and diff review.
 
 ## Deferred phases
 
-Phase C role-aware query admission is implemented as a standalone read-only query path. Phase D historical/current campaign lift and the Phase E `kernel-opt-loop` adapter remain excluded.
+Phase C role-aware query admission and Phase D offline knowledge lift are implemented as standalone read-only/proposal-review maintenance paths. Only the Phase E `kernel-opt-loop` adapter remains excluded.
 
 ## Boundaries
 

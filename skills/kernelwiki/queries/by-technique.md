@@ -8,7 +8,7 @@
 ## kernel-fusion
 
 - [pattern-launch-bound-materialization](../wiki/patterns/launch-bound-materialization.md) — Diagnose generated launch and intermediate-materialization boundaries before proposing changes. — target `backend:ascend` — evidence `source-reported` — reproduction `runnable` — sources `1`
-- [technique-kernel-fusion](../wiki/techniques/kernel-fusion.md) — Evaluate fusion without promoting the seed corpus into an implementation recipe. — target `backend:ascend` — evidence `inferred` — reproduction `concept` — sources `2`
+- [technique-kernel-fusion](../wiki/techniques/kernel-fusion.md) — Evaluate fusion without promoting the seed corpus into an implementation recipe. — target `backend:ascend` — evidence `inferred, source-reported` — reproduction `concept, runnable` — sources `3`
 
 ## launch-collapse
 
@@ -34,7 +34,7 @@
 - [language-triton-ascend-backend](../wiki/languages/triton-ascend-backend.md) — Navigate the captured Triton-to-Ascend backend model and its stated limits. — target `backend:ascend` — evidence `source-reported` — reproduction `concept` — sources `1`
 - [measurement-cann-device-attribution](../wiki/measurement/cann-device-attribution.md) — Separate source-reported kernel timing from broader runtime and wall-time conclusions. — target `backend:ascend` — evidence `source-reported` — reproduction `concept, runnable` — sources `2`
 - [pattern-ascend-capability-gap](../wiki/patterns/ascend-capability-gap.md) — Preserve unknown or unsupported backend capabilities instead of inventing recipes. — target `backend:ascend` — evidence `inferred, source-reported` — reproduction `concept` — sources `2`
-- [pattern-device-win-wall-loss](../wiki/patterns/device-win-wall-loss.md) — Preserve the distinction between a kernel-time result and end-to-end wall behavior. — target `unknown:ascend` — evidence `inferred` — reproduction `concept` — sources `1`
+- [pattern-device-win-wall-loss](../wiki/patterns/device-win-wall-loss.md) — Preserve the distinction between a kernel-time result and end-to-end wall behavior. — target `unknown:ascend` — evidence `inferred, source-reported` — reproduction `concept, runnable` — sources `2`
 - [technique-tiling-and-work-partitioning](../wiki/techniques/tiling-and-work-partitioning.md) — Navigate source-backed tile parameters and work-partitioning checks on Ascend. — target `backend:ascend` — evidence `source-reported` — reproduction `concept, runnable` — sources `2`
 - [technique-topk-selection-and-reduction](../wiki/techniques/topk-selection-and-reduction.md) — Evaluate top-k selection through generic sort reduction and partitioning questions. — target `backend:ascend` — evidence `source-reported` — reproduction `concept` — sources `1`
 

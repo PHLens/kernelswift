@@ -11,6 +11,7 @@ import socket
 import statistics
 import subprocess
 import sys
+import tempfile
 import time
 import unittest
 from unittest.mock import patch
@@ -33,8 +34,9 @@ from corpus import load_corpus, validate_corpus  # noqa: E402
 from fixture_factory import make_valid_corpus, remove_tree  # noqa: E402
 from get_page import main as get_page_main  # noqa: E402
 from grep_wiki import main as grep_main  # noqa: E402
-from kernelwiki_common import load_yaml_document, sha256_file  # noqa: E402
+from kernelwiki_common import KernelWikiError, load_yaml_document, sha256_file  # noqa: E402
 from provenance import load_provenance, validate_provenance, validate_size_budget  # noqa: E402
+from propose_from_campaign import _validated_output  # noqa: E402
 from query import main as query_main  # noqa: E402
 from role_context import load_authority_snapshot, load_role_context  # noqa: E402
 from role_fixture_factory import (  # noqa: E402
@@ -301,6 +303,95 @@ class StandaloneContractTests(unittest.TestCase):
             self.assertEqual(["op.load.row"], context_document["guidance_bindings"]["guidance-test-exact"])
         finally:
             remove_tree(root)
+
+    def test_reviewed_examples_preserve_contradiction_visibility(self):
+        corpus = load_corpus(SKILL_ROOT)
+        validate_corpus(corpus)
+        fusion = corpus.cards["technique-kernel-fusion"]
+        mismatch = corpus.cards["pattern-device-win-wall-loss"]
+        self.assertEqual(
+            {"source-local-ascend-groupedtopk-round-001"},
+            {item["source_id"] for item in fusion.metadata["examples"] if item["role"] == "positive"},
+        )
+        self.assertEqual(
+            {"source-local-ascend-flexattention-round-003"},
+            {item["source_id"] for item in mismatch.metadata["examples"] if item["role"] == "counterexample"},
+        )
+        catalog = {
+            item["id"]: item
+            for item in (
+                json.loads(line)
+                for line in (SKILL_ROOT / "compiled" / "catalog.jsonl").read_text(encoding="utf-8").splitlines()
+            )
+        }
+        self.assertEqual(1, catalog["technique-kernel-fusion"]["positive_example_count"])
+        self.assertEqual(1, catalog["pattern-device-win-wall-loss"]["counterexample_count"])
+        for query, expected in (
+            ("reviewed historical fusion", "technique-kernel-fusion"),
+            ("device win wall loss", "pattern-device-win-wall-loss"),
+        ):
+            with self.subTest(query=query):
+                _, stdout, _ = run_main(query_main, [query, "--root", str(SKILL_ROOT), "--scope", "cards", "--limit", "5"])
+                self.assertIn(expected, [item["record_id"] for item in json.loads(stdout)["results"]])
+
+    def test_two_local_campaign_holdout_rows_surface_generic_categories(self):
+        candidate_root = SKILL_ROOT / "candidates" / "experience"
+        decisions = {
+            path.stem: load_yaml_document(path)["decision"]
+            for path in sorted((candidate_root / "reviews").glob("*.yaml"))
+        }
+        self.assertEqual(2, tuple(decisions.values()).count("include"))
+        self.assertEqual(1, tuple(decisions.values()).count("defer"))
+        holdout = load_yaml_document(SKILL_ROOT / "data" / "local-campaign-holdout.yaml")
+        rows = (
+            (
+                "kernels/track1-triton/mm_encoder_attention/ascend",
+                "layout materialization kernel count wall time",
+                {"pattern-launch-bound-materialization"},
+            ),
+            (
+                "kernels/track1-triton/sparse_pooler/ascend",
+                "output allocation reuse wall time",
+                {"pattern-device-win-wall-loss", "pattern-launch-bound-materialization"},
+            ),
+        )
+        self.assertEqual([item[0] for item in rows], holdout["holdout_campaigns"])
+        for campaign, query, expected in rows:
+            with self.subTest(campaign=campaign):
+                _, stdout, stderr = run_main(
+                    query_main,
+                    [query, "--root", str(SKILL_ROOT), "--scope", "cards", "--limit", "5"],
+                )
+                self.assertEqual("", stderr)
+                ids = {item["record_id"] for item in json.loads(stdout)["results"]}
+                self.assertTrue(expected <= ids)
+
+    def test_final_lift_nonintegration_and_output_paths(self):
+        historical_text = (SCRIPTS / "historical_capture.py").read_text(encoding="utf-8")
+        capture_text = (SCRIPTS / "capture_source.py").read_text(encoding="utf-8")
+        checks = (
+            ("no Orchestrator hook", "orchestrator" not in historical_text.lower()),
+            ("no final-stop callback", "final_stop_callback" not in historical_text),
+            ("no consultation record", "consultation" not in historical_text.lower()),
+            ("no automatic Card publisher", "write_generated_outputs" not in historical_text and "wiki/" not in historical_text),
+            ("no Coder auto-promotion", '"coder"' not in historical_text),
+            ("explicit reviewed Source command", '"reviewed-historical"' in capture_text),
+        )
+        for label, passed in checks:
+            with self.subTest(contract=label):
+                self.assertTrue(passed, label)
+
+        with tempfile.TemporaryDirectory(prefix="kernelwiki-output-") as temporary:
+            root = Path(temporary)
+            repository = root / "repository"
+            project = repository / "project"
+            project.mkdir(parents=True)
+            valid = root / "review-output" / "proposal.json"
+            self.assertEqual(valid.resolve(), _validated_output(valid, repository_root=repository, project_root=project))
+            for invalid in (project / "proposal.json", SKILL_ROOT / "state" / "proposal.json"):
+                with self.subTest(output=str(invalid)):
+                    with self.assertRaises(KernelWikiError):
+                        _validated_output(invalid, repository_root=repository, project_root=project)
 
 
 if __name__ == "__main__":

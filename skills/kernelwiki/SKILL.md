@@ -53,12 +53,22 @@ A caller may add `--output receipt.json`, but that receipt is advisory and never
 ## Reviewed maintenance order
 
 ```text
-discover candidates -> curator edits reviewed ledger -> capture immutable Source -> author/review generic Card -> validate -> generate views -> review diff -> commit
+explicit terminal bundle -> strict validation -> proposal -> Curator review
+historical manifest -> proposal candidate -> Curator review -> explicit noncanonical Source capture
+reviewed Source -> explicit generic Card edit -> validate -> generate -> diff review -> Git commit
 ```
 
-Source extraction never publishes a Card. Generated files are reviewed artifacts and must remain current with the authored Source/Card corpus.
+For an included historical proposal, the Curator must invoke the Source-only command explicitly:
 
-Phase C role-aware query admission is available through explicit contexts and the read-only bridge. Phase D offline knowledge lift remains separate, and no Phase E loop adapter exists.
+```bash
+python3 skills/kernelwiki/scripts/capture_source.py reviewed-historical \
+  --proposal skills/kernelwiki/candidates/experience/<proposal-id>.json \
+  --review skills/kernelwiki/candidates/experience/reviews/<proposal-id>.yaml
+```
+
+The command verifies proposal/review identity and writes only an immutable, Designer-only local Source. Metadata-only proposals create no artifact bundle. Card edits remain explicit Git edits; extractors and validators never publish a Card or mutate a campaign.
+
+Phase C role-aware query admission and Phase D offline knowledge lift are available only through explicit standalone commands. No Phase E loop adapter exists.
 
 ## Development
 

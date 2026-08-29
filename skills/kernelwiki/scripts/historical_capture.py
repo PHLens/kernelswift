@@ -4,10 +4,14 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+import json
 import re
 import subprocess
 from typing import Any
 
+import yaml
+
+from corpus import load_corpus, validate_corpus
 from experience import ExperienceProposal
 from kernelwiki_common import (
     KernelWikiError,
@@ -17,6 +21,7 @@ from kernelwiki_common import (
     validate_root_relative_posix_path,
 )
 from lift_schema import validate_lift_document
+from validate_lift import validate_proposal, validate_review
 
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
@@ -347,3 +352,135 @@ def write_historical_proposal(proposal: ExperienceProposal, output_path: Path) -
     except FileExistsError as error:
         raise KernelWikiError("proposal-exists", "proposal output already exists", path) from error
     return sha256_bytes(data)
+
+
+def _boundary_value(boundaries: Any, name: str, proposal_path: Path) -> str:
+    prefix = name + "="
+    matches = [item[len(prefix):] for item in boundaries if isinstance(item, str) and item.startswith(prefix)]
+    if len(matches) != 1 or not matches[0]:
+        raise KernelWikiError(
+            "reviewed-historical-scope",
+            f"proposal requires exactly one {name}= transfer boundary",
+            proposal_path,
+        )
+    return matches[0]
+
+
+def _historical_source_bytes(proposal: Mapping[str, Any], review: Mapping[str, Any]) -> bytes:
+    scope = proposal["scope"]
+    terminal = proposal["terminal"]
+    runtime = _boundary_value(proposal["transfer_boundaries"], "runtime", Path(str(proposal["proposal_id"])))
+    source_id = scope["source_id"]
+    title = f"Reviewed historical local campaign evidence: {terminal['local_locator']}"
+    metadata = {
+        "schema_version": 1,
+        "id": source_id,
+        "source_kind": "local-campaign",
+        "title": title,
+        "url": f"local://{terminal['commit']}/{terminal['project_path']}",
+        "repository_id": "local",
+        "captured_at": scope["captured_at"],
+        "target_disposition": "exact",
+        "target_ids": [scope["target_id"]],
+        "implementation_profile_ids": [scope["implementation_profile_id"]],
+        "runtime_fingerprints": [runtime],
+        "languages": sorted(scope["languages"]),
+        "kernel_types": sorted(scope["kernel_types"]),
+        "techniques": sorted(scope["techniques"]),
+        "hardware_features": sorted(scope["hardware_features"]),
+        "tags": sorted(scope["tags"]),
+        "license_state": scope["license_state"],
+        "audiences": ["designer"],
+        "profile_authority": "historical-noncanonical",
+        "strict_vnext_validated": False,
+        "missing_evidence": sorted(proposal["missing_evidence"]),
+    }
+    review_record = {
+        "decision": review["decision"],
+        "proposal_id": review["proposal_id"],
+        "proposal_sha256": review["proposal_sha256"],
+        "publication_target": review["publication_target"],
+        "rationale": review["rationale"],
+        "reviewed_at": review["reviewed_at"],
+        "reviewed_by": review["reviewed_by"],
+    }
+    evidence_record = {
+        "artifact_hashes": proposal["artifact_hashes"],
+        "missing_evidence": proposal["missing_evidence"],
+        "observed": proposal["observed"],
+        "scope": proposal["scope"],
+        "terminal": proposal["terminal"],
+        "transfer_boundaries": proposal["transfer_boundaries"],
+    }
+    frontmatter = yaml.safe_dump(metadata, sort_keys=False, allow_unicode=True).rstrip()
+    review_json = json.dumps(review_record, indent=2, sort_keys=True, ensure_ascii=False)
+    evidence_json = json.dumps(evidence_record, indent=2, sort_keys=True, ensure_ascii=False)
+    body = (
+        f"# {title}\n\n"
+        "Immutable reviewed historical campaign evidence. This Source is metadata-only, "
+        "Designer-only, and not validated against the current vNext contract.\n\n"
+        "## Curator review\n\n"
+        f"```json\n{review_json}\n```\n\n"
+        "## Reviewed proposal evidence\n\n"
+        f"```json\n{evidence_json}\n```\n"
+    )
+    return f"---\n{frontmatter}\n---\n{body}".encode("utf-8")
+
+
+def materialize_reviewed_historical_source(
+    proposal_path: Path,
+    review_path: Path,
+    skill_root: Path = SKILL_ROOT,
+) -> Path:
+    root = Path(skill_root).resolve()
+    proposal = validate_proposal(Path(proposal_path))
+    review = validate_review(Path(review_path), proposal)
+    document = proposal.document
+    if document["source_lane"] != "historical-manual":
+        raise KernelWikiError("reviewed-historical-lane", "proposal is not historical-manual", proposal.path)
+    if review["decision"] != "include":
+        raise KernelWikiError("reviewed-historical-not-included", "review decision must be include", Path(review_path))
+    target = review["publication_target"]
+    if not isinstance(target, Mapping):
+        raise KernelWikiError("reviewed-historical-target", "include review requires a publication target", Path(review_path))
+
+    corpus = load_corpus(root)
+    validate_corpus(corpus)
+    if target["mode"] == "existing-card-example" and target["card_id"] not in corpus.cards:
+        raise KernelWikiError("reviewed-historical-target", "review target Card does not exist", Path(review_path))
+
+    scope = document["scope"]
+    if scope["asset_mode"] != "metadata-only":
+        raise KernelWikiError(
+            "reviewed-historical-asset-mode",
+            "selected-files publication requires a separate reviewed artifact capture",
+            proposal.path,
+        )
+    source_id = scope["source_id"]
+    if not isinstance(source_id, str) or _ID.fullmatch(source_id) is None:
+        raise KernelWikiError("reviewed-historical-source-id", "proposal source_id is invalid", proposal.path)
+    if not str(scope["target_id"]).startswith("ascend"):
+        raise KernelWikiError("reviewed-historical-target", "Task 7 materializes Ascend evidence only", proposal.path)
+
+    destination = root / "sources" / "local" / "ascend" / f"{source_id}.md"
+    data = _historical_source_bytes(document, review)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    created = False
+    if destination.exists():
+        if not destination.is_file() or destination.read_bytes() != data:
+            raise KernelWikiError("source-exists", "different immutable Source already exists", destination)
+    else:
+        try:
+            with destination.open("xb") as handle:
+                handle.write(data)
+            created = True
+        except FileExistsError as error:
+            raise KernelWikiError("source-exists", "Source already exists", destination) from error
+
+    try:
+        validate_corpus(load_corpus(root))
+    except Exception:
+        if created:
+            destination.unlink(missing_ok=True)
+        raise
+    return destination

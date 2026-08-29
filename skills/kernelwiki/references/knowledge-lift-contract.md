@@ -36,8 +36,8 @@ run validate.py and generate_indices.py
 review Source/Card/generated diffs and commit
 ```
 
-Validation never creates or edits Sources, Cards, catalog files, or query views, and `include` is never interpreted as publication permission.
+Validation never creates or edits Sources, Cards, catalog files, or query views, and `include` is never interpreted as automatic publication permission. After an include review, `capture_source.py reviewed-historical` is the sole explicit Source-only materialization path; it verifies the proposal/review ID and SHA, creates no code bundle for metadata-only evidence, and never edits a Card.
 
 ## Prohibited output
 
-Proposals must not contain `next_candidate`, `recommended_next_change`, or `implementation_instruction`. Knowledge lift does not modify `kernel-opt-loop`, active campaigns, project state, profiles, prompts, Decisions, Sketches, harnesses, Sources, Cards, catalog files, or query views.
+Proposals must not contain `next_candidate`, `recommended_next_change`, or `implementation_instruction`. Extractors and validators do not modify `kernel-opt-loop`, active campaigns, project state, profiles, prompts, Decisions, Sketches, harnesses, Sources, Cards, catalog files, or query views. The explicit reviewed-historical command may write only the approved immutable Source; subsequent Card and generated-output edits remain manual Git work.
