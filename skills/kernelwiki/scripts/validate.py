@@ -9,6 +9,7 @@ from catalog import assert_generated_outputs_current, build_generated_outputs
 from corpus import Corpus, load_corpus, validate_corpus
 from kernelwiki_common import KernelWikiError, require_within, run_cli
 from provenance import load_provenance, validate_provenance, validate_size_budget
+from validate_lift import validate_experience_tree
 
 
 def validate_artifact_bundles(corpus: Corpus) -> None:
@@ -100,6 +101,7 @@ def validate_skill_root(root: Path, *, check_generated: bool = True) -> Corpus:
     validate_coder_access_assets(corpus)
     if check_generated:
         assert_generated_outputs_current(corpus.root, build_generated_outputs(corpus))
+    validate_experience_tree(corpus.root)
     return corpus
 
 

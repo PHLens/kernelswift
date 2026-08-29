@@ -18,9 +18,25 @@ The strict lane accepts one caller-selected terminal bundle, validates it agains
 
 The historical lane records available immutable hashes, explicit missing evidence, noncanonical profile authority, and Designer-only scope. It never claims that historical artifacts passed current-vNext validation.
 
-## Review and publication
+## Review validation
 
-A proposal has no campaign or corpus authority. A Curator records `include`, `defer`, or `exclude` with the exact proposal hash. Publication is a separate Git-reviewed edit that creates an immutable Source and, when justified, a scoped example on a general Card. Extractors and review validators never publish automatically or promote evidence to Coder visibility.
+`validate_lift.py` validates closed proposal/review schemas, exact proposal identity and bytes, lane boundaries, artifact hashes, scope, transfer limits, and missing evidence. Reviews record `include`, `defer`, or `exclude` with reviewer identity, UTC time, rationale, and the exact proposal SHA-256.
+
+An `include` review targets either a scoped example on an existing Card or a new general Card with independent teaching value. Operator-specific Card targets and automatic Coder visibility are invalid. A `defer` or `exclude` review has no publication target. Missing reviews are allowed; duplicate reviews and reviews of missing proposals are invalid.
+
+An included proposal still has no campaign or corpus authority. The Curator performs a separate Git-reviewed change:
+
+```text
+create an immutable local Source with exact hashes
+add a scoped example to an existing general Card by default
+preserve target/profile/runtime/shape/dtype/measurement/transfer scope
+leave contradictory examples visible
+default audiences to designer
+run validate.py and generate_indices.py
+review Source/Card/generated diffs and commit
+```
+
+Validation never creates or edits Sources, Cards, catalog files, or query views, and `include` is never interpreted as publication permission.
 
 ## Prohibited output
 
