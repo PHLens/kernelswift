@@ -14,7 +14,7 @@ techniques: [kernel-fusion, launch-collapse]
 hardware_features: [execution-pipeline]
 tags: [launch-bound, materialization-overhead]
 symptoms: [launch-bound, materialization-overhead]
-sources: [source-local-s60-centre-random-augmentation-round-001, source-mskl-user-guide-f9fbf4d2]
+sources: [source-local-s60-centre-random-augmentation-round-001, source-local-s60-music-flamingo-rotary-embedding-round-001, source-mskl-user-guide-f9fbf4d2]
 related: []
 prerequisites: []
 version_sensitive: []
@@ -59,6 +59,35 @@ examples:
       - {metric: wall_improvement_pct, value: 47.6, statistic: exact, unit: percent}
       - {metric: wall_time_ms, value: 1.585115, statistic: median, unit: milliseconds}
     transfer_boundary: exact S60 (Enflame GCU), triton_gcu, triton 3.6.0, n_sample=4/n_atom=256, fp32, round-001 measurement, and harness only
+    reconsider_when:
+      - target, profile, runtime, shape, or dtype scope changes
+  - id: example-music-flamingo-rotary-embedding-launch-bound-round-001
+    role: positive
+    subtype: performance
+    source_id: source-local-s60-music-flamingo-rotary-embedding-round-001
+    locator: reviewed proposal observations and transfer boundaries
+    evidence_level: source-reported
+    reproduction: runnable
+    target_id: s60
+    implementation_profile_id: triton_gcu
+    profile_authority: historical-noncanonical
+    runtime_fingerprint: triton-3.6.0 triton_gcu-3.6.0+1.0.20260722 torch-2.10.0+cpu torch_gcu-2.10.0+3.8.0.2
+    operator_family: music-flamingo-rotary-embedding
+    shape:
+      BATCH: 4
+      DIM: 128
+      SEQ: 32
+    dtype: fp32
+    terminal_classification: accepted
+    comparability: historical-local
+    measurement_fingerprint: null
+    baseline_id: null
+    candidate_id: null
+    observed:
+      - {metric: correctness_pass, value: true, statistic: exact, unit: boolean}
+      - {metric: wall_improvement_pct, value: 9.5512, statistic: exact, unit: percent}
+      - {metric: wall_time_ms, value: 0.406427, statistic: median, unit: milliseconds}
+    transfer_boundary: exact S60 (Enflame GCU), triton_gcu, triton 3.6.0, batch=4, seq=32, dim=128, fp32, partial fusion keeping vendor cos/sin, Round 001 measurement, and harness only
     reconsider_when:
       - target, profile, runtime, shape, or dtype scope changes
 ---

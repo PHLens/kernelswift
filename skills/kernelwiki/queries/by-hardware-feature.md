@@ -13,7 +13,7 @@
 
 - [hardware-ascend-execution-and-memory](../wiki/hardware/ascend-execution-and-memory.md) — Navigate source-backed Ascend execution, transfer, and pipeline considerations. — target `backend:ascend` — evidence `source-reported` — reproduction `concept` — sources `1`
 - [language-triton-ascend-backend](../wiki/languages/triton-ascend-backend.md) — Navigate the captured Triton-to-Ascend backend model and its stated limits. — target `backend:ascend` — evidence `source-reported` — reproduction `concept` — sources `1`
-- [pattern-launch-bound-materialization](../wiki/patterns/launch-bound-materialization.md) — Diagnose generated launch and intermediate-materialization boundaries before proposing changes. — target `backend:ascend` — evidence `source-reported` — reproduction `runnable` — sources `2`
+- [pattern-launch-bound-materialization](../wiki/patterns/launch-bound-materialization.md) — Diagnose generated launch and intermediate-materialization boundaries before proposing changes. — target `backend:ascend` — evidence `source-reported` — reproduction `runnable` — sources `3`
 - [technique-kernel-fusion](../wiki/techniques/kernel-fusion.md) — Evaluate fusion without promoting the seed corpus into an implementation recipe. — target `backend:ascend` — evidence `inferred, source-reported` — reproduction `concept, runnable` — sources `3`
 - [technique-tiling-and-work-partitioning](../wiki/techniques/tiling-and-work-partitioning.md) — Navigate source-backed tile parameters and work-partitioning checks on Ascend. — target `backend:ascend` — evidence `source-reported` — reproduction `concept, runnable` — sources `2`
 

@@ -314,7 +314,12 @@ class StandaloneContractTests(unittest.TestCase):
             {item["source_id"] for item in fusion.metadata["examples"] if item["role"] == "positive"},
         )
         self.assertEqual(
-            {"source-local-ascend-flexattention-round-003"},
+            {
+                "source-local-ascend-flexattention-round-003",
+                "source-local-s60-flexattention-round-001",
+                "source-local-s60-mm-encoder-attention-round-002",
+                "source-local-s60-sparse-pooler-round-001",
+            },
             {item["source_id"] for item in mismatch.metadata["examples"] if item["role"] == "counterexample"},
         )
         catalog = {
@@ -325,7 +330,7 @@ class StandaloneContractTests(unittest.TestCase):
             )
         }
         self.assertEqual(1, catalog["technique-kernel-fusion"]["positive_example_count"])
-        self.assertEqual(1, catalog["pattern-device-win-wall-loss"]["counterexample_count"])
+        self.assertEqual(4, catalog["pattern-device-win-wall-loss"]["counterexample_count"])
         for query, expected in (
             ("reviewed historical fusion", "technique-kernel-fusion"),
             ("device win wall loss", "pattern-device-win-wall-loss"),
@@ -340,7 +345,7 @@ class StandaloneContractTests(unittest.TestCase):
             path.stem: load_yaml_document(path)["decision"]
             for path in sorted((candidate_root / "reviews").glob("*.yaml"))
         }
-        self.assertEqual(3, tuple(decisions.values()).count("include"))
+        self.assertEqual(7, tuple(decisions.values()).count("include"))
         self.assertEqual(1, tuple(decisions.values()).count("defer"))
         holdout = load_yaml_document(SKILL_ROOT / "data" / "local-campaign-holdout.yaml")
         rows = (
