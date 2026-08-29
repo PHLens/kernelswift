@@ -8,6 +8,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 from kernelwiki_common import KernelWikiError, run_cli, sha256_bytes
 from lift_schema import validate_lift_document
 
@@ -85,6 +87,17 @@ def _load_json(path: Path, label: str) -> tuple[dict[str, Any], bytes]:
     if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         _fail(f"{label}-invalid", f"{label} must be a JSON object", candidate)
     return value, data
+
+
+def _load_review_document(path: Path) -> dict[str, Any]:
+    candidate = Path(path)
+    try:
+        value = yaml.safe_load(candidate.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, yaml.YAMLError) as error:
+        _fail("lift-review-invalid", str(error), candidate)
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
+        _fail("lift-review-invalid", "lift review must be an object", candidate)
+    return value
 
 
 def _mapping(value: Any, label: str, path: Path) -> Mapping[str, Any]:
@@ -227,7 +240,7 @@ def _validate_publication_target(target: Any, path: Path) -> None:
 
 def validate_review(path: Path, proposal: ValidatedProposal) -> dict[str, Any]:
     review_path = Path(path)
-    document, _ = _load_json(review_path, "lift-review")
+    document = _load_review_document(review_path)
     validated = validate_lift_document("experience_review", document, SCHEMA_PATH, path=review_path)
     if validated["proposal_id"] != proposal.document["proposal_id"]:
         _fail("lift-review-invalid", "review proposal_id does not match proposal", review_path)
@@ -271,8 +284,9 @@ def validate_experience_tree(root: Path) -> dict[str, int]:
     if review_root.exists():
         if not review_root.is_dir():
             _fail("lift-tree-invalid", "experience reviews path must be a directory", review_root)
-        for path in sorted(review_root.glob("*.json")):
-            raw, _ = _load_json(path, "lift-review")
+        review_paths = sorted((*review_root.glob("*.json"), *review_root.glob("*.yaml"), *review_root.glob("*.yml")))
+        for path in review_paths:
+            raw = _load_review_document(path)
             proposal_id = raw.get("proposal_id")
             if not isinstance(proposal_id, str) or proposal_id not in proposals:
                 _fail("lift-tree-invalid", f"review references missing proposal: {proposal_id}", path)
