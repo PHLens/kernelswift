@@ -66,3 +66,9 @@ python3 skills/kernelwiki/scripts/evaluate_holdout.py \
 ```
 
 Successful evaluation prints deterministic canonical JSON containing the five adversarial results, sealed holdout group IDs, numerators, denominators, safety metrics, and retrieval-gate status.
+
+## Local-campaign knowledge-lift holdout
+
+[`../data/local-campaign-holdout.yaml`](../data/local-campaign-holdout.yaml) is sealed before any campaign-to-proposal mapping code is written. Its three development paths may be used only after Task 1; its two holdout paths are not inspected until both strict and historical lanes pass their focused tests.
+
+The local holdout does not influence outcome mapping, publication defaults, Card naming, or Coder eligibility. Historical campaign evidence remains noncanonical and Designer-only. Evaluation records include/defer/exclude outcomes without changing holdout membership or rewriting historical evidence.

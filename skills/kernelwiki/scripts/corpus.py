@@ -385,13 +385,30 @@ def _load_schema_versions(path: Path) -> None:
         "query_result": 1,
         "role_query_context": 1,
         "role_query_result": 1,
+        "terminal_bundle": 1,
+        "experience_proposal": 1,
+        "experience_review": 1,
+        "historical_capture": 1,
     }
     invalid_versions = any(
-        type(document[key]) is not int or document[key] != value
+        type(document.get(key)) is not int or document.get(key) != value
         for key, value in expected.items()
-        if key in document
     )
-    if set(document) != set(expected) or invalid_versions:
+    definitions = document.get("field_definitions")
+    required_definitions = {
+        "loop_contract_identity",
+        "bundle_artifact",
+        "terminal_bundle",
+        "experience_proposal",
+        "experience_review",
+        "historical_capture",
+    }
+    if (
+        set(document) != {*expected, "field_definitions"}
+        or invalid_versions
+        or not isinstance(definitions, dict)
+        or set(definitions) != required_definitions
+    ):
         _fail("schemas-invalid", "schema version registry does not match v1", path)
 
 
