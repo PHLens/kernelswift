@@ -46,13 +46,16 @@ def _post_layer_mix_kernel(
         h_idx = h0 + hb
         h_mask = h_idx < h
 
-        xv = tl.load(x_ptr + ab * h + h_idx, mask=h_mask, other=0.0).to(tl.float32)
+        # bf16 kept in registers (halved register pressure vs immediate fp32 widen),
+        # widened to fp32 only at the contraction; bf16->fp32 is lossless so
+        # semantics are identical to base's fp32 path within tolerance.
+        xv = tl.load(x_ptr + ab * h + h_idx, mask=h_mask, other=0.0)
         r_off = ab * m * h + k[:, None] * h + h_idx[None, :]
-        r_block = tl.load(residual_ptr + r_off, mask=h_mask[None, :], other=0.0).to(tl.float32)
+        r_block = tl.load(residual_ptr + r_off, mask=h_mask[None, :], other=0.0)
 
-        acc = tl.sum(comb[:, :, None] * r_block[:, None, :], axis=0)  # [m, BLOCK_H]
+        acc = tl.sum(comb[:, :, None] * r_block[:, None, :].to(tl.float32), axis=0)  # [m, BLOCK_H]
 
-        out = acc + post[:, None] * xv[None, :]
+        out = acc + post[:, None] * xv[None, :].to(tl.float32)
         tl.store(
             out_ptr + ab * m * h + k[:, None] * h + h_idx[None, :],
             out.to(tl.bfloat16),

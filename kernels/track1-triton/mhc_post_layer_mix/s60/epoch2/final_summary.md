@@ -4,25 +4,28 @@
 
 - status: **complete — deliverable shipped**
 - **deliverable**: `triton_mhc_post_layer_mix_e2_001.py` (correctness-PASS)
-- **speedup vs base**: ~0.726x (does NOT beat base, not required to)
-- **speedup vs epoch-1**: **~+29% (0.561x → 0.726x)**
+- **speedup vs base**: ~0.77x (does NOT beat base, not required to)
+- **speedup vs epoch-1**: **~+37% (0.561x → 0.770x)**
 
-## Intervention
+## Interventions (two, both correctness-PASS)
 
-Single-parameter retune: `BLOCK_H` 256 → 1024 (largest power-of-2 ≤ h=1280),
-`num_warps=1` unchanged. Correctness PASS (allclose vs base, 3/3 harness pairs).
+1. **BLOCK_H 256 → 1024** (largest power-of-2 ≤ h=1280): 0.561x → 0.726x
+2. **bf16 register residency**: keep `x`/`residual` loads in bf16 registers and widen
+   to fp32 only at the contraction (bf16→fp32 is lossless, so semantics are
+   identical), halving register pressure: 0.726x → 0.770x
 
-BLOCK_H sweep (num_warps=1, all correctness PASS):
+## Full exploration (all correctness-PASS unless noted)
 
-| BLOCK_H | wall | vs base |
-|---:|---:|---:|
-| 64 | 20735us | 0.20x |
-| 128 | 11819us | 0.35x |
-| 256 (epoch-1) | 7383us | 0.561x |
-| 512 | 5701us | 0.727x |
-| **1024 (e2)** | **5650us** | **0.733x** |
-
-num_warps=2 degrades at every BLOCK_H (~2x slower) — num_warps=1 optimal.
+| variant | wall | vs base |
+|---|---:|---:|
+| BLOCK_H=64, tl.sum | 20735us | 0.20x |
+| BLOCK_H=256, tl.sum (epoch-1) | 7383us | 0.561x |
+| BLOCK_H=1024, tl.sum fp32 | 5650us | 0.733x |
+| BLOCK_H=1024, tl.sum **bf16 registers (e2)** | **5219us** | **0.797x** (probe) / **0.770x** (harness) |
+| explicit 16-MAC | 10943us | 0.38x |
+| `tl.dot` [4,4]@[4,BLOCK_H] | 215792us | **0.019x** (catastrophic) |
+| split-h grid (2/4) | 8712-15569us | worse |
+| hybrid (vendor bmm + hand tail) | 9395us | worse |
 
 ## Root-Cause Analysis (why it does not beat base)
 
@@ -34,18 +37,16 @@ S60 base decomposes as (per 100-call forward census):
 | elementwise tail (broadcast-mul + add + cast) | 3179us (76%) |
 | `residual.float()` cast | 738us |
 
-Unlike C500 (whose 31.66x came from base falling to a WASTEFUL tf32gemm
-64x64x128 tile with 97% K-dim waste), S60's base einsum falls to a REASONABLE
-`bmm` (K=4 contraction has no tile waste). This operator is memory-bound
-(~40M elements); the S60 vendor elementwise + bmm are already near the
-bandwidth floor, so hand-written Triton cannot beat base. The hand-written
-kernel's ceiling is ~0.73x regardless of tiling.
-
-The delivery standard (better than epoch-1) is met: 0.561x → 0.726x (+29%).
+- This operator is a **memory-bound small-contraction GEMM** (K=4, ~40M output
+  elements, FLOP/byte ratio near zero). The S60 vendor `bmm` + elementwise library
+  are already near the bandwidth floor, so hand-written Triton cannot beat base.
+- `tl.dot` is catastrophic (M=4/K=4 far below the tensor-core minimum 16×16 tile;
+  the power-of-2 constraint only guarantees compilability, not efficiency).
+- num_warps=2 degrades ~2x at every tiling; num_warps=1 optimal.
+- Hand-written ceiling is ~0.77x regardless of tiling/contraction method.
 
 ## Note
 
-- `tl.dot` is NOT used (K=4 far below the power-of-2 dot floor on S60).
-- Hand-written `tl.sum` 3-D broadcast contraction is the matmul path; it is the
-  device-time bottleneck vs the vendor `bmm`, but tiling retune still yields a
-  +29% epoch-over-epoch gain.
+- `tl.dot` is NOT used (K=4 far below the power-of-2 dot efficiency floor on S60).
+- The winning lever is `tl.sum` contraction + bf16 register residency + large
+  BLOCK_H; the delivery standard (better than epoch-1) is met: 0.561x → 0.770x.
