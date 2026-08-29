@@ -1,0 +1,22 @@
+{
+  "implementation_profile_id": "triton_gcu",
+  "implementation_profile_sha256": "7cd0cdf4b01b064b91f2b8f199cff6d12b175903a2c8d24ba7153f4d6a6aa6a0",
+  "implementation_profile_version": 1,
+  "primary_contract": "math.elementwise",
+  "primary_signature": {
+    "math_ops": "mul/div/add",
+    "dtype": "fp32",
+    "batch": 4,
+    "seq_len": 32,
+    "dim": 128,
+    "tile_constraint": "power-of-2 for tl.arange"
+  },
+  "fallback_contract": null,
+  "fallback_kind": null,
+  "fallback_signature": null,
+  "probe_policy": "optional",
+  "qualification_dispositions": [],
+  "runtime_fingerprint": "triton 3.6.0 / triton_gcu 3.6.0+1.0.20260722 / torch 2.10.0+cpu / torch_gcu 2.10.0+3.8.0.2 / Enflame GCU major=3 minor=0",
+  "schema_version": 1,
+  "target_id": "s60"
+}
