@@ -1,0 +1,56 @@
+schema_version: 1
+repositories:
+  - id: triton-ascend
+    host: github
+    repo: Ascend/triton-ascend
+    lane: ascend-native
+    languages: [triton, python, cpp]
+    target_families: [ascend]
+    kernel_path_globs: ["**/ops/**", "**/kernels/**", "**/*ascendc*"]
+    skip_path_globs: ["**/docs/**", "**/tests/**", "**/benchmarks/**"]
+    search_terms: [AscendC, kernel, performance, fused, topk, attention, reduction, tiling, double buffer]
+  - id: vllm-ascend
+    host: github
+    repo: vllm-project/vllm-ascend
+    lane: ascend-native
+    languages: [ascendc, cpp, python]
+    target_families: [ascend]
+    kernel_path_globs: ["**/ops/**", "**/kernels/**", "**/*ascendc*"]
+    skip_path_globs: ["**/docs/**", "**/tests/**", "**/benchmarks/**"]
+    search_terms: [AscendC, kernel, performance, fused, topk, attention, reduction, tiling, double buffer]
+  - id: cann-samples
+    host: manual
+    repo: Ascend/cann-samples
+    lane: ascend-native-manual
+    languages: [ascendc, cpp]
+    target_families: [ascend]
+    kernel_path_globs: ["**/ops/**", "**/kernels/**", "**/*ascendc*"]
+    skip_path_globs: ["**/docs/**", "**/tests/**", "**/benchmarks/**"]
+    search_terms: [AscendC, kernel, performance, fused, topk, attention, reduction, tiling, double buffer]
+  - id: huawei-ascend-docs
+    host: manual
+    repo: hiascend.com/CANNCommunityEdition
+    lane: ascend-native-manual
+    languages: [ascendc, cpp]
+    target_families: [ascend]
+    kernel_path_globs: ["**/ops/**", "**/kernels/**", "**/*ascendc*"]
+    skip_path_globs: ["**/docs/**", "**/tests/**", "**/benchmarks/**"]
+    search_terms: [AscendC, kernel, performance, fused, topk, attention, reduction, tiling, double buffer]
+  - id: triton-ascend-kernels
+    host: manual
+    repo: Ascend/triton-ascend-kernels
+    lane: reviewed-holdout
+    languages: [triton, python]
+    target_families: [ascend]
+    kernel_path_globs: ["**/ops/**", "**/kernels/**", "**/*ascendc*"]
+    skip_path_globs: ["**/docs/**", "**/tests/**", "**/benchmarks/**"]
+    search_terms: [AscendC, kernel, performance, fused, topk, attention, reduction, tiling, double buffer]
+  - id: mskl
+    host: manual
+    repo: Ascend/mskl
+    lane: ascend-native-manual
+    languages: [python, cpp]
+    target_families: [ascend]
+    kernel_path_globs: ["**/ops/**", "**/kernels/**", "**/*ascendc*"]
+    skip_path_globs: ["**/docs/**", "**/tests/**", "**/benchmarks/**"]
+    search_terms: [AscendC, kernel, performance, fused, topk, attention, reduction, tiling, double buffer]

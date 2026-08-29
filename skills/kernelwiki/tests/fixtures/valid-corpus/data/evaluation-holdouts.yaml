@@ -1,0 +1,11 @@
+schema_version: 1
+sealed_at: 2026-08-21T00:00:00Z
+repository_holdout:
+  repository_id: triton-ascend-kernels
+  use: final-evaluation-only
+track2:
+  development_contexts: [sparse_attn, index_topk]
+  holdout_contexts: [sinkhorn_normalize]
+  gold_fixture_sha256: a7ea16d878f10060aff1cf7f5a2b4d99db7f18b297ef523d9d5fda327f4b2c13
+  corpus_policy: never-author-operator-cards
+  ranking_policy: do-not-read-holdout-until-final-evaluation

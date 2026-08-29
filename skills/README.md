@@ -33,3 +33,9 @@ profile-legal 字段。选中的配置被 pin 进唯一候选，必须通过 fre
 correctness、lowering、promotion 与官方 benchmark gates。工作流不引入 finalization
 专属 state 或 artifact family。最终候选包含一个固定配置，无 runtime/online autotune、
 首次使用搜索或缓存依赖的配置选择。
+
+## KernelWiki
+
+[`kernelwiki/`](kernelwiki/SKILL.md) 是独立、Ascend-first、provenance-pinned 的内核工程 Wiki。它按照 `sources/ -> wiki/ -> queries/` 组织经过审查的来源、通用 Wiki Cards 和确定性离线查询视图。
+
+KernelWiki 的查询、页面读取、校验和索引生成不访问网络，也不会修改 `kernel-opt-loop`、campaign state、implementation profile、base 或 benchmark harness。仓库与 Track 2 holdout 在 taxonomy、alias、ranking 和初始 Cards 之前封存；详细规则见 [`kernelwiki/references/evaluation-protocol.md`](kernelwiki/references/evaluation-protocol.md)。
