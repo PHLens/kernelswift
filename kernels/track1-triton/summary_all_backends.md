@@ -40,7 +40,7 @@ MLU 是唯一「打赢厂商 attention 库」的后端（flexattention 7.08x）�
 | `mhc_head_compute_mix` | **6.8x** | Sinkhorn 20 轮迭代融合进单 kernel |
 | `centre_random_augmentation` | **1.90x**（e2r001） | launch-fusion 96→10：四元数→R + 旋转 + 平移 + mask 单 kernel（S60 首个打赢 base） |
 | `groupedtopk` | **1.68x** | 12→1 launch 融合 + 输出池复用 |
-| `mhc_head_compute_mix_backward` | **1.26x** | elementwise sigmoid-backward 融合 |
+| `mhc_head_compute_mix_backward` | **1.23x** | elementwise sigmoid-backward 融合（2 小归约 host torch.sum，atomic 不可用） |
 | `music_flamingo_rotary_embedding` | **1.11x**（e2r001） | 部分融合：freqs 进 kernel，cos/sin 保留 vendor（避免 epoch-1 tl.cos/tl.sin -13%） |
 | `mm_encoder_attention` | **0.92x**（e2r002） | fp16 `tl.dot` 单 kernel MHA（epoch-1 0.27x → 3.4x） |
 | `flexattention` | 0.94x（e2r001） | causal fp16 `tl.dot` 单 kernel（epoch-1 0.42x → 2.2x） |

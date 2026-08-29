@@ -17,7 +17,7 @@ task 编号 ↔ 算子目录映射见 [docs/competition/track1-triton.md](../../
 | `mhc_post_layer_mix` | 📦 — · — · — | 🟡 **0.77x** · e2r001 · **4.23→5.50 ms**（BLOCK_H 1024 + bf16 registers，epoch-1 0.56x → +37%） | ✅ **31.66x** · r001 · **7.636→0.241 ms** | ✅ **1.20x** · r001 · **8.189→6.427 ms** | ✅ **3.64x** · r001 · **3.198→0.880 ms** |
 | `mhc_head_compute_mix` | 📦 — · — · — | ✅ **6.8x** · r001（Sinkhorn 迭代融合） | ✅ **14.07x** · r001 · **1.515→0.118 ms** | ✅ **7.79x** · r001 · **1.433→0.184 ms** | ✅ **9.00x** · r001 · **3.527→0.392 ms** |
 | `centre_random_augmentation` | 📦 — · — · — | ✅ **1.90x** · e2r001 · **3.025→1.585 ms**（launch-fusion 96→10，四元数→R+旋转+平移+mask 单 kernel） | — | ✅ **4.49x** · r002 · **1.073→0.239 ms** | ✅ **1.22x** · r001 · **2.463→2.024 ms** |
-| `mhc_head_compute_mix_backward` | 📦 — · — · — | 🟡 **1.26x** · r001（sigmoid-backward 融合） | — | ✅ **1.76x** · r001 · **0.351→0.199 ms** | 🟡 **1.03x** · r001 · **0.446→0.431 ms** |
+| `mhc_head_compute_mix_backward` | 📦 — · — · — | ✅ **1.23x** · r001 · **0.40→0.32 ms**（sigmoid-backward 融合，2 小归约 host torch.sum，atomic 不可用） | — | ✅ **1.76x** · r001 · **0.351→0.199 ms** | 🟡 **1.03x** · r001 · **0.446→0.431 ms** |
 
 ## 表项说明
 

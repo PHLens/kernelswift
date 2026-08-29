@@ -25,6 +25,8 @@ round artifact 与 flexattention/fused_moe 的 s60 final_summary）沿用了「C
 | `tl.max` / `tl.sum` **不支持 `keepdim`** | 标准 triton 支持 `keepdim`，GCU 版不支持 | 用 `axis=1` + `[:, None]` 广播替代 |
 | `tl.dot` 要求**两操作数同 dtype** | fp32 × fp16 报错 | 统一 cast（如 `v.to(tl.float32)`） |
 | `num_warps` 合法值 `1/2/4/8` | 均可编译执行 | fp16 dot 下 `num_warps=1` 最优，`8` 严重退化（~2x） |
+| `tl.atomic_add` **不可用** | 最小 atomic 例子也 `Pipeline run failed: PassManager execution failed` | **跨 program 归约（segment-max/sum、scatter）无法融合进 kernel，必须 host `torch.sum`/`torch.max`**；这是 sparse_pooler segment-max 与 mhc_head_compute_mix_backward 两归约无法融合的结构性原因 |
+| `tl.log1p` / `tl.maximum` 支持情况 | `tl.log1p` 无，`tl.maximum` 有 | log1p(relu) 用 `tl.log(1.0 + tl.maximum(x, 0.0))` 实现 |
 | 设备侧 profiler **只有 launch 事件** | 无 `cat=kernel` device-duration | device 时间靠 `wall − launch-API` 反推 |
 
 ## 2. S60 算子分两类：launch-bound 融合赢，device-bound 手写输
