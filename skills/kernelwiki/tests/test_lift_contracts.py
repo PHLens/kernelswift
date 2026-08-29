@@ -364,7 +364,7 @@ class LiftContractTests(unittest.TestCase):
     def test_validation_never_publishes_and_unreviewed_candidates_are_valid(self):
         before = snapshot_publication_trees()
         result = validate_experience_tree(SKILL_ROOT)
-        self.assertEqual({"proposals": 8, "reviews": 8, "included": 7}, result)
+        self.assertEqual({"proposals": 9, "reviews": 9, "included": 8}, result)
         self.assertEqual(before, snapshot_publication_trees())
 
 

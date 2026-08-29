@@ -345,7 +345,7 @@ class StandaloneContractTests(unittest.TestCase):
             path.stem: load_yaml_document(path)["decision"]
             for path in sorted((candidate_root / "reviews").glob("*.yaml"))
         }
-        self.assertEqual(7, tuple(decisions.values()).count("include"))
+        self.assertEqual(8, tuple(decisions.values()).count("include"))
         self.assertEqual(1, tuple(decisions.values()).count("defer"))
         holdout = load_yaml_document(SKILL_ROOT / "data" / "local-campaign-holdout.yaml")
         rows = (

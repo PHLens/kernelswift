@@ -14,7 +14,7 @@ techniques: [kernel-fusion, launch-collapse]
 hardware_features: [execution-pipeline]
 tags: [launch-bound, materialization-overhead]
 symptoms: [launch-bound, materialization-overhead]
-sources: [source-local-s60-centre-random-augmentation-round-001, source-local-s60-music-flamingo-rotary-embedding-round-001, source-mskl-user-guide-f9fbf4d2]
+sources: [source-local-s60-centre-random-augmentation-round-001, source-local-s60-fused-moe-round-002, source-local-s60-music-flamingo-rotary-embedding-round-001, source-mskl-user-guide-f9fbf4d2]
 related: []
 prerequisites: []
 version_sensitive: []
@@ -88,6 +88,37 @@ examples:
       - {metric: wall_improvement_pct, value: 9.5512, statistic: exact, unit: percent}
       - {metric: wall_time_ms, value: 0.406427, statistic: median, unit: milliseconds}
     transfer_boundary: exact S60 (Enflame GCU), triton_gcu, triton 3.6.0, batch=4, seq=32, dim=128, fp32, partial fusion keeping vendor cos/sin, Round 001 measurement, and harness only
+    reconsider_when:
+      - target, profile, runtime, shape, or dtype scope changes
+  - id: example-fused-moe-launch-bound-round-002
+    role: positive
+    subtype: performance
+    source_id: source-local-s60-fused-moe-round-002
+    locator: reviewed proposal observations and transfer boundaries
+    evidence_level: source-reported
+    reproduction: runnable
+    target_id: s60
+    implementation_profile_id: triton_gcu
+    profile_authority: historical-noncanonical
+    runtime_fingerprint: triton-3.6.0 triton_gcu-3.6.0+1.0.20260722 torch-2.10.0+cpu torch_gcu-2.10.0+3.8.0.2
+    operator_family: fused-moe
+    shape:
+      E: 8
+      H: 128
+      I: 64
+      TOKENS: 83
+      TOP_K: 2
+    dtype: fp16
+    terminal_classification: accepted
+    comparability: historical-local
+    measurement_fingerprint: null
+    baseline_id: null
+    candidate_id: null
+    observed:
+      - {metric: correctness_pass, value: true, statistic: exact, unit: boolean}
+      - {metric: wall_improvement_pct, value: 92.37, statistic: exact, unit: percent}
+      - {metric: wall_time_ms, value: 0.390289, statistic: median, unit: milliseconds}
+    transfer_boundary: exact S60 (Enflame GCU), triton_gcu, triton 3.6.0, tokens=83/h=128/e=8/top_k=2/i=64, fp16, per-token routing + selection fusion, Round 002 measurement, and harness only
     reconsider_when:
       - target, profile, runtime, shape, or dtype scope changes
 ---
