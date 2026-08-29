@@ -4,7 +4,7 @@ from collections.abc import Callable, Mapping, Sequence
 import hashlib
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import sys
 import tempfile
@@ -63,6 +63,23 @@ def require_within(root: Path, path: Path) -> Path:
     if candidate != root and root not in candidate.parents:
         raise KernelWikiError("path-escape", f"{candidate} escapes {root}", candidate)
     return candidate
+
+
+def validate_root_relative_posix_path(value: Any) -> str:
+    """Return a canonical root-relative POSIX path or raise ValueError."""
+    if not isinstance(value, str) or not value or value.strip() != value:
+        raise ValueError("path must be nonempty trimmed text")
+    if "\\" in value or "\x00" in value:
+        raise ValueError("path must use POSIX separators and contain no NUL")
+    pure = PurePosixPath(value)
+    if (
+        pure.is_absolute()
+        or not pure.parts
+        or any(part in {"", ".", ".."} for part in pure.parts)
+        or pure.as_posix() != value
+    ):
+        raise ValueError("path must be normalized and root-relative")
+    return value
 
 
 def parse_huawei_cann_document_revision(url: Any) -> str | None:

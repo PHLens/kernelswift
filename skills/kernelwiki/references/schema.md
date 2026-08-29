@@ -53,11 +53,12 @@ Required fields:
 Optional fields:
 
 - `artifact_dir`: a skill-root-relative path; absolute paths and root escapes are rejected
+- sorted `target_ids`
 - sorted `implementation_profile_ids`
 - sorted `runtime_fingerprints`
 - nonempty sorted `audiences`
 
-`repository_id` must be `local` or resolve in `data/source-repositories.yaml` once that registry exists. Absence of profile/runtime/audience metadata means Designer metadata only; it never implies Coder eligibility.
+`repository_id` must be `local` or resolve in `data/source-repositories.yaml` once that registry exists. Absence of target/profile/runtime/audience metadata means Designer metadata only; it never implies Coder eligibility. Exact Coder Source admission requires the current target in `target_ids`, the current profile in `implementation_profile_ids`, the byte-exact runtime in `runtime_fingerprints`, `target_disposition: exact`, and `audiences` containing `coder`.
 
 A `local-campaign` Source additionally requires `profile_authority`, boolean `strict_vnext_validated`, sorted `missing_evidence`, and `audiences`. Authority is `current-vnext` or `historical-noncanonical`. Historical evidence must set `strict_vnext_validated: false` and exactly `audiences: [designer]`. These fields are forbidden on other Source kinds.
 
@@ -81,6 +82,22 @@ A `pattern` Card also requires sorted `candidate_techniques`; each ID must resol
 Technique, pattern, and kernel Cards require these H2 sections: Summary; Problem or symptom; Mechanism; Applicability; Implementation approaches; Expected observables; Risks and counterexamples; Examples; Transfer boundaries; Required local checks; Sources. Kernel Cards additionally require Shape and contract; Implementation structure; Source excerpt or snippet; Measured claims; What transfers; What does not transfer.
 
 Track 2 development and holdout operator names from `evaluation-holdouts.yaml` may not become Card IDs or paths.
+
+### Optional exact-profile Coder access
+
+A Card may add `coder_access` with exactly `page: exact-profile` and a nonempty, ID-sorted `guidance` list. The Card must include the `coder` audience. Each guidance item has exactly:
+
+- `id`;
+- nonempty sorted `implementation_profile_ids`, `target_ids`, `runtime_fingerprints`, `languages`, and `dtypes`;
+- a dimension-sorted `shape_constraints` mapping whose values use canonical field order: exactly `{exact: positive-int}` or exactly `{min: positive-int, max: positive-int}` with `min` before `max`;
+- sorted `required_capabilities`;
+- `preserves` in canonical order: `algorithm`, `dataflow`, `precision`, `effects`, `aliases`, `host-plan`, `public-interface`;
+- `implementation_delta` with sorted Sketch `statement_ids`, one implementation-only `change_family`, a lowercase SHA-256 `protected_projection_sha256`, and `changed_protected_fields` (which must remain empty for admission);
+- sorted simple-ID `eligible_example_ids` and `version_claim_ids`, plus sorted `eligible_asset_ids` expressed as normalized root-relative POSIX provenance paths.
+
+Eligible examples must exist on the Card. Eligible asset paths are exact retained `PROVENANCE.yaml` `local_path` values in the Card's Source scope and must resolve uniquely; nested `/` components are allowed, while absolute, backslash, NUL, empty, dot, dot-dot, and non-normalized paths are rejected. Guidance version claims must be inside the Card's `version_sensitive` scope. Structural Card validation never grants runtime access: role admission separately checks target, profile, runtime, dtype/shape, capability status, current version qualification, frozen Sketch binding, Source license/provenance, and each selected example or asset.
+
+A Card without `coder_access` remains generic Designer knowledge. Readable page admission never exposes all cited assets automatically.
 
 ## Observation
 

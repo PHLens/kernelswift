@@ -183,18 +183,22 @@ def make_catalog_corpus() -> Path:
             {
                 "id": "claim-current",
                 "card_ids": ["technique-kernel-fusion"],
+                "subject": "fixture-cann-runtime",
                 "status": "current",
                 "supported_versions": ["CANN 9.0"],
                 "last_verified_at": "2026-08-21",
                 "source_ids": ["source-valid-manual"],
+                "replacement_claim_id": None,
             },
             {
                 "id": "claim-stale",
                 "card_ids": ["pattern-launch-bound"],
+                "subject": "fixture-cann-runtime",
                 "status": "stale",
                 "supported_versions": ["CANN 8.0"],
                 "last_verified_at": "2026-08-20",
                 "source_ids": ["source-valid-manual"],
+                "replacement_claim_id": None,
             },
         ],
     }

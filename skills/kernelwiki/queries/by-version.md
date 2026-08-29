@@ -3,7 +3,7 @@
 
 ## current
 
-- _None._
+- version-triton-ascend-readme-865691e2 — versions `CANN Community Edition 9.0.0, Triton-Ascend 3.2.1` — verified `2026-08-21` — Cards: [language-triton-ascend-backend](../wiki/languages/triton-ascend-backend.md)
 
 ## stale
 

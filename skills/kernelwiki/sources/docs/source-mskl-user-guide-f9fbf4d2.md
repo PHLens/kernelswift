@@ -7,6 +7,8 @@ url: https://github.com/Ascend/mskl/blob/f9fbf4d21273a4f1fa2793b902872fa7da47d86
 repository_id: mskl
 captured_at: '2026-08-21T00:00:00Z'
 target_disposition: backend
+target_ids:
+- ascend
 languages:
 - cpp
 - python

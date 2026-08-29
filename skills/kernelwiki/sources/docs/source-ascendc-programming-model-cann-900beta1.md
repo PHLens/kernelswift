@@ -7,6 +7,8 @@ url: https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/900beta1/o
 repository_id: huawei-ascend-docs
 captured_at: '2026-08-21T00:00:00Z'
 target_disposition: backend
+target_ids:
+- ascend
 languages:
 - ascendc
 - cpp

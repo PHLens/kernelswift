@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 import heapq
 import json
 from pathlib import Path, PurePosixPath
@@ -168,6 +168,13 @@ def _authoritative_corpus(value: Any) -> Corpus:
     if not comparable:
         raise KernelWikiError("search-corpus-stale", "corpus differs from validated on-disk authority", root)
     return fresh
+
+
+def authoritative_search_corpus(value: Any) -> Corpus:
+    """Rebind to the complete neutral search authority, including aliases and catalog bytes."""
+    corpus = _authoritative_corpus(value)
+    _load_catalog_records(corpus)
+    return corpus
 
 
 def _require_request(value: Any) -> QueryRequest:
@@ -393,7 +400,7 @@ def build_source_candidate(source: SourceRecord, corpus: Corpus) -> SearchCandid
         "tags": tuple(metadata["tags"]),
         "repository": (str(metadata["repository_id"]),),
         "language": tuple(metadata["languages"]),
-        "target": (),
+        "target": tuple(metadata.get("target_ids", ())),
         "target-match": (str(metadata["target_disposition"]),),
         "symptom": (),
         "kernel-type": tuple(metadata["kernel_types"]),
@@ -418,7 +425,7 @@ def build_source_candidate(source: SourceRecord, corpus: Corpus) -> SearchCandid
 
 
 def collect_unlimited_candidates(corpus: Corpus, request: QueryRequest) -> tuple[SearchCandidate, ...]:
-    corpus = _authoritative_corpus(corpus)
+    corpus = authoritative_search_corpus(corpus)
     request = _require_request(request)
     request = parse_query_request(request.text, request.filters, request.scope, request.limit)
     candidates: list[SearchCandidate] = []
@@ -541,8 +548,43 @@ def _score_candidate(candidate: SearchCandidate, corpus: Corpus, text: str) -> S
     )
 
 
+def score_search_candidate(
+    corpus: Corpus,
+    candidate: SearchCandidate,
+    request: QueryRequest,
+    *,
+    include_body: bool = True,
+    body_projection: str | None = None,
+) -> SearchHit | None:
+    """Score one canonical neutral candidate without applying request.limit."""
+    corpus = authoritative_search_corpus(corpus)
+    request = _require_request(request)
+    request = parse_query_request(request.text, request.filters, request.scope, request.limit)
+    if type(candidate) is not SearchCandidate:
+        raise KernelWikiError("search-candidate-invalid", "candidate must be a SearchCandidate")
+    if not isinstance(include_body, bool):
+        raise KernelWikiError("search-candidate-invalid", "include_body must be boolean")
+    if body_projection is not None and not isinstance(body_projection, str):
+        raise KernelWikiError("search-candidate-invalid", "body_projection must be null or a string")
+    if candidate.record_kind == "card" and isinstance(candidate.record, WikiCard):
+        records = _load_catalog_records(corpus)
+        record = _authoritative_card(candidate.record, corpus)
+        expected = build_card_candidate(record, records[record.card_id], corpus)
+    elif candidate.record_kind == "source" and isinstance(candidate.record, SourceRecord):
+        record = _authoritative_source(candidate.record, corpus)
+        expected = build_source_candidate(record, corpus)
+    else:
+        raise KernelWikiError("search-candidate-invalid", "candidate record kind/type is invalid")
+    if candidate != expected:
+        raise KernelWikiError("search-candidate-invalid", "candidate differs from neutral corpus authority")
+    if not _passes_filters(candidate, request.filters):
+        return None
+    scored = replace(candidate, body=body_projection) if body_projection is not None else candidate if include_body else replace(candidate, body="")
+    return _score_candidate(scored, corpus, request.text)
+
+
 def search_records(corpus: Corpus, request: QueryRequest) -> tuple[SearchHit, ...]:
-    corpus = _authoritative_corpus(corpus)
+    corpus = authoritative_search_corpus(corpus)
     request = _require_request(request)
     request = parse_query_request(request.text, request.filters, request.scope, request.limit)
     hits: list[SearchHit] = []

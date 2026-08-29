@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 import os
 import re
 import stat
@@ -14,6 +14,7 @@ from kernelwiki_common import (
     parse_huawei_cann_document_revision,
     require_within,
     sha256_file,
+    validate_root_relative_posix_path,
 )
 
 
@@ -241,13 +242,14 @@ def load_provenance(path: Path) -> ProvenanceBundle:
 
 
 def _validate_local_path(bundle_root: Path, local_path: str, manifest_path: Path) -> Path:
-    pure = PurePosixPath(local_path)
-    if pure.is_absolute() or not pure.parts or any(part in {"", ".", ".."} for part in pure.parts):
-        _fail("provenance-path-escape", f"invalid local_path {local_path!r}", manifest_path)
-    if "\\" in local_path or pure.as_posix() == "PROVENANCE.yaml":
+    try:
+        normalized = validate_root_relative_posix_path(local_path)
+    except ValueError as error:
+        raise KernelWikiError("provenance-path-escape", f"invalid local_path {local_path!r}", manifest_path) from error
+    if normalized == "PROVENANCE.yaml":
         _fail("provenance-path-escape", f"invalid local_path {local_path!r}", manifest_path)
     try:
-        return require_within(bundle_root, bundle_root / Path(*pure.parts))
+        return require_within(bundle_root, bundle_root.joinpath(*normalized.split("/")))
     except KernelWikiError as error:
         raise KernelWikiError("provenance-path-escape", error.message, manifest_path) from error
 

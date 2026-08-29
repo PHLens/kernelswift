@@ -2,12 +2,19 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import date
 import math
 from pathlib import Path
 import re
 from typing import Any
 
-from kernelwiki_common import KernelWikiError, load_yaml_document, parse_markdown, require_within
+from kernelwiki_common import (
+    KernelWikiError,
+    load_yaml_document,
+    parse_markdown,
+    require_within,
+    validate_root_relative_posix_path,
+)
 
 
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
@@ -20,7 +27,7 @@ SOURCE_REQUIRED = frozenset({
     "license_state",
 })
 SOURCE_OPTIONAL = frozenset({
-    "artifact_dir", "implementation_profile_ids", "runtime_fingerprints", "audiences",
+    "artifact_dir", "target_ids", "implementation_profile_ids", "runtime_fingerprints", "audiences",
     "profile_authority", "strict_vnext_validated", "missing_evidence",
 })
 CARD_REQUIRED = frozenset({
@@ -28,7 +35,7 @@ CARD_REQUIRED = frozenset({
     "target_match", "languages", "kernel_types", "techniques", "hardware_features", "tags", "symptoms",
     "sources", "related", "prerequisites", "version_sensitive", "observations", "examples",
 })
-CARD_OPTIONAL = frozenset({"candidate_techniques"})
+CARD_OPTIONAL = frozenset({"candidate_techniques", "coder_access"})
 OBSERVATION_FIELDS = frozenset({
     "id", "text", "source_id", "locator", "evidence_level", "reproduction", "targets", "target_match",
     "implementation_profile_id", "runtime_fingerprint", "versions", "transfer_boundaries",
@@ -42,8 +49,193 @@ EXAMPLE_BASE_FIELDS = frozenset({
 CAPABILITY_GAP_FIELDS = frozenset({"capability_id", "capability_status", "required_probe_or_authority"})
 MEASUREMENT_FIELDS = frozenset({"metric", "value", "statistic", "unit"})
 VERSION_CLAIM_FIELDS = frozenset({
-    "id", "card_ids", "status", "supported_versions", "last_verified_at", "source_ids",
+    "id", "card_ids", "subject", "status", "supported_versions", "last_verified_at", "source_ids",
+    "replacement_claim_id",
 })
+VERSION_CLAIM_PHASE_C_FIELDS = frozenset()
+CODER_ACCESS_FIELDS = frozenset({"page", "guidance"})
+GUIDANCE_FIELDS = frozenset({
+    "id", "implementation_profile_ids", "target_ids", "runtime_fingerprints", "languages", "dtypes",
+    "shape_constraints", "required_capabilities", "preserves", "implementation_delta", "eligible_example_ids",
+    "eligible_asset_ids", "version_claim_ids",
+})
+IMPLEMENTATION_DELTA_FIELDS = frozenset({
+    "statement_ids", "change_family", "protected_projection_sha256", "changed_protected_fields",
+})
+PROTECTED_FIELDS = ("algorithm", "dataflow", "precision", "effects", "aliases", "host-plan", "public-interface")
+ALLOWED_CHANGE_FAMILIES = frozenset({
+    "implementation-spelling", "loop-structure-preserving", "memory-access-spelling",
+})
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+class GuidanceSchemaError(ValueError):
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
+@dataclass(frozen=True)
+class ValidatedGuidanceSchema:
+    guidance_id: str
+    implementation_profile_ids: tuple[str, ...]
+    target_ids: tuple[str, ...]
+    runtime_fingerprints: tuple[str, ...]
+    languages: tuple[str, ...]
+    dtypes: tuple[str, ...]
+    required_capabilities: tuple[str, ...]
+    statement_ids: tuple[str, ...]
+    change_family: str
+    protected_projection_sha256: str
+    eligible_example_ids: tuple[str, ...]
+    eligible_asset_ids: tuple[str, ...]
+    version_claim_ids: tuple[str, ...]
+
+
+def _guidance_fail(code: str, message: str) -> None:
+    raise GuidanceSchemaError(code, message)
+
+
+def _guidance_string(value: Any, code: str, field: str, *, identifier: bool = False) -> str:
+    if not isinstance(value, str) or not value or value.strip() != value:
+        _guidance_fail(code, f"{field} must be a nonempty trimmed string")
+    if identifier and ID_RE.fullmatch(value) is None:
+        _guidance_fail(code, f"{field} must be a simple ID")
+    return value
+
+
+def _guidance_string_list(
+    value: Any,
+    code: str,
+    field: str,
+    *,
+    nonempty: bool = False,
+    identifiers: bool = False,
+    exact_order: tuple[str, ...] | None = None,
+    asset_paths: bool = False,
+) -> tuple[str, ...]:
+    if not isinstance(value, list):
+        _guidance_fail(code, f"{field} must be a list")
+    if nonempty and not value:
+        _guidance_fail(code, f"{field} must not be empty")
+    output: list[str] = []
+    for item in value:
+        if asset_paths:
+            try:
+                normalized = validate_root_relative_posix_path(item)
+            except ValueError as error:
+                raise GuidanceSchemaError(code, f"{field} contains an invalid provenance local path") from error
+            output.append(normalized)
+        else:
+            output.append(_guidance_string(item, code, field, identifier=identifiers))
+    result = tuple(output)
+    if exact_order is not None:
+        if result != exact_order:
+            _guidance_fail(code, f"{field} must use canonical order")
+    elif result != tuple(sorted(set(result))):
+        _guidance_fail(code, f"{field} must be sorted and unique")
+    return result
+
+
+def validate_guidance_schema(guidance: Any) -> ValidatedGuidanceSchema:
+    """Validate the neutral closed guidance contract used by corpus and admission."""
+    if not isinstance(guidance, Mapping) or set(guidance) != GUIDANCE_FIELDS:
+        _guidance_fail("coder-guidance-invalid", "guidance fields do not match the closed schema")
+    guidance_id = _guidance_string(guidance["id"], "coder-guidance-invalid", "id", identifier=True)
+    profiles = _guidance_string_list(
+        guidance["implementation_profile_ids"], "coder-profile-list-invalid", "implementation_profile_ids",
+        nonempty=True, identifiers=True,
+    )
+    targets = _guidance_string_list(
+        guidance["target_ids"], "coder-target-list-invalid", "target_ids", nonempty=True, identifiers=True,
+    )
+    runtimes = _guidance_string_list(
+        guidance["runtime_fingerprints"], "coder-runtime-list-invalid", "runtime_fingerprints", nonempty=True,
+    )
+    languages = _guidance_string_list(
+        guidance["languages"], "coder-language-list-invalid", "languages", nonempty=True, identifiers=True,
+    )
+    dtypes = _guidance_string_list(
+        guidance["dtypes"], "coder-dtype-list-invalid", "dtypes", nonempty=True, identifiers=True,
+    )
+    capabilities = _guidance_string_list(
+        guidance["required_capabilities"], "coder-capability-list-invalid", "required_capabilities", identifiers=True,
+    )
+    _guidance_string_list(
+        guidance["preserves"], "coder-preserves-invalid", "preserves", exact_order=PROTECTED_FIELDS,
+    )
+    examples = _guidance_string_list(
+        guidance["eligible_example_ids"], "coder-example-list-invalid", "eligible_example_ids", identifiers=True,
+    )
+    assets = _guidance_string_list(
+        guidance["eligible_asset_ids"], "coder-asset-list-invalid", "eligible_asset_ids", asset_paths=True,
+    )
+    claims = _guidance_string_list(
+        guidance["version_claim_ids"], "coder-version-list-invalid", "version_claim_ids", identifiers=True,
+    )
+
+    constraints = guidance["shape_constraints"]
+    if not isinstance(constraints, Mapping):
+        _guidance_fail("coder-shape-invalid", "shape_constraints must be a dimension-sorted mapping")
+    if any(not isinstance(key, str) or not key or key.strip() != key for key in constraints):
+        _guidance_fail("coder-shape-invalid", "shape constraint keys must be nonempty trimmed strings")
+    if tuple(constraints) != tuple(sorted(constraints)):
+        _guidance_fail("coder-shape-invalid", "shape_constraints must be a dimension-sorted mapping")
+    for dimension, raw_constraint in constraints.items():
+        _guidance_string(dimension, "coder-shape-invalid", "shape dimension")
+        if not isinstance(raw_constraint, Mapping):
+            _guidance_fail("coder-shape-invalid", "shape constraint must be a mapping")
+        fields = tuple(raw_constraint)
+        if fields == ("exact",):
+            values = (raw_constraint["exact"],)
+        elif fields == ("min", "max"):
+            values = (raw_constraint["min"], raw_constraint["max"])
+        else:
+            _guidance_fail("coder-shape-invalid", "shape constraint fields must be exact or min then max")
+        if any(type(item) is not int or item <= 0 for item in values):
+            _guidance_fail("coder-shape-invalid", "shape values must be positive integers")
+        if len(values) == 2 and values[0] > values[1]:
+            _guidance_fail("coder-shape-invalid", "shape range min must not exceed max")
+
+    delta = guidance["implementation_delta"]
+    if not isinstance(delta, Mapping) or set(delta) != IMPLEMENTATION_DELTA_FIELDS:
+        _guidance_fail("coder-delta-invalid", "implementation_delta fields do not match the closed schema")
+    statement_ids = _guidance_string_list(
+        delta["statement_ids"], "coder-statement-list-invalid", "statement_ids", nonempty=True, identifiers=True,
+    )
+    if any(not statement_id.startswith(("op.", "ctrl.", "guard.")) for statement_id in statement_ids):
+        _guidance_fail("coder-statement-list-invalid", "statement IDs must be op.*, ctrl.*, or guard.*")
+    change_family = _guidance_string(delta["change_family"], "coder-change-family-invalid", "change_family")
+    if change_family not in ALLOWED_CHANGE_FAMILIES:
+        _guidance_fail("coder-change-family-invalid", "invalid implementation-only change family")
+    projection_sha = _guidance_string(
+        delta["protected_projection_sha256"], "coder-projection-sha-invalid", "protected_projection_sha256",
+    )
+    if SHA256_RE.fullmatch(projection_sha) is None:
+        _guidance_fail("coder-projection-sha-invalid", "protected projection hash must be lowercase SHA-256")
+    changed_fields = _guidance_string_list(
+        delta["changed_protected_fields"], "coder-changed-fields-invalid", "changed_protected_fields", identifiers=True,
+    )
+    if not set(changed_fields) <= set(PROTECTED_FIELDS) or changed_fields:
+        _guidance_fail("coder-changed-fields-invalid", "Coder guidance may not change protected fields")
+
+    return ValidatedGuidanceSchema(
+        guidance_id=guidance_id,
+        implementation_profile_ids=profiles,
+        target_ids=targets,
+        runtime_fingerprints=runtimes,
+        languages=languages,
+        dtypes=dtypes,
+        required_capabilities=capabilities,
+        statement_ids=statement_ids,
+        change_family=change_family,
+        protected_projection_sha256=projection_sha,
+        eligible_example_ids=examples,
+        eligible_asset_ids=assets,
+        version_claim_ids=claims,
+    )
+
 
 BASE_CARD_HEADINGS = (
     "Summary", "Problem or symptom", "Mechanism", "Applicability", "Implementation approaches",
@@ -65,6 +257,18 @@ class SourceRecord:
     @property
     def source_id(self) -> str:
         return str(self.metadata["id"])
+
+    @property
+    def target_ids(self) -> tuple[str, ...]:
+        return tuple(self.metadata.get("target_ids", ()))
+
+    @property
+    def implementation_profile_ids(self) -> tuple[str, ...]:
+        return tuple(self.metadata.get("implementation_profile_ids", ()))
+
+    @property
+    def runtime_fingerprints(self) -> tuple[str, ...]:
+        return tuple(self.metadata.get("runtime_fingerprints", ()))
 
 
 @dataclass(frozen=True)
@@ -174,15 +378,28 @@ def _require_taxonomy_list(
 
 def _load_schema_versions(path: Path) -> None:
     document = _require_mapping(load_yaml_document(path), "schemas-invalid", path)
-    expected = {"source": 1, "card": 1, "catalog": 1, "query_result": 1}
-    if dict(document) != expected:
+    expected = {
+        "source": 1,
+        "card": 1,
+        "catalog": 1,
+        "query_result": 1,
+        "role_query_context": 1,
+        "role_query_result": 1,
+    }
+    invalid_versions = any(
+        type(document[key]) is not int or document[key] != value
+        for key, value in expected.items()
+        if key in document
+    )
+    if set(document) != set(expected) or invalid_versions:
         _fail("schemas-invalid", "schema version registry does not match v1", path)
 
 
 def _load_taxonomy(path: Path) -> dict[str, tuple[str, ...]]:
     document = _require_mapping(load_yaml_document(path), "taxonomy-invalid", path)
-    if document.get("schema_version") != 1:
-        _fail("taxonomy-schema-invalid", "taxonomy schema_version must be 1", path)
+    schema_version = document.get("schema_version")
+    if type(schema_version) is not int or schema_version != 1:
+        _fail("taxonomy-schema-invalid", "taxonomy schema_version must be integer 1", path)
     taxonomy: dict[str, tuple[str, ...]] = {}
     for key, value in document.items():
         if key == "schema_version":
@@ -205,10 +422,42 @@ def _load_aliases(path: Path, taxonomy: Mapping[str, tuple[str, ...]]) -> dict[s
     return aliases
 
 
-def _load_version_claims(path: Path) -> tuple[Mapping[str, Any], ...]:
+def _checked_version_claims_path(root: Path) -> Path:
+    relative = Path("data") / "version-claims.yaml"
+    current = root
+    for part in relative.parts:
+        current = current / part
+        try:
+            if current.is_symlink():
+                _fail("version-registry-invalid", "version registry path must not contain symlinks", current)
+        except (OSError, RuntimeError, ValueError) as error:
+            raise KernelWikiError(
+                "version-registry-invalid", "version registry authority path cannot be inspected", current
+            ) from error
+    try:
+        require_within(root, current)
+    except KernelWikiError as error:
+        raise KernelWikiError("version-registry-invalid", error.message, current) from error
+    if not current.is_file():
+        _fail("version-registry-invalid", "version registry authority file is missing", current)
+    return current
+
+
+def load_version_claim_registry(root: Path) -> tuple[Mapping[str, Any], ...]:
+    root = Path(root)
+    try:
+        if root.is_symlink():
+            _fail("version-registry-invalid", "KernelWiki root must not be a symlink", root)
+        resolved_root = root.resolve(strict=True)
+    except KernelWikiError:
+        raise
+    except (OSError, RuntimeError, ValueError) as error:
+        raise KernelWikiError("version-registry-invalid", "version registry root is invalid", root) from error
+    path = _checked_version_claims_path(resolved_root)
     document = _require_mapping(load_yaml_document(path), "version-registry-invalid", path)
-    if set(document) != {"schema_version", "claims"} or document.get("schema_version") != 1:
-        _fail("version-registry-invalid", "version registry must contain schema_version 1 and claims", path)
+    schema_version = document.get("schema_version")
+    if set(document) != {"schema_version", "claims"} or type(schema_version) is not int or schema_version != 1:
+        _fail("version-registry-invalid", "version registry must contain integer schema_version 1 and claims", path)
     claims = _require_list(document["claims"], "version-registry-invalid", path)
     return tuple(_require_mapping(item, "version-claim-invalid", path) for item in claims)
 
@@ -250,7 +499,15 @@ def _reject_cross_kind_duplicate_ids(
 
 
 def load_corpus(root: Path) -> Corpus:
-    root = Path(root).resolve()
+    raw_root = Path(root)
+    try:
+        if raw_root.is_symlink():
+            _fail("corpus-root-invalid", "KernelWiki corpus root must not be a symlink", raw_root)
+        root = raw_root.resolve(strict=True)
+    except KernelWikiError:
+        raise
+    except (OSError, RuntimeError, ValueError) as error:
+        raise KernelWikiError("corpus-root-invalid", "KernelWiki corpus root is invalid", raw_root) from error
     _load_schema_versions(root / "data" / "schemas.yaml")
     taxonomy = _load_taxonomy(root / "data" / "taxonomy.yaml")
     aliases = _load_aliases(root / "data" / "aliases.yaml", taxonomy)
@@ -263,14 +520,15 @@ def load_corpus(root: Path) -> Corpus:
         cards=cards,
         taxonomy=taxonomy,
         aliases=aliases,
-        version_claims=_load_version_claims(root / "data" / "version-claims.yaml"),
+        version_claims=load_version_claim_registry(root),
         repository_ids=_load_repository_ids(root),
     )
 
 
 def _validate_schema_version(metadata: Mapping[str, Any], kind: str, path: Path) -> None:
-    if metadata.get("schema_version") != 1:
-        _fail(f"{kind}-schema-invalid", "schema_version must be 1", path)
+    value = metadata.get("schema_version")
+    if type(value) is not int or value != 1:
+        _fail(f"{kind}-schema-invalid", "schema_version must be integer 1", path)
 
 
 def _validate_relative_path(value: Any, root: Path, code: str, path: Path) -> None:
@@ -304,10 +562,20 @@ def _validate_source(source: SourceRecord, corpus: Corpus) -> None:
         _fail("repository-id-missing", f"unknown repository_id {metadata['repository_id']}", path)
     if "artifact_dir" in metadata:
         _validate_relative_path(metadata["artifact_dir"], corpus.root, "source-artifact-dir-invalid", path)
+    if "target_ids" in metadata:
+        targets = _require_sorted_unique_strings(metadata["target_ids"], "source-target-list-invalid", path, identifiers=True)
+        if any(item.strip() != item for item in targets):
+            _fail("source-target-list-invalid", "target IDs must be trimmed", path)
     if "implementation_profile_ids" in metadata:
-        _require_sorted_unique_strings(metadata["implementation_profile_ids"], "source-profile-list-invalid", path)
+        profiles = _require_sorted_unique_strings(
+            metadata["implementation_profile_ids"], "source-profile-list-invalid", path, identifiers=True
+        )
+        if any(item.strip() != item for item in profiles):
+            _fail("source-profile-list-invalid", "profile IDs must be trimmed", path)
     if "runtime_fingerprints" in metadata:
-        _require_sorted_unique_strings(metadata["runtime_fingerprints"], "source-runtime-list-invalid", path)
+        runtimes = _require_sorted_unique_strings(metadata["runtime_fingerprints"], "source-runtime-list-invalid", path)
+        if any(item.strip() != item for item in runtimes):
+            _fail("source-runtime-list-invalid", "runtime fingerprints must be trimmed", path)
     if "audiences" in metadata:
         _require_taxonomy_list(metadata["audiences"], "audiences", corpus, path, nonempty=True)
     if not source.body.strip():
@@ -433,6 +701,43 @@ def _heading_names(body: str) -> frozenset[str]:
     return frozenset(line[3:].strip() for line in body.splitlines() if line.startswith("## "))
 
 
+def _validate_coder_access(card: WikiCard, corpus: Corpus, example_ids: Sequence[str]) -> None:
+    path = card.path
+    access = _require_mapping(card.metadata["coder_access"], "coder-access-invalid", path)
+    _require_exact_fields(access, CODER_ACCESS_FIELDS, frozenset(), "coder-access", path)
+    if access["page"] != "exact-profile":
+        _fail("coder-access-page-invalid", "coder_access.page must be exact-profile", path)
+    if "coder" not in card.metadata["audiences"]:
+        _fail("coder-access-audience-invalid", "coder_access requires the coder audience", path)
+    guidance_items = _require_list(access["guidance"], "coder-guidance-invalid", path)
+    if not guidance_items:
+        _fail("coder-guidance-invalid", "coder_access.guidance must not be empty", path)
+    guidance_ids: list[str] = []
+    known_claims = {str(item["id"]) for item in corpus.version_claims if isinstance(item, Mapping) and "id" in item}
+    for raw_guidance in guidance_items:
+        try:
+            validated = validate_guidance_schema(raw_guidance)
+        except GuidanceSchemaError as error:
+            _fail(error.code, error.message, path)
+        guidance_ids.append(validated.guidance_id)
+        unknown_languages = sorted(set(validated.languages) - set(_taxonomy_values(corpus, "languages")))
+        unknown_dtypes = sorted(set(validated.dtypes) - set(_taxonomy_values(corpus, "dtypes")))
+        if unknown_languages or unknown_dtypes:
+            unknown = unknown_languages + unknown_dtypes
+            _fail("taxonomy-unknown", f"unknown guidance taxonomy values: {', '.join(unknown)}", path)
+        unknown_examples = sorted(set(validated.eligible_example_ids) - set(example_ids))
+        if unknown_examples:
+            _fail("coder-example-missing", f"unknown eligible examples: {', '.join(unknown_examples)}", path)
+        unknown_claims = sorted(set(validated.version_claim_ids) - known_claims)
+        if unknown_claims:
+            _fail("coder-version-missing", f"unknown version claims: {', '.join(unknown_claims)}", path)
+        unscoped_claims = sorted(set(validated.version_claim_ids) - set(card.metadata["version_sensitive"]))
+        if unscoped_claims:
+            _fail("coder-version-scope", f"guidance version claims are outside Card scope: {', '.join(unscoped_claims)}", path)
+    if guidance_ids != sorted(set(guidance_ids)):
+        _fail("coder-guidance-order", "guidance IDs must be sorted and unique", path)
+
+
 def _validate_card(card: WikiCard, corpus: Corpus) -> None:
     metadata = card.metadata
     path = card.path
@@ -470,6 +775,8 @@ def _validate_card(card: WikiCard, corpus: Corpus) -> None:
     example_ids = [item.get("id") for item in examples if isinstance(item, Mapping)]
     if len(observation_ids) != len(set(observation_ids)) or len(example_ids) != len(set(example_ids)):
         _fail("id-duplicate", "duplicate observation or example ID", path)
+    if "coder_access" in metadata:
+        _validate_coder_access(card, corpus, tuple(str(item) for item in example_ids))
 
     if card_type == "pattern":
         if "candidate_techniques" not in metadata:
@@ -546,9 +853,10 @@ def _validate_links(corpus: Corpus) -> None:
 def _validate_version_registry(corpus: Corpus) -> None:
     path = corpus.root / "data" / "version-claims.yaml"
     claim_ids: set[str] = set()
+    claims_by_id: dict[str, Mapping[str, Any]] = {}
     previous_id = ""
     for claim in corpus.version_claims:
-        _require_exact_fields(claim, VERSION_CLAIM_FIELDS, frozenset(), "version-claim", path)
+        _require_exact_fields(claim, VERSION_CLAIM_FIELDS, VERSION_CLAIM_PHASE_C_FIELDS, "version-claim", path)
         claim_id = _require_id(claim["id"], path)
         if claim_id in claim_ids:
             _fail("id-duplicate", f"duplicate version claim {claim_id}", path)
@@ -556,25 +864,57 @@ def _validate_version_registry(corpus: Corpus) -> None:
             _fail("version-claim-order", "version claims must be sorted by id", path)
         previous_id = claim_id
         claim_ids.add(claim_id)
+        claims_by_id[claim_id] = claim
         card_ids = _require_sorted_unique_strings(claim["card_ids"], "version-card-ids-invalid", path, identifiers=True)
         source_ids = _require_sorted_unique_strings(claim["source_ids"], "version-source-ids-invalid", path, identifiers=True)
-        _require_sorted_unique_strings(claim["supported_versions"], "version-supported-invalid", path)
+        supported_versions = _require_sorted_unique_strings(
+            claim["supported_versions"], "version-supported-invalid", path
+        )
         if claim["status"] not in {"current", "stale", "unknown"}:
             _fail("version-status-invalid", "invalid version status", path)
         verified = claim["last_verified_at"]
-        if verified is not None and (not isinstance(verified, str) or not DATE_RE.fullmatch(verified)):
-            _fail("version-date-invalid", "last_verified_at must be YYYY-MM-DD or null", path)
+        if verified is not None:
+            if not isinstance(verified, str) or not DATE_RE.fullmatch(verified):
+                _fail("version-date-invalid", "last_verified_at must be YYYY-MM-DD or null", path)
+            try:
+                if date.fromisoformat(verified).isoformat() != verified:
+                    raise ValueError("non-canonical date")
+            except ValueError as error:
+                raise KernelWikiError("version-date-invalid", "last_verified_at must be a real YYYY-MM-DD date", path) from error
+        if claim["status"] == "current" and (not supported_versions or not source_ids or verified is None):
+            _fail(
+                "version-current-unbacked",
+                "current version claims require supported_versions, resolved source_ids, and last_verified_at",
+                path,
+            )
+        _require_id(claim["subject"], path)
+        replacement = claim["replacement_claim_id"]
+        if replacement is not None:
+            replacement = _require_id(replacement, path)
+            if replacement == claim_id:
+                _fail("version-replacement-invalid", "version claim cannot replace itself", path)
         for card_id in card_ids:
             if card_id not in corpus.cards:
                 _fail("version-card-missing", f"missing Card {card_id}", path)
         for source_id in source_ids:
             if source_id not in corpus.sources:
                 _fail("version-source-missing", f"missing Source {source_id}", path)
+    for claim_id, claim in claims_by_id.items():
+        replacement = claim["replacement_claim_id"]
+        if replacement is None:
+            continue
+        target = claims_by_id.get(str(replacement))
+        if target is None:
+            _fail("version-replacement-missing", f"missing replacement claim {replacement}", path)
+        if target["replacement_claim_id"] != claim_id:
+            _fail("version-replacement-backref-missing", f"replacement claim {replacement} must refer back to {claim_id}", path)
+        if target["subject"] != claim["subject"]:
+            _fail("version-replacement-subject-mismatch", "replacement claims must share one subject", path)
     for card in corpus.cards.values():
         for claim_id in card.metadata["version_sensitive"]:
             if claim_id not in claim_ids:
                 _fail("version-claim-missing", f"missing version claim {claim_id}", card.path)
-            claim = next(item for item in corpus.version_claims if item["id"] == claim_id)
+            claim = claims_by_id[claim_id]
             if card.card_id not in claim["card_ids"]:
                 _fail("version-card-backref-missing", f"version claim {claim_id} does not refer to Card", card.path)
 

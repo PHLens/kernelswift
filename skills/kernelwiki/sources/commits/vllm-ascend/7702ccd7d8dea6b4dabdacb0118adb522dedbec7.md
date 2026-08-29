@@ -7,6 +7,8 @@ url: https://github.com/vllm-project/vllm-ascend/commit/7702ccd7d8dea6b4dabdacb0
 repository_id: vllm-ascend
 captured_at: '2026-08-28T04:07:43Z'
 target_disposition: backend
+target_ids:
+- ascend
 languages:
 - ascendc
 - cpp

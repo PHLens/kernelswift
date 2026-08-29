@@ -17,7 +17,7 @@ symptoms: [capability-gap]
 sources: [source-triton-ascend-readme-865691e2]
 related: []
 prerequisites: []
-version_sensitive: []
+version_sensitive: [version-triton-ascend-readme-865691e2]
 observations:
   - id: observation-triton-ascend-backend-scope
     text: The captured README describes Triton-Ascend as a Triton compilation framework for running Triton code on Ascend and says API, dtype, memory-access, and compiler optimization completeness are still being improved.

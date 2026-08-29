@@ -36,6 +36,42 @@ def validate_artifact_bundles(corpus: Corpus) -> None:
     validate_size_budget(corpus.root)
 
 
+def validate_coder_access_assets(corpus: Corpus) -> None:
+    for card in corpus.cards.values():
+        access = card.metadata.get("coder_access")
+        if access is None:
+            continue
+        asset_owners: dict[str, str] = {}
+        for source_id in card.metadata["sources"]:
+            source = corpus.sources[source_id]
+            artifact_dir = source.metadata.get("artifact_dir")
+            if artifact_dir is None:
+                continue
+            bundle_dir = require_within(corpus.root, corpus.root / str(artifact_dir))
+            bundle = load_provenance(bundle_dir / "PROVENANCE.yaml")
+            validate_provenance(bundle, corpus.root)
+            for item in bundle.files:
+                previous = asset_owners.setdefault(item.local_path, source_id)
+                if previous != source_id:
+                    raise KernelWikiError(
+                        "coder-asset-id-duplicate",
+                        f"asset ID {item.local_path!r} is provided by multiple Card Sources",
+                        card.path,
+                    )
+        eligible_ids = {
+            asset_id
+            for guidance in access["guidance"]
+            for asset_id in guidance["eligible_asset_ids"]
+        }
+        missing = sorted(eligible_ids - asset_owners.keys())
+        if missing:
+            raise KernelWikiError(
+                "coder-asset-missing",
+                f"unknown eligible assets: {', '.join(missing)}",
+                card.path,
+            )
+
+
 def _validated_root_path(root: Path) -> Path:
     try:
         candidate = Path(root)
@@ -61,6 +97,7 @@ def validate_skill_root(root: Path, *, check_generated: bool = True) -> Corpus:
     corpus = load_corpus(root)
     validate_corpus(corpus)
     validate_artifact_bundles(corpus)
+    validate_coder_access_assets(corpus)
     if check_generated:
         assert_generated_outputs_current(corpus.root, build_generated_outputs(corpus))
     return corpus

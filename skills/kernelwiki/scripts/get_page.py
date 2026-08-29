@@ -5,6 +5,8 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from kernelwiki_common import KernelWikiError, canonical_json_bytes, run_cli
+from role_context import load_authority_snapshot, load_role_context
+from role_search import role_get_page
 from search import page_payload, retrieve_page
 from validate import validate_skill_root
 
@@ -32,24 +34,58 @@ def _parser() -> StableArgumentParser:
     parser.add_argument("--follow-sources", action="store_true")
     parser.add_argument("--source-excerpt-lines", type=_positive_int, default=40)
     parser.add_argument("--include-code", action="store_true")
+    parser.add_argument("--context", type=Path)
+    parser.add_argument("--example", action="append", default=[])
+    parser.add_argument("--guidance", action="append", default=[])
+    parser.add_argument("--asset", action="append", default=[])
     return parser
 
 
 def _main(argv: Sequence[str]) -> int:
     args = _parser().parse_args(list(argv))
     corpus = validate_skill_root(args.root)
-    page = retrieve_page(
-        corpus,
-        args.record,
-        follow_sources=args.follow_sources,
-        access="approved-assets" if args.include_code else "metadata",
-    )
-    if args.frontmatter:
-        payload = dict(page.metadata)
+    access = "approved-assets" if args.include_code else "metadata"
+    if args.context is None:
+        if args.example or args.guidance or args.asset:
+            raise KernelWikiError("cli-input-invalid", "--example/--guidance/--asset require --context")
+        page = retrieve_page(
+            corpus,
+            args.record,
+            follow_sources=args.follow_sources,
+            access=access,
+        )
+        if args.frontmatter:
+            payload = dict(page.metadata)
+        else:
+            payload = page_payload(page)
+            for source in payload["followed_sources"]:
+                source["body"] = "\n".join(source["body"].splitlines()[: args.source_excerpt_lines])
     else:
-        payload = page_payload(page)
-        for source in payload["followed_sources"]:
+        context = load_role_context(args.context)
+        authority = (
+            load_authority_snapshot(context)
+            if context.role == "coder" and context.implementation_profile_status != "missing"
+            else None
+        )
+        payload = dict(
+            role_get_page(
+                corpus,
+                args.record,
+                context,
+                authority,
+                follow_sources=args.follow_sources,
+                access=access,
+                example_ids=tuple(sorted(set(args.example))),
+                guidance_ids=tuple(sorted(set(args.guidance))),
+                asset_ids=tuple(sorted(set(args.asset))),
+            )
+        )
+        page_payload_value = payload["page"]
+        for source in page_payload_value["followed_sources"]:
             source["body"] = "\n".join(source["body"].splitlines()[: args.source_excerpt_lines])
+        if args.frontmatter:
+            page_payload_value["body"] = ""
+            page_payload_value["followed_sources"] = []
     print(canonical_json_bytes(payload).decode("utf-8"), end="")
     return 0
 
