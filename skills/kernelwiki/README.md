@@ -22,7 +22,7 @@ python3 skills/kernelwiki/scripts/get_page.py technique-kernel-fusion --follow-s
 python3 skills/kernelwiki/scripts/grep_wiki.py "device.*wall" --scope wiki
 ```
 
-The complete suite requires no accelerator, active campaign, network connection, or `kernel-opt-loop` mutation. Contract tests enforce generated-file freshness, provenance and size policies, deterministic offline output, sealed Track 2 boundaries, role-neutral import isolation, and a two-second median latency budget on the checked-in seed corpus.
+The complete suite requires no accelerator, active campaign, network connection, or `kernel-opt-loop` mutation. Contract tests cover generated-file freshness, provenance, deterministic offline output, sealed Track 2 boundaries, role-neutral import isolation, and the core Designer/Coder receipt contract.
 
 ## Standalone commands
 
@@ -38,11 +38,32 @@ python3 skills/kernelwiki/scripts/get_page.py sources/docs/source-valid-manual.m
 python3 skills/kernelwiki/scripts/grep_wiki.py "launch|materialization" --scope both
 ```
 
-Query, page retrieval, regex investigation, validation, and generation are strictly offline. Only explicit source discovery and capture maintenance may use the network. `query.py --profile-snapshot` fails with `error[phase-c-required]` until the Phase C exact-profile admission plan is installed.
+Query, page retrieval, regex investigation, validation, and generation are strictly offline. Only explicit source discovery and capture maintenance may use the network. `--profile-snapshot` is not a role context and fails with `error[phase-c-required]`; use the versioned `--context` interface below.
 
 Search filters are exact, OR within one filter and AND across filters: `--type`, `--tag`, `--repo`/`--repository`, `--language`, `--target`, `--target-match`, `--symptom`, `--kernel-type`, `--evidence-level`, `--reproduction`, `--audience`, and `--has-code true|false`. Default output is canonical JSON; `--format markdown` is a navigation view.
 
 `get_page.py --include-code` requests Designer/general-navigation access to approved local assets. It never supplies Phase C Coder admission. Metadata-only, unapproved, missing, or audience-denied assets remain hidden.
+
+## Role-aware queries
+
+Designer queries admit broad evidence and label its match class:
+
+```bash
+python3 skills/kernelwiki/scripts/query.py "ascend launch" \
+  --context skills/kernelwiki/tests/fixtures/role/designer-context.json \
+  --group-limit admitted=5
+```
+
+Coder queries require an exact implementation profile, runtime, authority hashes, and guidance-to-Sketch binding. The real missing AscendC context intentionally returns no guidance or code and does not fall back to Triton/CUDA:
+
+```bash
+python3 skills/kernelwiki/scripts/query.py "ascendc implementation" \
+  --context skills/kernelwiki/tests/fixtures/role/coder-missing-profile.json
+```
+
+Use `--limit` for the default group limit, `--group-limit NAME=N` for one group, and `--show-excluded` to inspect stable denial reasons. `--output /path/to/receipt.json` saves the same canonical JSON result outside active project state. Receipts are advisory: they are not Decisions, Coder results, required dossiers, KnowledgePackets, consultation records, campaign artifacts, or prompt mutations.
+
+Card admission and item admission are separate; readable metadata does not automatically expose examples, guidance, snippets, or full assets. See [`references/role-query-contract.md`](references/role-query-contract.md) for context fields, groups, reasons, no-fallback behavior, and the read-only loop bridge.
 
 ## Maintenance order
 
@@ -56,7 +77,7 @@ Capture never publishes a Card automatically. After authoring or editing a gener
 
 ## Deferred phases
 
-Phase C role-aware query admission and Phase D offline knowledge lift are implemented only by their separate approved plans. The standalone Core has no exact-profile Coder admission, no historical campaign lift, and no Phase E `kernel-opt-loop` adapter.
+Phase C role-aware query admission is implemented as a standalone read-only query path. Phase D historical/current campaign lift and the Phase E `kernel-opt-loop` adapter remain excluded.
 
 ## Boundaries
 

@@ -49,6 +49,14 @@ KernelWiki provides a reviewed, source-backed Ascend seed corpus for Designer ex
 
 PR 814 remains `defer` in the [reviewed candidate ledger](candidates/repos/vllm-ascend.yaml) because complete changed-file accounting and a publication license decision were not established for this task.
 
+## Role-aware query
+
+- [Role-query contract](references/role-query-contract.md)
+- Designer: broad classified evidence with admission before ranking.
+- Coder: exact profile/runtime/Sketch-bound guidance only; Card and asset admission remain separate.
+- Missing canonical AscendC authority is expected to return empty implementation guidance without fallback.
+- Saved receipts are advisory and do not mutate prompts, campaigns, project state, or `kernel-opt-loop`.
+
 ## Evaluation boundary
 
 - [Sealed holdout manifest](data/evaluation-holdouts.yaml)
@@ -64,4 +72,4 @@ Run the complete hardware-free contract suite and production smoke commands from
 
 ## Deferred plans
 
-Phase C role-aware query admission and Phase D offline knowledge lift remain separate plan implementations. This standalone index exposes neither those behaviors nor a Phase E `kernel-opt-loop` adapter.
+Phase C role-aware query admission is available through the documented standalone query context. Phase D offline knowledge lift and a Phase E `kernel-opt-loop` adapter remain excluded.

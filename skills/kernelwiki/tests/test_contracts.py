@@ -21,18 +21,27 @@ SKILL_ROOT = TESTS.parent
 SCRIPTS = SKILL_ROOT / "scripts"
 REPOSITORY_ROOT = SKILL_ROOT.parents[1]
 sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(0, str(TESTS))
 
 from catalog import (  # noqa: E402
     GENERATED_OUTPUT_PATHS,
     assert_generated_outputs_current,
     build_generated_outputs,
+    write_generated_outputs,
 )
 from corpus import load_corpus, validate_corpus  # noqa: E402
+from fixture_factory import make_valid_corpus, remove_tree  # noqa: E402
 from get_page import main as get_page_main  # noqa: E402
 from grep_wiki import main as grep_main  # noqa: E402
 from kernelwiki_common import load_yaml_document, sha256_file  # noqa: E402
 from provenance import load_provenance, validate_provenance, validate_size_budget  # noqa: E402
 from query import main as query_main  # noqa: E402
+from role_context import load_authority_snapshot, load_role_context  # noqa: E402
+from role_fixture_factory import (  # noqa: E402
+    materialize_exact_role_corpus,
+    materialize_vnext_project,
+    write_coder_context,
+)
 from validate import validate_artifact_bundles, validate_skill_root  # noqa: E402
 
 
@@ -195,6 +204,103 @@ class StandaloneContractTests(unittest.TestCase):
                     self.assertEqual("", stderr)
                     self.assertEqual(1, json.loads(stdout)["schema_version"])
 
+    def test_phase_c_creates_no_loop_or_campaign_integration(self):
+        loop_tree = subprocess.check_output(
+            ["git", "rev-parse", "HEAD:skills/kernel-opt-loop"],
+            cwd=REPOSITORY_ROOT,
+            text=True,
+        ).strip()
+        branch_base = subprocess.check_output(
+            ["git", "merge-base", "HEAD", "origin/dev"],
+            cwd=REPOSITORY_ROOT,
+            text=True,
+        ).strip()
+        base_loop_tree = subprocess.check_output(
+            ["git", "rev-parse", f"{branch_base}:skills/kernel-opt-loop"],
+            cwd=REPOSITORY_ROOT,
+            text=True,
+        ).strip()
+        relative_paths = tuple(
+            path.relative_to(SKILL_ROOT).as_posix().lower()
+            for path in SKILL_ROOT.rglob("*")
+        )
+        checks = (
+            ("consultation validator", not (SCRIPTS / "validate_consultation.py").exists()),
+            ("consultation artifact", not tuple(SKILL_ROOT.rglob("kernelwiki_consultation_*.json"))),
+            ("coder_result schema change", loop_tree == base_loop_tree),
+            ("Designer/Coder prompt edit", loop_tree == base_loop_tree),
+            ("kernel-opt-loop change", loop_tree == base_loop_tree),
+            ("KnowledgePacket path", all("knowledgepacket" not in path for path in relative_paths)),
+            ("required dossier path", all("dossier" not in path for path in relative_paths)),
+            (
+                "campaign/state write path",
+                all(not (SKILL_ROOT / name).exists() for name in ("campaigns", "rounds", "state")),
+            ),
+        )
+        for label, passed in checks:
+            with self.subTest(contract=label):
+                self.assertTrue(passed, label)
+
+    def test_role_query_receipts_bind_context_authority_and_guidance(self):
+        designer_context = TESTS / "fixtures" / "role" / "designer-context.json"
+        exit_code, stdout, stderr = run_main(
+            query_main,
+            ["ascend launch", "--root", str(SKILL_ROOT), "--context", str(designer_context), "--limit", "2"],
+        )
+        self.assertEqual(0, exit_code)
+        self.assertEqual("", stderr)
+        designer_receipt = json.loads(stdout)
+        self.assertEqual(1, designer_receipt["schema_version"])
+        self.assertRegex(designer_receipt["context_sha256"], r"^[0-9a-f]{64}$")
+        self.assertEqual({}, designer_receipt["authority_hashes"])
+        self.assertIsNone(designer_receipt["loop_contract_identity"])
+
+        root = make_valid_corpus()
+        try:
+            project = materialize_vnext_project(root / "role-project")
+            context_path = write_coder_context(project, root / "coder-context.json")
+            context = load_role_context(context_path)
+            authority = load_authority_snapshot(context)
+            materialize_exact_role_corpus(root, authority.sketch_result, authority.decision_result)
+            write_generated_outputs(root)
+            receipt_path = root / "exact-coder-receipt.json"
+            exit_code, stdout, stderr = run_main(
+                query_main,
+                [
+                    "exact profile mixed assets",
+                    "--root",
+                    str(root),
+                    "--context",
+                    str(context_path),
+                    "--scope",
+                    "cards",
+                    "--limit",
+                    "5",
+                    "--output",
+                    str(receipt_path),
+                ],
+            )
+            self.assertEqual(0, exit_code)
+            self.assertEqual("", stdout)
+            self.assertEqual("", stderr)
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            context_document = json.loads(context_path.read_text(encoding="utf-8"))
+            self.assertEqual(1, receipt["schema_version"])
+            self.assertRegex(receipt["context_sha256"], r"^[0-9a-f]{64}$")
+            self.assertEqual(
+                {name: reference["sha256"] for name, reference in context_document["artifacts"].items()},
+                receipt["authority_hashes"],
+            )
+            self.assertEqual(3, context_document["contract_version"])
+            self.assertEqual(
+                context_document["loop_contract_identity"]["skill_tree_sha"],
+                receipt["loop_contract_identity"]["skill_tree_sha"],
+            )
+            item = next(entry for entry in receipt["groups"]["admitted"] if entry["id"] == "language-mixed-asset")
+            self.assertIn("guidance-test-exact", item["admission"]["admitted_guidance_ids"])
+            self.assertEqual(["op.load.row"], context_document["guidance_bindings"]["guidance-test-exact"])
+        finally:
+            remove_tree(root)
 
 
 if __name__ == "__main__":
