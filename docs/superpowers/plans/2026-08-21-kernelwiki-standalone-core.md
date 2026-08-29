@@ -10,9 +10,16 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-17-kernelwiki-v1-design.md`
 
-## Execution Granularity
+## Lean Core Revision
 
-Each named test method below is one red/green micro-step: add only that test, run its exact test module, implement the smallest behavior that passes it, and rerun before adding the next method. Checkbox steps are review gates that group these 2–5 minute micro-steps; do not batch a prose list into one implementation jump.
+This revision supersedes the exhaustive named-test and failure-injection lists later in the original plan.
+
+- The completed standalone core is guarded by roughly **95 focused tests across Core and Phase C**, not one method per field, malformed type, race, symlink, or internal object.
+- Keep representative happy paths, one grouped fail-closed boundary per interface, deterministic output checks, offline/no-loop isolation, and production smokes.
+- Local Git-reviewed files are not treated as a hostile concurrent security boundary. Ordinary root confinement, hash verification, no-overwrite publication, and normal exception cleanup are sufficient for v1.
+- Capture staging is temporary and recoverable by cleanup; no persistent transaction journal or process-crash replay is required.
+- Generated catalog/views are reproducible derived files. Write through a temporary generation directory and `os.replace`; an interrupted partial refresh is repaired by rerunning generation rather than a rollback/trash protocol.
+- Additional fuzzing, TOCTOU analysis, forged internal object tests, recursive immutability, proxy/seal machinery, or one-test-per-validator-field belongs to optional follow-up work and must not be reintroduced without explicit user approval.
 
 ## Global Constraints
 
@@ -1008,7 +1015,7 @@ git commit -m "feat(kernelwiki): add Ascend source discovery ledgers"
 - Modify: `skills/kernelwiki/scripts/validate.py`
 
 **Interfaces:**
-- Produces: `GitHubPRCaptureRequest`, `GitHubCommitCaptureRequest`, `ManualCaptureManifest`, `ManualCaptureRequest`, `CaptureTransaction`, `CaptureRecovery`, `CaptureResult`, `capture_github_pr`, `capture_github_commit`, `capture_manual_source`, and `recover_capture_transactions`.
+- Produces: `GitHubPRCaptureRequest`, `GitHubCommitCaptureRequest`, `ManualCaptureManifest`, `ManualCaptureRequest`, `CaptureResult`, `capture_github_pr`, `capture_github_commit`, `capture_manual_source`, and lightweight stale-staging cleanup through `recover_capture_transactions`. `CaptureTransaction`/`CaptureRecovery` remain compatibility data types only; v1 does not run a persistent recovery journal.
 - Writes: one immutable Source Markdown and, when licensed/selected, one immutable artifact directory with `PROVENANCE.yaml`.
 
 ```python
@@ -1087,7 +1094,7 @@ self.assertTrue((result.artifact_dir / "PROVENANCE.yaml").exists())
 validate_provenance(load_provenance(result.artifact_dir / "PROVENANCE.yaml"), request.skill_root)
 ```
 
-Add separate methods `test_commit_capture_is_pinned`, `test_unknown_license_capture_is_metadata_only`, `test_manual_official_document_capture`, `test_incomplete_changed_file_accounting_fails`, `test_capture_destination_collision_fails`, `test_failure_after_artifact_rename_rolls_back`, and `test_stale_transaction_recovery`. Historical local-bundle capture belongs only to the Phase D plan.
+Keep the capture module to about twelve focused tests total: PR/commit/manual happy paths, pinned identity/hash/provenance, metadata-only license behavior, incomplete accounting, destination collision, one normal rollback case, generated-output freshness, stale staging cleanup, and one CLI smoke. Do not add crash-state, inode-swap, symlink-race, forged-dataclass, or transport-permutation matrices. Historical local-bundle capture belongs only to the Phase D plan.
 
 - [ ] **Step 2: Run the focused tests and verify failure**
 
@@ -1097,56 +1104,21 @@ python3 -m unittest skills/kernelwiki/tests/test_source_capture.py -v
 
 Expected: capture functions are missing.
 
-- [ ] **Step 3: Implement immutable capture functions**
+- [ ] **Step 3: Implement basic immutable capture functions**
 
-Define:
+Retain the public `CaptureResult` shape and compatibility transaction data types, but use a simple local publication flow:
 
-```python
-class CaptureState(str, Enum):
-    PREPARED = "prepared"
-    ARTIFACT_PUBLISHED = "artifact-published"
-    SOURCE_PUBLISHED = "source-published"
-    COMMITTED = "committed"
-    ROLLED_BACK = "rolled-back"
-
-@dataclass(frozen=True)
-class CaptureTransaction:
-    schema_version: int
-    transaction_id: str
-    source_id: str
-    state: CaptureState
-    staged_source: str
-    staged_artifact: str | None
-    final_source: str
-    final_artifact: str | None
-    owns_final_source: bool
-    owns_final_artifact: bool
-    source_sha256: str
-    provenance_sha256: str | None
-
-@dataclass(frozen=True)
-class CaptureRecovery:
-    transaction_id: str
-    previous_state: CaptureState
-    final_state: CaptureState
-    actions: tuple[str, ...]
-
-@dataclass(frozen=True)
-class CaptureResult:
-    source_id: str
-    source_path: Path
-    artifact_dir: Path | None
-    captured_files: tuple[Path, ...]
-
-
-def recover_capture_transactions(skill_root: Path) -> tuple[CaptureRecovery, ...]:
-    transactions = load_staging_transactions(skill_root)
-    return tuple(recover_one_transaction(skill_root, item) for item in transactions)
+```text
+preflight final paths absent
+-> build Source/artifact under a unique .capture-staging directory
+-> validate Source/provenance/corpus bytes
+-> publish artifact directory, then Source file, without overwriting
+-> regenerate generated outputs
+-> on a normal Exception, remove only paths created by this invocation
+-> remove staging directory
 ```
 
-`transaction.json` is canonical JSON for every `CaptureTransaction` field; all paths are skill-root-relative and root-confined. The only transitions are `prepared -> artifact-published -> source-published -> committed`, `prepared -> source-published -> committed` for metadata-only capture, and any noncommitted state to `rolled-back`. Before every rename, persist the next state atomically. Recovery rules are exact: `prepared` removes staging; `artifact-published` removes the owned final artifact then staging; `source-published` with both owned destinations/hash matches advances to `committed`, otherwise it removes only owned destinations; `committed` verifies hashes and removes stale staging; any destination that exists without the matching ownership/hash fails `capture-recovery-conflict`. Publication failure raises `KernelWikiError("capture-publish-failed", ...)`; existing immutable data is never touched.
-
-Every capture stages under `skill_root / ".capture-staging" / metadata.source_id` with `source.md`, optional `artifact/`, and `transaction.json`. Preflight requires both final destinations absent. Failure-injection tests cover each persisted state and assert exact recovery actions and no partial published state.
+`recover_capture_transactions(skill_root)` only removes stale private staging entries that have no published authority. It does not replay process-crash states or maintain `transaction.json`. Generated Sources and artifacts are Git-reviewed local files; protection against hostile concurrent inode swaps, process termination between syscalls, or forged internal transaction objects is outside v1.
 
 If the final Source path or artifact directory already exists, raise `capture-exists`; never offer `--force`. The first reviewed PR capture uses `PR-814.md`; a later upstream revision requires an explicit new Source ID and revision suffix such as `PR-814-r2.md` with its own artifact directory and hashes.
 
@@ -1232,7 +1204,7 @@ def test_catalog_is_card_only_and_sorted(self):
     self.assertNotIn("source_kind", records[0])
 ```
 
-Create nine literal files under `tests/fixtures/expected-queries/` and assert each rendered byte string equals its corresponding golden file. The fixture covers `candidate_techniques`, `hardware_features`, normalized `repository_id`, current/stale version claims, mixed evidence, and positive/counterexample/capability-gap counts. Add `test_check_mode_reports_generated_drift` and `test_atomic_generation_leaves_no_partial_file`.
+Use one table-driven golden-output test for the catalog plus nine views, one drift test, one stale-managed-file cleanup test, one production-output check, and a small number of catalog-record semantic tests. Keep the module to about eight tests; do not add per-view filesystems, rollback injection, or partial-replacement race matrices.
 
 - [ ] **Step 2: Run catalog tests and verify failure**
 
@@ -1374,9 +1346,9 @@ The first line of every view is:
 <!-- GENERATED by scripts/generate_indices.py; DO NOT EDIT. -->
 ```
 
-- [ ] **Step 5: Implement atomic generation and drift validation**
+- [ ] **Step 5: Implement simple reproducible generation and drift validation**
 
-`generate_indices.py --check` compares generated bytes with checked-in files and exits `2` with `error[generated-drift]` on the first path that differs. Without `--check`, write all outputs into a temporary directory and atomically replace the complete generated set only after every renderer succeeds.
+`generate_indices.py --check` compares generated bytes with checked-in files and exits `2` with `error[generated-drift]` on the first path that differs. Without `--check`, render all outputs into a temporary directory first, then replace each managed output with `os.replace` and remove stale managed files. The generated set is reproducible and repairable by rerunning; v1 does not maintain rollback, trash, descriptor-binding, or crash-recovery protocols for derived files.
 
 Wire `validate.py` to call `assert_generated_outputs_current` after corpus/provenance validation.
 

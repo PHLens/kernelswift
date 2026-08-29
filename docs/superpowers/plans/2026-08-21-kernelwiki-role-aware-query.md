@@ -12,9 +12,16 @@
 
 **Depends on:** Completed and green `docs/superpowers/plans/2026-08-21-kernelwiki-standalone-core.md`.
 
-## Execution Granularity
+## Remaining-Task Execution Policy — User Revision
 
-Each named test method below is one red/green micro-step: add only that test, run its exact test module, implement the smallest behavior that passes it, and rerun before adding the next method. Checkbox steps are review gates that group these 2–5 minute micro-steps; do not batch a prose list into one implementation jump.
+This revision applies to the still-unfinished Tasks 5–6 and supersedes exhaustive test/review wording later in those tasks.
+
+- Test only the core contract: one happy path, one fail-closed boundary, and one no-leak/no-write check per task. Use `subTest` tables inside those tests instead of creating one test method for every field, type, path, race, or malformed-object permutation.
+- New-test budget: at most **6 focused tests per task** unless the user explicitly approves more. Existing tests remain, but do not expand their matrices merely because an internal object can be forged or a hypothetical filesystem race can be constructed.
+- Run the focused module while implementing. Run the complete KernelWiki suite only once in Task 6 before final commit; do not rerun hundreds of tests after every small fix.
+- Use one implementation subagent and one plan-compliance review. Allow at most one bounded fix pass. Further optional hardening, defense-in-depth, fuzzing, TOCTOU analysis, or API-abuse findings are recorded as follow-up work and do not block the task when the approved core behavior passes.
+- Reviewers must report only violations of an explicit acceptance item in this plan. “Could be hardened further” is not a blocker.
+- Prefer the smallest implementation that satisfies the public CLI/library path used by KernelWiki. Do not grow new security frameworks, sealing systems, proxy layers, transaction machinery, or combinatorial schema validators unless an explicit remaining acceptance item requires them.
 
 ## Global Constraints
 
@@ -695,19 +702,15 @@ git commit -m "feat(kernelwiki): preserve version and capability gaps"
 
 `track2-development-queries.yaml` contains `sparse_attn` and `index_topk` structured contexts only. Each records target, language, kernel types, semantic features, dtypes, shape signature, and expected general knowledge categories. It contains no source code, recipe, or Card body.
 
-- [ ] **Step 2: Write failing adversarial tests**
+- [ ] **Step 2: Write the three core evaluator tests**
 
-Require:
+Keep Task 5 to at most three focused tests:
 
-```text
-generic tl.dot evidence does not satisfy dtype/shape-specific capability
-positive output reuse does not hide a conflicting counterexample
-device-time improvement does not imply wall-time improvement
-grouped-top-k evidence remains bounded when querying index-top-k
-raw torch profiler evidence does not become CANN device attribution
-```
+1. `test_five_adversarial_cases_preserve_safety` uses one `subTest` table for the five named contracts and asserts aggregate unsafe Coder admissions, Unknown promotions, and cross-target recipe leaks are all `0`.
+2. `test_sealed_hash_mismatch_exits_two` proves the checked-in manifest hash is enforced before evaluation.
+3. `test_report_is_deterministic_and_uses_gold_denominators` runs the evaluator twice and checks byte identity plus the three numerator/denominator calculations.
 
-For every case, assert unsafe Coder admissions `0`, Unknown promotions `0`, and cross-target recipe leaks `0`.
+Do not add separate tests for every JSON field, forged internal dataclass, alternate manifest location, symlink permutation, result-group corruption, or filesystem race. The evaluator consumes the checked-in manifest, fixtures, validated role-search result, and sealed gold through the documented CLI path.
 
 - [ ] **Step 3: Run adversarial tests and verify failure**
 
@@ -742,7 +745,7 @@ python3 skills/kernelwiki/scripts/evaluate_holdout.py \
   --gold skills/kernelwiki/tests/fixtures/holdout/track2-sinkhorn-gold.yaml
 ```
 
-It first verifies the sealed SHA-256 and exits `2` on mismatch.
+It verifies the checked-in manifest's sealed SHA-256 and exits `2` on mismatch. Keep this implementation narrow: parse the documented manifest/gold/case fields needed for these metrics, call the validated role-search pipeline, and emit canonical JSON. Do not add a second authority/sealing framework or adversarial validators for caller-constructed internal result objects.
 
 - [ ] **Step 5: Meet safety gates without tuning the holdout**
 
@@ -769,20 +772,12 @@ git commit -m "test(kernelwiki): gate role query isolation"
 **Interfaces:**
 - Finalizes role-query schema and documented CLI behavior.
 
-- [ ] **Step 1: Add contract tests for forbidden integration artifacts**
+- [ ] **Step 1: Add two final contract tests**
 
-Assert that Phase C creates none of:
+1. `test_phase_c_does_not_modify_loop_or_create_campaign_integration` checks the forbidden integration list in one table: no consultation validator/artifact, `coder_result` change, role-prompt edit, `kernel-opt-loop` change, KnowledgePacket, or required dossier path.
+2. `test_role_query_receipt_contains_versioned_context_and_explicit_binding` runs one Designer and one Coder fixture and checks context/artifact hashes plus explicit guidance/Sketch binding.
 
-```text
-validate_consultation.py
-rounds/kernelwiki_consultation_*.json
-coder_result schema changes
-Designer/Coder prompt edits
-kernel-opt-loop file changes
-KnowledgePacket or required dossier paths
-```
-
-Also assert role-query contexts/results are versioned, context/artifact hashes are present, and Coder result items include explicit guidance/Sketch bindings.
+Do not add one test per forbidden filename or recursively audit every Python object. These two tests plus the production smoke commands are the Phase C contract gate.
 
 - [ ] **Step 2: Run the full KernelWiki suite**
 
