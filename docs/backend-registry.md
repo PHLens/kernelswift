@@ -17,8 +17,8 @@
   「target profile」列为渲染式 Markdown 说明（`triton_mlu` / `triton_gcu` /
   `triton_cuda` / `triton_maca` / `triton_ascend`），机器可读的 canonical
   implementation profile 位于 `skills/kernel-opt-loop/profiles/` 下。
-- 当前只有 `triton_mlu` 拥有 vNext canonical implementation profile（`partial`
-  状态、可执行版本化 probe 套件与 reviewed evidence 目录）；`triton_gcu`、
+- 当前 `triton_mlu` 与 `triton_gcu` 拥有 vNext canonical implementation profile
+  （`partial` 状态、可执行版本化 probe 套件与 reviewed evidence 目录）；
   `triton_cuda`、`triton_maca`、`triton_ascend` 尚未各自获得 reviewed
   `profile.yaml`、可执行 probe 套件与 approved evidence，不能宣称完整。
 - `maca`/`bi150`/`ascend910b` 的 campaign 需要各自的完整 profile 才能按技能

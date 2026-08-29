@@ -41,8 +41,9 @@ skills/kernel-opt-loop/   # 优化循环技能（Designer/Coder/Verifier 契约 
 3. 后端首次出现时，确认 `skills/kernel-opt-loop/prompts/coder_targets/` 下存在匹配的
    target profile（`triton_mlu` / `triton_gcu` / `triton_cuda` / `triton_maca` /
    `triton_ascend`）。机器可读的 canonical implementation profile 位于
-   `skills/kernel-opt-loop/profiles/<implementation_profile_id>/`；当前只有
-   `triton_mlu` 完成 vNext 迁移，其余 Markdown 页面仍为渲染式说明，直到各自拥有
+   `skills/kernel-opt-loop/profiles/<implementation_profile_id>/`；当前 `triton_mlu`
+   和 `triton_gcu` 已完成 vNext 迁移（含 reviewed `profile.yaml`、可执行版本化 probe
+   套件与 approved evidence），其余 Markdown 页面仍为渲染式说明，直到各自拥有
    reviewed `profile.yaml`、可执行版本化 probe 套件与 approved evidence。
 
 ## 约定

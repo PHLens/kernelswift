@@ -1,0 +1,45 @@
+{
+  "capability_ids": [
+    "resource.num-warps"
+  ],
+  "family": "resource-num-warps",
+  "implementation_profile_id": "triton_gcu",
+  "input_artifacts": [
+    {
+      "path": "probes/num_warps.py",
+      "run_path": "num_warps.py",
+      "sha256": "a1d652f708e56129f0aa2d1f9be4c43246936efa13667f5704070c4c5a02962b"
+    }
+  ],
+  "probe_id": "triton-gcu-num-warps-001",
+  "purpose": "establish num_warps 1/2/4/8 legality on S60 GCU",
+  "required_runtime_fields": [
+    "interpreter",
+    "device",
+    "toolchain",
+    "device_arch",
+    "runner_adapter",
+    "bootstrap_modules",
+    "synchronize_api"
+  ],
+  "runner": {
+    "argv": [
+      "{interpreter}",
+      "{probe_inputs_root}/num_warps.py",
+      "--result-json",
+      "{result_payload_path}",
+      "--target-id",
+      "{target_id}",
+      "--runtime-snapshot",
+      "{runtime_snapshot_path}"
+    ],
+    "cwd": "{probe_run_dir}",
+    "kind": "command",
+    "timeout_seconds": 300
+  },
+  "schema_version": 1,
+  "scope_kind": "device-family",
+  "scope_template": {
+    "name": "num_warps"
+  }
+}

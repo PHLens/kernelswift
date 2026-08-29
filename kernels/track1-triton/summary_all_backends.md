@@ -38,30 +38,33 @@ MLU 是唯一「打赢厂商 attention 库」的后端（flexattention 7.08x）�
 |---|---|---|
 | `fused_moe` | **13.8x** | 逐-token 路由 + selection 融合，省 launch 与冗余计算 |
 | `mhc_head_compute_mix` | **6.8x** | Sinkhorn 20 轮迭代融合进单 kernel |
+| `centre_random_augmentation` | **1.90x**（e2r001） | launch-fusion 96→10：四元数→R + 旋转 + 平移 + mask 单 kernel（S60 首个打赢 base） |
 | `groupedtopk` | **1.68x** | 12→1 launch 融合 + 输出池复用 |
-| `mhc_head_compute_mix_backward` | **1.26x** | elementwise sigmoid-backward 融合 |
-| `centre_random_augmentation` | 0.95x | 四元数旋转（随机数 host 生成） |
-| `music_flamingo_rotary_embedding` | 0.9x | 纯 elementwise 融合，measurement-bound |
-| `mhc_post_layer_mix` | 0.56x | einsum 用 tl.sum 展开 |
-| `flexattention` | 0.42x | 手写 causal SDPA |
-| `mm_encoder_attention` | 0.27x | 手写 SDPA |
-| `sparse_pooler` | — | 库算子占优，正确性优先提交 |
+| `mhc_head_compute_mix_backward` | **1.23x** | elementwise sigmoid-backward 融合（2 小归约 host torch.sum，atomic 不可用） |
+| `music_flamingo_rotary_embedding` | **1.11x**（e2r001） | 部分融合：freqs 进 kernel，cos/sin 保留 vendor（避免 epoch-1 tl.cos/tl.sin -13%） |
+| `mm_encoder_attention` | **0.92x**（e2r002） | fp16 `tl.dot` 单 kernel MHA（epoch-1 0.27x → 3.4x） |
+| `flexattention` | 0.94x（e2r001） | causal fp16 `tl.dot` 单 kernel（epoch-1 0.42x → 2.2x） |
+| `sparse_pooler` | 0.79x | GEMM 61% 厂商库占优，epoch-2 确认 measurement-bound（手写 segment-max 慢 4x） |
+| `mhc_post_layer_mix` | 0.77x（e2r001） | BLOCK_H 1024 + bf16 registers（epoch-1 0.56x → +37%，memory-bound 小收缩 GEMM） |
 
-### 根因：`tl.dot` Unknown
+### 根因（epoch-2 已修正）：`tl.dot` 可用但受 2 的幂约束 + launch-bound 与 device-bound 二分
 
-GCU 的 `triton_gcu` 未实现 `tl.dot`，任何 GEMM 退化成 `tl.sum(a*b)` 标量 FMA，无法利用 Matrix Core。手写 SDPA 三处致命退化：
+epoch-1 误判「`tl.dot` Unknown」导致手写 SDPA 用 `tl.sum(a*b)` 标量 FMA（0.27x）。epoch-2 通过 probe 证伪：**`tl.dot` 在 S60 上可用**（`triton_gcu` profile 已更新为 `constrained`），但 M/N/K 必须为 **2 的幂**（`48/80/96/112` 全 FAIL，`16/32/64/128` 通过）；`tl.arange` 同约束；`num_warps 1/2/4/8` 均可用。
 
-1. QK^T 与 PV 用标量乘加（未用张量核心）
-2. `num_warps=1` 且每 query 一个 program，K/V 无跨 program 复用
-3. fp16 输入全程转 fp32，失去 fp16 张量核心吞吐
+**epoch-2 的完整结论——S60 算子分两类**：
 
-而 base 的 SDPA/einsum 都 dispatch 到 CNNL（汇编级张量核心 + fp16 优化），**Triton 标量 FMA vs CNNL 张量核心，天然差一个数量级**。
+1. **launch-bound（融合能赢 base）**：base 是海量小 launch（fused_moe 147、centre_random_augmentation 96、groupedtopk 12），手写单 kernel 融合省 launch 的收益远超 device 惩罚。epoch-2 新增：`centre_random_augmentation`（96→10 launch，**1.90x**，四元数→R+旋转+平移+mask 单 kernel）与 `music_flamingo_rotary_embedding`（13→3 launch，**1.11x**，freqs 进 kernel 但 cos/sin 保留 vendor 三角库——全融合用 tl.cos/tl.sin 反而 -13%）。
 
-### 可优化方向
+2. **device-bound（厂商库 GEMM/attention，手写输给库）**：base 落到 GCU 厂商库（TOPS runtime 张量核心），手写即便用上 `tl.dot` 也受 2 的幂约束（T=83→pad 128，58% FLOP 浪费）+ launcher 税仅 17.4us（图回放无收益），device floor 打不赢。epoch-2 交付：`mm_encoder_attention`（fp16 dot，0.27x→0.92x）、`flexattention`（causal fp16 dot，0.42x→0.94x）、`mhc_post_layer_mix`（BLOCK_H+bf16，0.56x→0.77x）；`sparse_pooler` 确认 measurement-bound（GEMM 61% + 手写 segment-max 慢 4x）。
 
-1. 提高 `num_warps` 与 tile 并行度（预计 0.27x→0.5x，但无法追平张量核心）
-2. 实测 `tl.dot` 可用性（哪怕降级实现也比纯 `tl.sum` 好）
-3. 混合方案：核心 GEMM 用 `torch.mm`（CNNL），Triton 只做 softmax/mask 融合
+**交付标准：比 epoch-1 强即交付**（不必打赢厂商库）。详见 [docs/s60-gcu-triton-lessons.md](../../docs/s60-gcu-triton-lessons.md)。
+
+### 可优化方向（epoch-2 已基本收敛）
+
+1. ~~提高 `num_warps` 与 tile 并行度~~（已探明：fp16 dot 下 `num_warps=1` 最优）
+2. ✅ 实测 `tl.dot` 可用性（2 的幂约束）
+3. ✅ launch-bound 算子全融合（centre_random_augmentation 1.90x、music_flamingo 1.11x 已兑现）
+4. ✅ 部分融合（保留 vendor 库算子，只融合 elementwise）——music_flamingo 的 cos/sin 保留是关键教训
 
 ---
 
@@ -242,5 +245,5 @@ mm_encoder 只有 1 次发射只挣 +5%，flexattention 无货可装则持平。
 | `num_warps>1` | ⚠️ `2` 已失败，当前 `1` 最稳 | ❌ 未建立 | ❌ 未建立 | ⚠️ Unknown | ✅ `1/2/4` 已 probe |
 | 快速 launch 机制 | ✅ `fast_libentry` | — | — | ⚠️ direct launch + `torch.compile(reduce-overhead)`，无已证明 fast launcher | ✅ 成熟 launch |
 | 设备侧 profiler 证据 | ✅ 相对成熟 | ❌ launch-only | ✅ 有 kernel events | ⚠️ campaign 有 summary，profile 仍待补齐 | ✅ 经 CANN/msprof 可得 |
-| 厂商库压制力 | 中（attention 可被超） | 强（CNNL） | 强（mcblas） | 强（Ixmma/TCU） | 强（原生 FA） |
+| 厂商库压制力 | 中（attention 可被超） | 强（GCU 厂商库） | 强（mcblas） | 强（Ixmma/TCU） | 强（原生 FA） |
 | 覆盖完整度 | 4/10 | 10/10 | 5/10 | **10/10** | 10/10 |
