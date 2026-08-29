@@ -7,12 +7,12 @@
 
 ## kernel-fusion
 
-- [pattern-launch-bound-materialization](../wiki/patterns/launch-bound-materialization.md) — Diagnose generated launch and intermediate-materialization boundaries before proposing changes. — target `backend:ascend` — evidence `source-reported` — reproduction `runnable` — sources `1`
+- [pattern-launch-bound-materialization](../wiki/patterns/launch-bound-materialization.md) — Diagnose generated launch and intermediate-materialization boundaries before proposing changes. — target `backend:ascend` — evidence `source-reported` — reproduction `runnable` — sources `2`
 - [technique-kernel-fusion](../wiki/techniques/kernel-fusion.md) — Evaluate fusion without promoting the seed corpus into an implementation recipe. — target `backend:ascend` — evidence `inferred, source-reported` — reproduction `concept, runnable` — sources `3`
 
 ## launch-collapse
 
-- [pattern-launch-bound-materialization](../wiki/patterns/launch-bound-materialization.md) — Diagnose generated launch and intermediate-materialization boundaries before proposing changes. — target `backend:ascend` — evidence `source-reported` — reproduction `runnable` — sources `1`
+- [pattern-launch-bound-materialization](../wiki/patterns/launch-bound-materialization.md) — Diagnose generated launch and intermediate-materialization boundaries before proposing changes. — target `backend:ascend` — evidence `source-reported` — reproduction `runnable` — sources `2`
 
 ## layout-transformation
 

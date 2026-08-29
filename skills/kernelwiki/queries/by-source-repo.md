@@ -28,10 +28,12 @@
 
 - [source-local-ascend-flexattention-round-003](../sources/local/ascend/source-local-ascend-flexattention-round-003.md) — Reviewed historical local campaign evidence: kernels/track1-triton/flexattention/ascend#round-003 — captured `2026-08-18T23:18:02Z` — license `unknown` — target `exact`
 - [source-local-ascend-groupedtopk-round-001](../sources/local/ascend/source-local-ascend-groupedtopk-round-001.md) — Reviewed historical local campaign evidence: kernels/track1-triton/groupedtopk/ascend#round-001 — captured `2026-08-18T23:18:02Z` — license `unknown` — target `exact`
+- [source-local-s60-centre-random-augmentation-round-001](../sources/local/s60/source-local-s60-centre-random-augmentation-round-001.md) — Reviewed historical local campaign evidence: kernels/track1-triton/centre_random_augmentation/s60/epoch2#round-001 — captured `2026-08-29T16:00:00Z` — license `unknown` — target `exact`
 
 ### Cards
 
 - [pattern-device-win-wall-loss](../wiki/patterns/device-win-wall-loss.md) — Preserve the distinction between a kernel-time result and end-to-end wall behavior. — target `unknown:ascend` — evidence `inferred, source-reported` — reproduction `concept, runnable` — sources `2`
+- [pattern-launch-bound-materialization](../wiki/patterns/launch-bound-materialization.md) — Diagnose generated launch and intermediate-materialization boundaries before proposing changes. — target `backend:ascend` — evidence `source-reported` — reproduction `runnable` — sources `2`
 - [technique-kernel-fusion](../wiki/techniques/kernel-fusion.md) — Evaluate fusion without promoting the seed corpus into an implementation recipe. — target `backend:ascend` — evidence `inferred, source-reported` — reproduction `concept, runnable` — sources `3`
 
 ## mskl
@@ -46,7 +48,7 @@
 - [language-mskl-kernel-authoring](../wiki/languages/mskl-kernel-authoring.md) — Navigate the reviewed MSKL invocation, generation, compilation, and tuning workflow. — target `backend:ascend` — evidence `source-reported` — reproduction `runnable` — sources `1`
 - [measurement-cann-device-attribution](../wiki/measurement/cann-device-attribution.md) — Separate source-reported kernel timing from broader runtime and wall-time conclusions. — target `backend:ascend` — evidence `source-reported` — reproduction `concept, runnable` — sources `2`
 - [pattern-device-win-wall-loss](../wiki/patterns/device-win-wall-loss.md) — Preserve the distinction between a kernel-time result and end-to-end wall behavior. — target `unknown:ascend` — evidence `inferred, source-reported` — reproduction `concept, runnable` — sources `2`
-- [pattern-launch-bound-materialization](../wiki/patterns/launch-bound-materialization.md) — Diagnose generated launch and intermediate-materialization boundaries before proposing changes. — target `backend:ascend` — evidence `source-reported` — reproduction `runnable` — sources `1`
+- [pattern-launch-bound-materialization](../wiki/patterns/launch-bound-materialization.md) — Diagnose generated launch and intermediate-materialization boundaries before proposing changes. — target `backend:ascend` — evidence `source-reported` — reproduction `runnable` — sources `2`
 - [runtime-ascend-kernel-integration](../wiki/runtimes/ascend-kernel-integration.md) — Navigate source-backed plugin and direct-kernel integration boundaries on Ascend. — target `backend:ascend` — evidence `source-reported` — reproduction `concept, runnable` — sources `2`
 - [technique-kernel-fusion](../wiki/techniques/kernel-fusion.md) — Evaluate fusion without promoting the seed corpus into an implementation recipe. — target `backend:ascend` — evidence `inferred, source-reported` — reproduction `concept, runnable` — sources `3`
 - [technique-tiling-and-work-partitioning](../wiki/techniques/tiling-and-work-partitioning.md) — Navigate source-backed tile parameters and work-partitioning checks on Ascend. — target `backend:ascend` — evidence `source-reported` — reproduction `concept, runnable` — sources `2`

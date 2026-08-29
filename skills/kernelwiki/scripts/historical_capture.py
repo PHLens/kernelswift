@@ -459,10 +459,11 @@ def materialize_reviewed_historical_source(
     source_id = scope["source_id"]
     if not isinstance(source_id, str) or _ID.fullmatch(source_id) is None:
         raise KernelWikiError("reviewed-historical-source-id", "proposal source_id is invalid", proposal.path)
-    if not str(scope["target_id"]).startswith("ascend"):
-        raise KernelWikiError("reviewed-historical-target", "Task 7 materializes Ascend evidence only", proposal.path)
+    target_id = str(scope["target_id"])
+    if _ID.fullmatch(target_id) is None:
+        raise KernelWikiError("reviewed-historical-target", "proposal target_id is not a valid identifier", proposal.path)
 
-    destination = root / "sources" / "local" / "ascend" / f"{source_id}.md"
+    destination = root / "sources" / "local" / target_id / f"{source_id}.md"
     data = _historical_source_bytes(document, review)
     destination.parent.mkdir(parents=True, exist_ok=True)
     created = False

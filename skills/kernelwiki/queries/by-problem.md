@@ -26,7 +26,7 @@
 
 ### Patterns
 
-- [pattern-launch-bound-materialization](../wiki/patterns/launch-bound-materialization.md) — Diagnose generated launch and intermediate-materialization boundaries before proposing changes. — target `backend:ascend` — evidence `source-reported` — reproduction `runnable` — sources `1`
+- [pattern-launch-bound-materialization](../wiki/patterns/launch-bound-materialization.md) — Diagnose generated launch and intermediate-materialization boundaries before proposing changes. — target `backend:ascend` — evidence `source-reported` — reproduction `runnable` — sources `2`
 
 ### Candidate techniques
 
@@ -36,7 +36,7 @@
 
 ### Patterns
 
-- [pattern-launch-bound-materialization](../wiki/patterns/launch-bound-materialization.md) — Diagnose generated launch and intermediate-materialization boundaries before proposing changes. — target `backend:ascend` — evidence `source-reported` — reproduction `runnable` — sources `1`
+- [pattern-launch-bound-materialization](../wiki/patterns/launch-bound-materialization.md) — Diagnose generated launch and intermediate-materialization boundaries before proposing changes. — target `backend:ascend` — evidence `source-reported` — reproduction `runnable` — sources `2`
 
 ### Candidate techniques
 
