@@ -1,0 +1,19 @@
+schema_version: 1
+origin_url: https://github.com/Ascend/triton-ascend/commit/865691e2e9b656bc58008170207b4108d92e8dd1
+upstream_repo: Ascend/triton-ascend
+upstream_sha: 865691e2e9b656bc58008170207b4108d92e8dd1
+license_state: approved
+retrieved_at: '2026-08-21T00:00:00Z'
+asset_mode: verbatim
+allowed_audiences:
+- designer
+coder_access: denied
+source_ids:
+- source-triton-ascend-readme-865691e2
+files:
+- local_path: files/README.md
+  upstream_path: README.md
+  heading_path: null
+  role: upstream-file
+  mode: verbatim
+  sha256: 3925237b0d3a5aa3479bbf82af4fcc5337ed70cf1e16d82fd8033be4a952ef4c

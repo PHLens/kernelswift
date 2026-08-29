@@ -12,9 +12,29 @@
 
 **Depends on:** Completed and green `docs/superpowers/plans/2026-08-21-kernelwiki-standalone-core.md`. This plan does not depend on the role-aware query plan.
 
-## Execution Granularity
+## Lean Execution and Review Policy — User Revision
 
-Each named test method below is one red/green micro-step: add only that test, run its exact test module, implement the smallest behavior that passes it, and rerun before adding the next method. Checkbox steps are review gates that group these 2–5 minute micro-steps; do not batch a prose list into one implementation jump.
+This section supersedes exhaustive test lists and repeated review expectations later in the plan.
+
+- Tests cover only the core vertical path and the highest-value fail-closed boundary. Each task gets one happy-path test, one grouped invalid-input test using `subTest`, and one scope/no-write test where applicable.
+- New-test budget: at most **5 focused tests per task**. Do not create separate methods for every artifact, enum, matrix row, malformed type, symlink shape, race window, or directly constructed internal dataclass.
+- Run only the task's focused module during Tasks 1–6. Run the complete KernelWiki suite once in Task 7 final acceptance.
+- Use one implementation subagent followed by one plan-compliance review. Allow one bounded fix pass. Any additional defense-in-depth, fuzzing, API-misuse, TOCTOU, sealing, or hypothetical forged-object finding becomes a nonblocking follow-up unless it breaks an explicit acceptance item below.
+- Do not repeatedly redesign a completed interface in response to reviewer suggestions. The approved stable interfaces in this plan are the boundary; implement the smallest code that satisfies them.
+- Prefer normal root confinement, immutable committed-byte validation, stable errors, and read-only behavior. Do not introduce a second generalized security/transaction framework for proposal files.
+- A task is complete when its focused tests pass, its documented CLI smoke works, protected paths are unchanged, and the single review finds no explicit plan violation.
+
+### Per-Task Test Budgets
+
+| Task | Maximum new focused tests | Required coverage |
+|---|---:|---|
+| 1 | 4 | sealed holdout bytes; valid schema round-trip; grouped invalid schema cases; forbidden instruction/review hash |
+| 2 | 4 | valid committed bundle; worktree divergence diagnostic; grouped missing/hash failures; root/path escape |
+| 3 | 5 | valid full chain; validator-stage failures in one table; terminal-state mismatch; contract identity/version; Coder-result matrix in one table |
+| 4 | 5 | mapping table in one test; deterministic proposal ID; forbidden next-step keys; proposal-only no-write; CLI smoke |
+| 5 | 4 | valid historical proposal; Designer-only/noncanonical boundary; artifact hash/missing evidence; strict validator not called |
+| 6 | 4 | include/defer/exclude table; stale hash/invalid target table; experience-tree duplicate/missing review; no automatic publication |
+| 7 | 5 | reviewed Source round-trip; include/defer behavior; contradiction visibility; two holdout smokes; final nonintegration contract |
 
 ## Global Constraints
 
@@ -203,20 +223,16 @@ rules:
 
 Commit this file before implementing Tasks 2–5. Later changes to the holdout require a separate design review, not a metric-tuning commit.
 
-- [ ] **Step 2: Write failing schema/contract tests**
+- [ ] **Step 2: Write the four core schema/contract tests**
 
-Test that schemas require the exact stable fields and reject:
+Use the Task 1 budget from the table above:
 
-```text
-unsupported contract version
-non-40-hex terminal commit
-absolute or escaping artifact path
-non-64-hex artifact hash
-measurement_exclusive=true
-missing required artifact
-proposal containing next_candidate, recommended_next_change, or implementation_instruction
-review without reviewer/rationale/proposal hash
-```
+1. sealed holdout bytes and membership are exact;
+2. one valid terminal-bundle/proposal/review schema round-trip;
+3. one `subTest` table covering unsupported contract, bad commit/hash/path, measurement-exclusive, and missing required artifact;
+4. one `subTest` table covering forbidden next-candidate keys and incomplete review identity/hash.
+
+Do not split these invalid rows into separate test methods.
 
 - [ ] **Step 3: Run tests and verify failure**
 
@@ -281,7 +297,7 @@ class CampaignImportTests(unittest.TestCase):
         self.assertEqual(bundle.artifacts["candidate"].sha256, sha256_bytes(load_committed_artifact(bundle, "candidate")))
 ```
 
-Add methods `test_terminal_commit_absent_fails`, `test_required_artifact_absent_from_commit_fails`, `test_committed_hash_mismatch_fails`, `test_bundle_path_escape_fails`, `test_bundle_symlink_escape_fails`, `test_malformed_canonical_pointer_fails`, and `test_measurement_exclusive_must_be_boolean`. Task 3 cross-checks their meaning against validated control-plane artifacts.
+Keep only two additional methods: `test_committed_bundle_failures` uses subtests for absent commit/artifact, hash mismatch, and malformed canonical pointer; `test_bundle_root_confinement` covers one escaping path and one symlink case. Task 3 cross-checks semantic terminal-state meaning.
 
 - [ ] **Step 2: Run tests and verify failure**
 
@@ -393,9 +409,17 @@ integration/campaign/verdict_001.json
 
 Use the same marker-replacement strategy as current loop tests to update profile, claim, Sketch, candidate, binding, fact-pack, Decision, and verdict hashes. Write `state/runtime-snapshot.json` as `{"target_id":"mlu590","implementation_profile_id":"triton_mlu","triton_version":"3.6.0","device_arch":"mlu-arch"}`. Add a minimal `coder_result_001.md`, `team-state.md`, `project.md`, immutable base, and harness. Commit the complete tree before generating the strict bundle manifest.
 
-- [ ] **Step 2: Write failing full-chain tests**
+- [ ] **Step 2: Write the five focused full-chain tests**
 
-Require successful normalization plus separate failures for invalid profile, claim, Sketch, Decision, binding, fact pack, verdict, invalid terminal-state matrix, canonical pointer mismatch, terminal round/result mismatch, and `measurement_exclusive: true`. Add exact tests for nonallowlisted validator denial, rejection of a caller-supplied loop root, validator/schema hash mismatch, and LoopContractIdentity round-trip into the proposal. Assert unsupported `contract_version: 4` fails with `contract-unsupported` rather than using v3 logic.
+Use exactly the Task 3 budget:
+
+1. valid full-chain normalization;
+2. one `subTest` table that corrupts each validator stage (profile, claim, Sketch, Decision, binding, fact pack, verdict) and checks only that the chain fails closed at that stage;
+3. one terminal-state test covering round/result/canonical-pointer/measurement mismatch rows;
+4. one contract-authority test covering nonallowlisted module, caller root, identity hash mismatch, round-trip, and unsupported v4;
+5. one Coder-result requirement matrix test.
+
+Do not add separate tests for every artifact field, hash relationship, import state, or validator-internal malformed type.
 
 - [ ] **Step 3: Run tests and verify failure**
 
@@ -451,7 +475,7 @@ Implement `parse_terminal_state(team_state_bytes) -> TerminalStateEvidence` from
 
 Require candidate hashes to agree across manifest, fact pack, binding, and committed bytes. Require round/profile/target identities to agree across bundle, profile, claim, Sketch, Decision, report, verdict, and terminal state. Record optional unavailable facts as `missing_evidence`; never synthesize them.
 
-For contract v3, `coder_result_required` returns true when `route == "proceed"` and `terminal_result` is `accepted`, `no-improvement`, or `screened-out`; it returns false for `route == "abort"` or terminal `environment-blocked`. Any other combination is `contract-unsupported`. When required, validate the Coder result's round, candidate hash, profile, and status; when optional and absent, record `coder-result-not-produced` rather than inventing content. Add one test per matrix row.
+For contract v3, `coder_result_required` returns true when `route == "proceed"` and `terminal_result` is `accepted`, `no-improvement`, or `screened-out`; it returns false for `route == "abort"` or terminal `environment-blocked`. Any other combination is `contract-unsupported`. When required, validate the Coder result's round, candidate hash, profile, and status; when optional and absent, record `coder-result-not-produced` rather than inventing content. Cover the full matrix as subtests inside one method; do not create one method per row.
 
 - [ ] **Step 6: Run tests and commit**
 
@@ -474,21 +498,15 @@ git commit -m "feat(kernelwiki): validate vNext evidence chains"
 - Produces: `build_experience_proposal(validated) -> ExperienceProposal`, `write_proposal(proposal, output_path)`.
 - Writes no Source/Card/catalog/query files.
 
-- [ ] **Step 1: Write failing outcome-mapping tests**
+- [ ] **Step 1: Write the five focused proposal tests**
 
-Use validated synthetic campaigns for:
+1. One table-driven mapping test covers accepted, no-improvement/device-wall, screened-out, design/capability gap, Unknown, implementation pitfall, and environment/incomplete outcomes.
+2. One deterministic proposal-ID/scope/hash test.
+3. One recursive forbidden-next-instruction test.
+4. One proposal-only tree-immutability test covering success and one representative failure.
+5. One CLI smoke/no-overwrite test.
 
-```text
-accepted improvement -> positive example proposal
-no-improvement wall/device mismatch -> counterexample proposal
-screened-out slower result -> slower-result proposal without causal invention
-design/capability gap -> design-pitfall or capability-gap proposal only when verdict supports it
-lowering/capability Unknown -> Unknown/probe proposal
-stable exact-profile repeated code pitfall -> implementation-pitfall proposal
-environment block or incomplete chain -> defer
-```
-
-Assert every proposal preserves exact scope/hashes and lacks forbidden next-candidate keys.
+Do not create one method per outcome row or repeat tree snapshots for every malformed input.
 
 - [ ] **Step 2: Run tests and verify failure**
 
@@ -547,7 +565,7 @@ Unknown or unsupported required capability               -> capability-gap:profi
 probe-only, environment-blocked, or incomplete evidence  -> defer (not publishable)
 ```
 
-Add one cross-plan schema test per row. Every publishable proposal uses core role `positive|counterexample|capability-gap` plus the listed subtype; every other outcome carries suggested decision `defer`.
+Cover all rows in the single table-driven mapping test. Every publishable proposal uses core role `positive|counterexample|capability-gap` plus the listed subtype; every other outcome carries suggested decision `defer`.
 
 - [ ] **Step 5: Implement the proposal-only CLI**
 
@@ -563,7 +581,7 @@ If `--output` is omitted, write under `candidates/experience/` using the determi
 
 - [ ] **Step 6: Prove extraction never publishes**
 
-Snapshot `sources/`, `wiki/`, `queries/`, and `compiled/` before CLI execution. After success and every failure case, assert those trees are byte-identical. Add an AST contract test that `propose_from_campaign.py` imports neither catalog generation nor Card-writing helpers.
+Snapshot `sources/`, `wiki/`, `queries/`, and `compiled/` once. Assert byte identity after one successful proposal and one representative validation failure. Add one AST assertion in the same test that `propose_from_campaign.py` imports neither catalog generation nor Card-writing helpers.
 
 - [ ] **Step 7: Run tests and commit**
 
@@ -619,7 +637,7 @@ missing evidence
 audiences=[designer]
 ```
 
-Reject `audiences: [coder]`, `profile_authority: canonical`, missing hashes, transfer claims beyond scope, or a claim that vNext validation passed.
+Use at most four tests: one valid proposal, one table of Designer-only/noncanonical violations (`audiences: [coder]`, canonical authority, or claimed vNext validation), one artifact-hash/missing-evidence test, and one strict-lane-is-not-called test. Transfer-boundary and required-field violations share the invalid-manifest subtests; do not split each field into a method.
 
 - [ ] **Step 2: Run tests and verify failure**
 
@@ -679,9 +697,9 @@ git commit -m "feat(kernelwiki): propose historical campaign evidence"
 - Produces: `validate_proposal(path)`, `validate_review(path, proposal)`, `validate_experience_tree(root)`.
 - Does not produce or edit Source/Card files.
 
-- [ ] **Step 1: Write failing proposal/review tests**
+- [ ] **Step 1: Write the four focused proposal/review tests**
 
-Generate review documents in the temporary test directory from the actual proposal:
+Use one include/defer/exclude table, one invalid review table (unknown field, identity/rationale, stale hash, invalid publication target), one experience-tree duplicate/missing-reference test, and one no-automatic-publication test. Generate review documents in the temporary test directory from the actual proposal:
 
 ```python
 def build_review(proposal_path: Path, decision: str) -> dict[str, Any]:
@@ -702,9 +720,7 @@ def build_review(proposal_path: Path, decision: str) -> dict[str, Any]:
     }
 ```
 
-Create `include`, `defer`, and `exclude` cases from this helper. Reject unknown fields, missing review identity/rationale, stale proposal hash, operator-named new Card targets, automatic Coder visibility, or a proposal containing forbidden next-candidate instructions.
-
-Reject unknown fields, missing review identity/rationale, stale proposal hash, operator-named new Card targets, automatic Coder visibility, or a proposal containing forbidden next-candidate instructions.
+Create `include`, `defer`, and `exclude` rows from this helper in one test. Put unknown fields, missing review identity/rationale, stale hash, operator-named target, automatic Coder visibility, and forbidden instruction cases into one invalid-review `subTest` table.
 
 - [ ] **Step 2: Run tests and verify failure**
 
@@ -799,11 +815,11 @@ If any candidate lacks a required identity, choose `defer` instead of inventing 
 
 - [ ] **Step 3: Preserve contradiction visibility**
 
-Add tests proving positive and counterexample cases for the same technique remain present in Card metadata, catalog counts, `by-evidence-level.md`, and queries. A new result creates a new Source/example; it never edits historical measured values.
+Add one contradiction-visibility test that checks the positive and counterexample both remain in Card metadata and then smoke-checks catalog/query visibility. A new result creates a new Source/example; it never edits historical measured values.
 
 - [ ] **Step 4: Run local-campaign holdout evaluation**
 
-First assert committed `include|defer|exclude` review files exist for grouped top-k, flexattention, and MHC and that mapping code/generator hashes match the pre-holdout seal. Only then inspect the sealed `mm_encoder_attention/ascend` and `sparse_pooler/ascend` campaigns. Evaluate whether the existing general Cards surface materialization/output-reuse counterexamples. Record evaluation results without changing holdout membership or historical Sources.
+Use two holdout smoke rows, one for `mm_encoder_attention/ascend` and one for `sparse_pooler/ascend`. First assert the three development reviews exist and mapping/generator hashes match the pre-holdout seal; then record whether existing general Cards surface the expected counterexample category. Do not add per-artifact holdout tests or change holdout membership/historical Sources.
 
 - [ ] **Step 5: Run complete validation and generation**
 
@@ -818,7 +834,7 @@ Expected: all tests pass; no active campaign files or `kernel-opt-loop` files ch
 
 - [ ] **Step 6: Add final nonintegration contract tests**
 
-Assert no Orchestrator hook, final-stop callback, consultation record, project-side proposal path, active campaign write, extractor/review-triggered publisher, automatic Card publisher, or Coder auto-promotion exists. Allow only the explicit `reviewed-historical` Source capture command after a valid include review. Assert `propose_from_campaign.py` output paths are KernelWiki candidates or explicit noncampaign caller paths only.
+Use one table-driven nonintegration contract test: no Orchestrator hook, final-stop callback, consultation record, project-side proposal path, active campaign write, extractor/review-triggered publisher, automatic Card publisher, or Coder auto-promotion. Allow only the explicit `reviewed-historical` Source capture command after a valid include review, and check one valid plus one invalid proposal output path.
 
 - [ ] **Step 7: Document maintenance workflow and commit**
 

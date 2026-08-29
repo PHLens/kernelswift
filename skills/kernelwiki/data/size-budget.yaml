@@ -1,0 +1,4 @@
+schema_version: 1
+repository_max_bytes: 52428800
+bundle_max_bytes: 5242880
+file_max_bytes: 1048576

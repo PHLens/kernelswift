@@ -1,0 +1,177 @@
+---
+schema_version: 1
+id: source-local-ascend-groupedtopk-round-001
+source_kind: local-campaign
+title: 'Reviewed historical local campaign evidence: kernels/track1-triton/groupedtopk/ascend#round-001'
+url: local://da0304f5d6f15b505bca8472cb1264ed9437ef7f/kernels/track1-triton/groupedtopk/ascend
+repository_id: local
+captured_at: '2026-08-18T23:18:02Z'
+target_disposition: exact
+target_ids:
+- ascend910b4
+implementation_profile_ids:
+- triton_ascend
+runtime_fingerprints:
+- triton-3.2.0 torch-npu-2.7.1.post4
+languages:
+- triton
+kernel_types:
+- moe
+- selection
+- topk
+techniques:
+- kernel-fusion
+- launch-collapse
+hardware_features:
+- vector
+tags:
+- ascend
+- host-bound
+- kernel-fusion
+- selection
+- topk
+- triton-ascend
+license_state: unknown
+audiences:
+- designer
+profile_authority: historical-noncanonical
+strict_vnext_validated: false
+missing_evidence:
+- binding:missing-vnext-artifact
+- sketch:missing-vnext-artifact
+- verdict:missing-vnext-artifact
+---
+# Reviewed historical local campaign evidence: kernels/track1-triton/groupedtopk/ascend#round-001
+
+Immutable reviewed historical campaign evidence. This Source is metadata-only, Designer-only, and not validated against the current vNext contract.
+
+## Curator review
+
+```json
+{
+  "decision": "include",
+  "proposal_id": "experience-historical-source-local-ascend-groupedtopk-round-001",
+  "proposal_sha256": "81bbe728d35e498584996a862ee2ae546807c3906b30e828c7b3031f28e5adc7",
+  "publication_target": {
+    "card_id": "technique-kernel-fusion",
+    "mode": "existing-card-example"
+  },
+  "rationale": "Include as a Designer-only existing-Card example. At committed development identity da0304f5d6f15b505bca8472cb1264ed9437ef7f, the hash-bound Round 001 Decision, candidate, Coder result, report, project, and team state coherently show correctness pass and one direct Triton-Ascend fusion kernel replacing 19 kernels per call for exactly Ascend910B4, triton_ascend, Triton 3.2.0 / torch_npu 2.7.1.post4, T=83, E=256, hidden=7168, topk=8, fp16/fp32/int32: device time fell 172.835 to 34.634 us/call and synchronized wall median fell 0.712855 to 0.321620 ms. Scope remains historical-noncanonical and metadata-only; do not transfer across target, runtime, shape, dtype, semantics, or harness and do not grant Coder visibility.",
+  "reviewed_at": "2026-08-21T00:00:00Z",
+  "reviewed_by": "kernelwiki-curator"
+}
+```
+
+## Reviewed proposal evidence
+
+```json
+{
+  "artifact_hashes": {
+    "candidate": "b7b47d1fec7eaed59eba784dd3300393df12bdc94cab164b9e9d238afb39357a",
+    "coder-result": "f464f62919781476cc1ae1cebdd3fe214f3fe43dbeb718630f2c0e33a9c18522",
+    "decision": "e57e3fb560f7d8b39ec1b1a90be80a144a59564415813d3a783758c1351ea344",
+    "project": "a1b33e30289dcf42f867fe5aa9cec126bd2d35e097cd5d96d2d9a5776c1a1386",
+    "report": "d1a98271a4abe509755e62dc056f1a9fa6826c4b6b60ac2db9d15e5982414dd4",
+    "team-state": "52dbd93232e8d5625dbcadbc42507a7beb55b2bde83e307cc1c17cb8972f8668"
+  },
+  "missing_evidence": [
+    "sketch:missing-vnext-artifact",
+    "binding:missing-vnext-artifact",
+    "verdict:missing-vnext-artifact"
+  ],
+  "observed": [
+    {
+      "evidence_ref": "kernels/track1-triton/groupedtopk/ascend/rounds/report_001.md",
+      "metric": "correctness_pass",
+      "statistic": "exact",
+      "unit": "boolean",
+      "value": true
+    },
+    {
+      "evidence_ref": "kernels/track1-triton/groupedtopk/ascend/rounds/report_001.md",
+      "metric": "candidate_wall_time_ms",
+      "statistic": "median",
+      "unit": "milliseconds",
+      "value": 0.32162
+    },
+    {
+      "evidence_ref": "kernels/track1-triton/groupedtopk/ascend/rounds/report_001.md",
+      "metric": "wall_improvement_pct",
+      "statistic": "exact",
+      "unit": "percent",
+      "value": 54.88475414304643
+    },
+    {
+      "evidence_ref": "kernels/track1-triton/groupedtopk/ascend/rounds/report_001.md",
+      "metric": "candidate_kernel_count_per_call",
+      "statistic": "exact",
+      "unit": "count",
+      "value": 1.0
+    },
+    {
+      "evidence_ref": "kernels/track1-triton/groupedtopk/ascend/rounds/report_001.md",
+      "metric": "candidate_device_us_per_call",
+      "statistic": "exact",
+      "unit": "microseconds",
+      "value": 34.634
+    }
+  ],
+  "scope": {
+    "allowed_audiences": [
+      "designer"
+    ],
+    "asset_mode": "metadata-only",
+    "audiences": [
+      "designer"
+    ],
+    "captured_at": "2026-08-18T23:18:02Z",
+    "comparability": "historical-local",
+    "hardware_features": [
+      "vector"
+    ],
+    "implementation_profile_id": "triton_ascend",
+    "kernel_types": [
+      "moe",
+      "selection",
+      "topk"
+    ],
+    "languages": [
+      "triton"
+    ],
+    "license_state": "unknown",
+    "measurement_fingerprint": "d2dc2d5a61930039371da06149b3156c4911a136c6c5df859f50d68ea0e3b871",
+    "profile_authority": "historical-noncanonical",
+    "repository_id": "local",
+    "source_id": "source-local-ascend-groupedtopk-round-001",
+    "tags": [
+      "ascend",
+      "host-bound",
+      "kernel-fusion",
+      "selection",
+      "topk",
+      "triton-ascend"
+    ],
+    "target_id": "ascend910b4",
+    "techniques": [
+      "kernel-fusion",
+      "launch-collapse"
+    ]
+  },
+  "terminal": {
+    "commit": "da0304f5d6f15b505bca8472cb1264ed9437ef7f",
+    "local_locator": "kernels/track1-triton/groupedtopk/ascend#round-001",
+    "project_path": "kernels/track1-triton/groupedtopk/ascend",
+    "result": "accepted",
+    "strict_vnext_validated": false
+  },
+  "transfer_boundaries": [
+    "target=ascend910b4",
+    "profile=triton_ascend historical-noncanonical",
+    "runtime=triton-3.2.0 torch-npu-2.7.1.post4",
+    "shape=T83-E256-hidden7168-topk8-groups8-topgroups4",
+    "dtype=hidden-fp16 gating-fp32 weights-fp32 ids-int32",
+    "round=001",
+    "measurement=d2dc2d5a61930039371da06149b3156c4911a136c6c5df859f50d68ea0e3b871"
+  ]
+}
+```

@@ -1,0 +1,20 @@
+schema_version: 1
+contexts:
+  - id: index_topk
+    query_text: ascend learned index topk rope causal mask reduction
+    target_id: ascend910b
+    language: ascendc
+    kernel_types: [reduction, sparse-attention, topk]
+    semantic_features: [causal-mask, rope, topk-ordering]
+    dtypes: [bf16, fp32, int32]
+    shape_signature: {batch: 8, hidden: 1024, sequence: 2600, topk: 128}
+    expected_general_knowledge_categories: [language, measurement, pattern, technique]
+  - id: sparse_attn
+    query_text: ascend sparse attention topk gather softmax reduction
+    target_id: ascend910b
+    language: ascendc
+    kernel_types: [reduction, sparse-attention, topk]
+    semantic_features: [denominator-only-sink, invalid-index-mask]
+    dtypes: [bf16, fp32, int32]
+    shape_signature: {batch: 8, head_dim: 128, heads: 64, sequence: 2600}
+    expected_general_knowledge_categories: [language, measurement, pattern, technique]

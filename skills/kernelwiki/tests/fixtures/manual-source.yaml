@@ -1,0 +1,18 @@
+schema_version: 1
+metadata:
+  source_id: source-manual-official-doc-fixture
+  title: Manual official document fixture
+  repository_id: huawei-ascend-docs
+  captured_at: "2026-08-21T00:00:00Z"
+  target_disposition: backend
+  languages: [ascendc]
+  kernel_types: []
+  techniques: []
+  hardware_features: []
+  tags: [ascendc]
+  license_state: unknown
+  audiences: [designer]
+source_kind: official-doc
+url: https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/CANN-9.0-fixture/opdevg/versioned-fixture#1
+document_revision: CANN-9.0-fixture
+files: []

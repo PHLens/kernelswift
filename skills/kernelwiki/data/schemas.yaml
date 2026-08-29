@@ -1,0 +1,115 @@
+source: 1
+card: 1
+catalog: 1
+query_result: 1
+role_query_context: 1
+role_query_result: 1
+terminal_bundle: 1
+experience_proposal: 1
+experience_review: 1
+historical_capture: 1
+field_definitions:
+  loop_contract_identity:
+    fields:
+      - repository_commit
+      - skill_tree_sha
+      - validator_sha256
+      - schema_sha256
+  bundle_artifact:
+    fields:
+      - name
+      - path
+      - sha256
+      - required
+  terminal_bundle:
+    fields:
+      - schema_version
+      - proposal_id
+      - repository_root
+      - project_root
+      - contract_version
+      - loop_contract_identity
+      - round_id
+      - terminal_commit
+      - terminal_result
+      - measurement_exclusive
+      - artifacts
+      - canonical_candidate_ref
+      - canonical_report_ref
+    supported_contract_versions:
+      - 3
+    required_artifacts:
+      - implementation_profile
+      - runtime_snapshot
+      - project_claim
+      - sketch
+      - decision
+      - binding
+      - candidate
+      - report
+      - verdict
+      - team_state
+      - project
+      - base
+      - harness
+    optional_artifacts:
+      - coder_result
+  experience_proposal:
+    fields:
+      - schema_version
+      - proposal_id
+      - source_lane
+      - contract_version
+      - loop_contract_identity
+      - artifact_hashes
+      - terminal
+      - scope
+      - expected
+      - observed
+      - suggested_publication
+      - transfer_boundaries
+      - reconsider_when
+      - missing_evidence
+    forbidden_recursive_fields:
+      - next_candidate
+      - recommended_next_change
+      - implementation_instruction
+  experience_review:
+    fields:
+      - schema_version
+      - proposal_id
+      - proposal_sha256
+      - decision
+      - reviewed_by
+      - reviewed_at
+      - rationale
+      - publication_target
+  historical_capture:
+    fields:
+      - schema_version
+      - source_id
+      - historical_contract_version
+      - repository_commit
+      - project_path
+      - local_locator
+      - captured_at
+      - repository_id
+      - languages
+      - kernel_types
+      - techniques
+      - hardware_features
+      - tags
+      - license_state
+      - asset_mode
+      - allowed_audiences
+      - target_id
+      - implementation_profile_id
+      - profile_authority
+      - terminal_result
+      - artifacts
+      - measurement
+      - observations
+      - transfer_boundaries
+      - missing_evidence
+      - audiences
+      - strict_vnext_validated
