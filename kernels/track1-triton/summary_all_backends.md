@@ -205,7 +205,6 @@ mm_encoder 只有 1 次发射只挣 +5%，flexattention 无货可装则持平。
 - 三条后续杠杆全部实测关闭：G1 分配复用（empty_like 实测 ~4.13µs < 门限）、device 重构
   （算术削减不转化为 device 时间）、G2 前奏融合（~0 wall 且 softmax fold 踩未授予的
   reduction.sum 豁免）。最终天花板 ≈ harness 内置 ~122µs 同步 + ~58µs device ≈ 214µs。
-
 ---
 
 ## 五、Ascend 910B（昇腾）
