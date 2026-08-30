@@ -7,146 +7,171 @@
 
 - role_contract_sha256: `7227706c7068ad4a20caebb95c045721f643a409473fc9768e73d828fb2e5ab5`
 - context_epoch: `2`
-- last_completed_round: `002`
-- accepted_kernel: `triton_mm_encoder_attention_e2_001.py`
-- accepted_report: `rounds/report_001.md`
-- current_decision: `rounds/decision_003.md` (uncommitted, `proceed`, `change_scope` `host`, `change_family` `allocation-reuse`)
-- recent_three_round_evidence: `001 accepted at +10.2983% wall; device 118.892 -> 13.4064 us/call, launches 6.98 -> 1.00, device_ratio 0.0407. 002 aborted: the whole device budget is 13.4064 us against a 327.770 us wall, so a perfect device elimination yields 4.0902% and misses the 5% budget of 16.3885 us by 2.98 us. Epoch-1 history under ../ is labeled noncanonical and is not a source baseline.`
-- open_hypotheses: `Host side is now authorized. Round 003 attacks the per-call output allocation (allocation-reuse). launch-path-reduction is the fallback family and needs an Ascend launch-ABI probe first. The device side stays closed by the 4.0902% bound.`
+- last_completed_round: `003`
+- accepted_kernel: `triton_mm_encoder_attention_e2_003.py`
+- accepted_report: `rounds/report_003.md`
+- current_decision: `rounds/decision_004.md` (uncommitted, `proceed`, `change_scope` `host`, `change_family` `launch-path-reduction`, capability-gated)
+- recent_three_round_evidence: `003 accepted at +17.3965% against base.py (0.361050 -> 0.298240 ms); +11.2080% raw / +8.8072% base-normalized against e2_001. 002 aborted on the 4.0902% device ceiling. 001 accepted at +10.2983%. Epoch-1 history under ../ is labeled noncanonical and is not a source baseline.`
+- open_hypotheses: `Level 2 measured the Triton launch path at 183.740 us/call (61.78% of wall) — the dominant reachable term. Round 004 attacks it under a Decision-scoped capability gate run by Coder. The 22.635 us wrapper is the fallback family. The device side stays closed at 4.0902%.`
 - artifact_read_hashes: `see the table below`
 
-## Maintainer Constraint (updated at round 003)
+## Maintainer Constraint
 
-Superseded. The round-002 constraint (host-side code out of scope; host gain only
-indirectly via launch-count reduction) was lifted by the maintainer and recorded
-in `team-state.md` Policy Revisions at commit `de1b9b7`:
+Host-side code is authorized. Recorded in `team-state.md` Policy Revisions at
+commit `de1b9b7`:
 
 > `maintainer_constraint.host_code`: host-side code out of scope -> host-side
 > code authorized; `launch-path-reduction` and `allocation-reuse` Host Plan
 > rounds permitted.
 
-The device-only ceiling of `4.0902%` is unchanged and still closes every
-device-side mechanism. Counters and run epoch were untouched by the revision.
+The device-only ceiling of `4.0902%` still closes every device-side mechanism.
+Counters and run epoch were untouched by the revision.
 
-## Current Bottleneck
+## Current Bottleneck — measured, not inferred
 
-Verifier-backed facts from `rounds/report_001.md` only:
+The Level 2 host decomposition in `rounds/report_003.md` is a Verifier
+measurement in one process and one regime, against a wall median of `297.410 us`.
+This replaces every earlier residual arithmetic; do not reuse the round-002
+`~316 us` figure.
 
-- Wall median `0.327770 ms` = `327.770 us/call` against `13.4064 us/call` of
-  device time, so `device_ratio` is `0.0407`. About `95.9%` of wall time is not
-  device compute.
-- Launch count is `1.00` kernel per call, down from `6.98`. Floor for a correct
-  attention kernel.
-- Removing six of seven launches while cutting device time by `105.4856 us/call`
-  recovered only about `38 us` of wall time, so the dominant per-call host term
-  does not scale with launch count.
+| Quantity | us/call |
+|---|---:|
+| (a) harness wall (`auto_bench.time_forward`) | 297.410 |
+| (b) `ModelNew.forward` alone, no synchronize | 206.375 |
+| (c) `forward` + `torch.npu.synchronize()` | 258.190 |
+| (d) allocation-free direct launch, preallocated output, no wrapper | 183.740 |
+| (a) - (b) harness-fixed term | 91.035 |
+| (b) - (d) residual `forward` wrapper | 22.635 |
 
-Classification is `host-bound`. Under `bottleneck-judgment.md` a ratio below 0.05
-is the `measurement-bound candidate` band, but that label requires Level 2
-evidence that the residual is harness-fixed, and no such evidence exists yet.
+### The slice table
 
-### The device-side bound (still closing)
+| Slice | us/call | Share of wall | Reachable by a host round? |
+|---|---:|---:|---|
+| harness-fixed (outside `ModelNew.forward`) | 91.035 | 30.61% | **no** |
+| Triton launch path (bare launch) | 183.740 | 61.78% | only by `launch-path-reduction`, capability Unknown |
+| residual `forward` wrapper | 22.635 | 7.61% | yes, no new capability needed |
+| device kernel time | 13.4224 | — | sub-component of the sync term; bounded at 4.09% |
+
+**Device time is not a fourth independent slice.** The `13.4224 us` of device work
+sits inside the `51.815 us` synchronize term, which sits inside the harness-fixed
+`91.035 us`. The shares therefore sum above 100%.
+
+### Where the harness-fixed 91.035 us goes
 
 ```text
-5% adoption budget = 0.05 * 327.770          = 16.3885 us/call
-complete device budget                       = 13.4064 us/call
-best possible device-only wall improvement   =  4.0902%
-deficit against the threshold                =  2.9821 us/call
+(a) - (c) = 39.220 us   seed drain + harness dispatch
+(c) - (b) = 51.815 us   synchronize term
 ```
 
-### Residual, derived not measured
+`set_seed` is called before `start = time.perf_counter()` and so is untimed, but
+`mod.manual_seed_all(seed)` enqueues device work that the timed `sync_devices()`
+then waits for, so the seed op is billed inside the timed region. On top of that
+`sync_devices()` costs `11.96 us/call` more than a bare `torch.npu.synchronize()`
+because `_iter_accelerators()` calls `torch.npu.is_available()` every time. This
+is harness code and is out of scope for any host round.
 
-Under the report's own `device_ratio` convention the non-device residual is
-`315.9586 us/call` (candidate) and `239.8280 us/call` (reference). This is
-arithmetic on two Verifier numbers under an additive device-plus-non-device
-assumption. It is **not** a measured host decomposition and must never be cited
-as one. Its internal split between harness synchronize, Triton launch path, and
-output allocation is unknown.
+### The 5% budget against each slice
 
-**Confirming evidence to request from Verifier:** a Level 2 host decomposition in
-one process and regime measuring (a) harness wall, (b) `ModelNew.forward` alone,
-(c) `forward` plus the harness synchronize boundary, (d) an allocation-free
-`forward` variant. (b)-(d) sizes the allocation lever; (c)-(b) sizes the
-harness-fixed term no host round can touch.
+```text
+0.05 * 297.410 = 14.871 us
+14.871 / 183.740 =  8.09% of the launch path
+14.871 /  22.635 = 65.71% of the residual wrapper
+```
 
-### Harness timing structure (read from source, not measured)
+### Ordinary device bound (unchanged)
 
-From `auto_bench.py` `time_forward` (harness sha256 `71fb3ad0…`): `set_seed` runs
-**before** the timer starts, so it is not timed. The timed region is
-`torch.no_grad(): model.forward(*inputs)` followed by `sync_devices()`
-(`torch.npu.synchronize()`). Every microsecond of Python and allocator work
-inside `ModelNew.forward` is therefore directly billable, which is what makes a
-host round able to move wall time at all.
+```text
+5% adoption budget = 0.05 * 327.770          = 16.3885 us/call   (round-001 wall)
+complete device budget                       = 13.4064 us/call
+best possible device-only wall improvement   =  4.0902%
+```
 
 ## Recent Three-round Evidence
 
-- `002` / `aborted` / `rounds/decision_002.md` / change family `no-change`:
-  no kernel-side intervention can clear 5%. Device budget `13.4064 us` is below
-  the `16.3885 us` budget even at zero. Launch count already `1.00`. Accepted as
-  correct by Orchestrator; the maintainer then authorized host-side code.
+- `003` / `accepted` / `rounds/report_003.md` / change family `allocation-reuse`:
+  `0.361050 -> 0.298240 ms` against `base.py`, `improvement_pct = 17.3965`.
+  Against `e2_001`: `11.2080%` raw / `8.8072%` base-normalized at
+  `warmup 50 / repeat 100`, `10.1299%` / `11.5476%` at `warmup 200 / repeat 500`.
+  Observables: `output_allocations_per_call` `1.00 -> 0.00`; `forward` alone
+  `233.645 -> 206.375 us` (`-27.270`); `device_us_per_call` `13.4096 -> 13.4224`
+  (`+0.095%`, wrong direction, so device explains `0.035%` of the change);
+  `kernel_count_per_call` `1.00 -> 1.00`. Verdict `confirmed`. Output is
+  bit-identical to the accepted kernel.
+- `002` / `aborted` / `rounds/decision_002.md` / change family `no-change`: no
+  kernel-side intervention can clear 5%. Accepted as correct; triggered the
+  maintainer authorization.
 - `001` / `accepted` / `rounds/report_001.md` / change family `kernel-fusion`:
-  wall median `0.327770` ms versus re-measured reference `0.365400` ms,
-  improvement `10.2983%`. Device `118.892 -> 13.4064 us/call`; launches
-  `6.98 -> 1.00`; transposes `4.00 -> 0.00`; `device_ratio` `0.3314 -> 0.0407`.
-  Verdict `confirmed` on device and launch links, `partially-confirmed` on host.
-- `000` / `baseline` / `rounds/report_000.md` / change family `not-applicable`:
-  `baseline_adapter.py` is a faithful reproduction; improvement 0.52%, within
-  noise. Baseline drifted +9.04% versus epoch 1 under an identical fingerprint.
+  `+10.2983%`. Device `118.892 -> 13.4064 us/call`; launches `6.98 -> 1.00`.
+- `000` / `baseline` / `rounds/report_000.md`: `baseline_adapter.py`, 0.52%,
+  within noise. Baseline drifted +9.04% versus epoch 1 under an identical
+  fingerprint.
 
 ## Open Hypotheses or Checks
 
-1. **`allocation-reuse`** — SELECTED for round 003. Cache the output buffer on the
-   `ModelNew` instance under an explicit cache key so the steady-state forward
-   performs zero allocations; allocate with `torch.empty` rather than
-   `torch.empty_like`, which also removes the per-call internal-format warning
-   path recorded in `rounds/coder_result_001.md`. Zero new capability required.
-   Expected gain is a judgment (declared 8.0%) with wide uncertainty.
-2. **`launch-path-reduction`** — the fallback family and the larger prize on paper.
-   Its high-value form bypasses `JITFunction.run` and invokes the cached compiled
-   kernel directly. **Not taken first for a capability reason:** the frozen
-   profile records `launch_abi: "kernel[(grid)](args)"` with direct launch as the
-   proven path and `lifecycle.fast-launcher` as `Unknown`, so declaring an
-   unproven launcher normative converts the round into a `capability-miss`.
-   Requires an Ascend launch-ABI probe before it can be declared normative.
-3. **`measurement-decomposition`** — the Level 2 host decomposition described
-   above. Diagnostic only. Highest-value evidence in the epoch: it sizes both
-   levers and settles whether the residual is harness-fixed.
-4. **`kernel-config-tuning`** — `num_warps` 1/2/4/8 and `num_stages` 1/2/3/4
-   search. **Rejected on the merits:** bounded by the same `4.0902%` ceiling, so
-   predicted to fail before it runs. Also unavailable as `final-autotune` while
-   `last_completed_binding` is `null`.
-5. **`kernel-tiling`** — row-blocked loop to lift the `S <= 128` restriction.
-   Correctness and generality only; no wall upside at the campaign shape `S=83`.
+1. **`launch-path-reduction`** — SELECTED for round 004, capability-gated. The
+   launch path is `183.740 us/call`; capturing `8.09%` of it clears 5%. Probe is
+   Decision-scoped, run by **Coder** before `candidate-ready`, evidence under
+   `log/probes/`. Candidate mechanisms in order: `fast_libentry`, cached
+   `CompiledKernel` direct invocation, vendor precompiled entry point. The probe
+   must prove existence, the same compiled kernel with the same grid and
+   configuration, a bit-identical output, and a same-regime per-launch cost
+   strictly below `183.740 us`. **Terminal classification:** proven + ≥5% →
+   `accepted`; proven + <5% → `no-improvement`; absent or incorrect →
+   `capability-miss`. In the latter two `e2_003` remains canonical.
+2. **`host-wrapper-reduction`** — fallback family. Only `22.635 us` remain and
+   clearing 5% needs `65.71%` of it. Contents at a cache hit: `query.shape`
+   unpacking, the four-component cache-key tuple including a fresh
+   `query.device` construction per call, the key comparison, and the grid tuple.
+   Needs no new capability, which is its entire merit.
+3. **`kernel-config-tuning`** — `num_warps` 1/2/4/8 and `num_stages` 1/2/3/4.
+   **Rejected on the merits:** bounded by the `4.0902%` device ceiling. Also
+   unavailable as `final-autotune` while `last_completed_binding` is `null`.
+4. **`kernel-tiling`** — row-blocked loop to lift `S <= 128`. Correctness and
+   generality only; no wall upside at the campaign shape `S=83`.
+5. **`harness-fixed reduction`** — **permanently out of scope.** `91.035 us` is
+   harness code; `bottleneck-judgment.md` forbids altering the harness to
+   manufacture a speedup.
 
-## Round 003 Contract Resolution (carry forward)
+## Carry-forward Contract Facts
 
-Schema-version 2 calls `_validate_v2_sketch` unconditionally, so a `host`-scope
-decision still needs a real Sketch artifact; the v1 `N/A: host-only change`
-marker is not accepted. Resolution used and validated: `change_scope: "host"` with
-a Sketch that declares the **unchanged** computation boundary
-(`scope.kind = unchanged-computation-boundary`) plus a `required` eight-field Host
-Plan. Both validators exit 0 on this form.
+- **Schema-v2 always validates a Sketch**, including at `change_scope: host`. The
+  v1 `N/A: host-only change` marker is not accepted. Resolution used in rounds
+  003 and 004: `host` scope + a Sketch declaring the unchanged computation
+  boundary (`scope.kind = unchanged-computation-boundary`) + a `required`
+  eight-field Host Plan.
+- **`fallback_provenance` is unavailable in this project.**
+  `state/project_capability_claim.json` carries `qualification_dispositions: []`,
+  and the validator requires the named disposition to be embedded in the claim
+  with `fallback_authorized: true`. It is also restricted to
+  `algorithm-substitution`, which no host round is. Do not attempt it.
+- **An abort is only expressible at schema_version 1.** `_validate_metadata_v2`
+  requires `decision == "proceed"`. A v1 abort validates with
+  `--expected-profile`, not `--expected-implementation-profile`.
+- **Allocation counting trap.** A `TorchDispatchMode` count still reports one
+  `aten.empty.memory_format` per call because the Triton launch path allocates on
+  its own. Read `output_allocations_per_call` at the Python level. Never treat a
+  dispatch-mode count as the output-allocation observable.
+- **Drift is large.** Within a single turn `base.py` medians ranged
+  `0.346350`-`0.370825` (~7%). Always re-measure the reference in the same turn.
 
 ## Candidate Limitations to Carry Forward
 
-- The accepted kernel requires `S <= 128` and raises rather than silently
-  producing wrong output. Campaign shape is `S=83`.
-- The second `tl.dot` shape `(128,64,128)` compiles and is numerically correct but
+- The kernel requires `S <= 128` and raises rather than silently producing wrong
+  output. Campaign shape is `S=83`.
+- The second `tl.dot` tile `(128,64,128)` compiles and is numerically correct but
   was not among the eleven probed tiles.
-- `torch.empty_like` emits an internal-format warning on this runtime. Coder
-  asserted it does not affect the measured path; that was never measured. Round
-  003 removes the call, which settles it either way.
-- Output-buffer reuse is only safe while the store covers the whole buffer. The
-  `B*NH` = 16 programs together write every row `0..S-1` of every head slice, so
-  full coverage holds today. Any future masked or partial store invalidates this
-  Host Plan.
+- The kernel definition is byte-identical across `e2_001` and `e2_003`. Round 004
+  keeps it byte-identical; only the invocation site and a cached launcher handle
+  change.
+- The reuse invariant depends on full store coverage. Any future masked or
+  partial store invalidates the round-003 Host Plan.
 
 ## Artifact Read Hashes
 
 | Artifact | SHA-256 | Last read round |
 |---|---|---:|
 | `../../base.py` | `86ac570376eda42cea73e0e7683454deeff43c11e5e85f16e1b3eb63395d6ed2` | 000 |
-| `auto_bench.py` | `71fb3ad0c3ad23c5c156c898f85abcee3d42a15800f75ff97769cfca9152fe29` | 002 |
+| `auto_bench.py` | `71fb3ad0c3ad23c5c156c898f85abcee3d42a15800f75ff97769cfca9152fe29` | 003 |
 | `baseline_adapter.py` | `1127e8d9f166bb2449a993c8c5392a464179b6da599cd1f181f1949f151b7c8e` | 000 |
 | `rounds/report_000.md` | `64fe68820ac2b5b45211477dca5de66ac53b9bdbadbbc96297b0b6ae925dfb55` | 000 |
 | `rounds/report_001.md` | `89ee8b2a3861e84eda32ed8198906ffcfeaa8e99bf22a6d97d4738c525542af3` | 002 |
@@ -154,14 +179,19 @@ Plan. Both validators exit 0 on this form.
 | `rounds/sketch_001.json` | `76818c21a7502a68b6ec5c6230607fa24bddf3e342e61d4d333990d16d639738` | 001 |
 | `rounds/coder_result_001.md` | `e3c1b57193230fa47187f491a0f3946f19981b53a0a675749625ad1beb62d4e0` | 002 |
 | `rounds/decision_002.md` | `8b8d36508920e310f35a55a8459742d187a8d313f8b302920a93103ec8dbebc7` | 002 |
-| `rounds/decision_003.md` | `a4956891de5fef4b9bd629fb3cceb270db5a247ba18b591aecee9480d96c5455` | 002 |
-| `rounds/sketch_003.json` | `51ebe3a735c7659309e781fd2f35286fd4e67acc86b5d0a9f6676f08f08af69c` | 002 |
-| `triton_mm_encoder_attention_e2_001.py` | `c75ec5ffaab3883ef7c5b1e62778b39fbd5413619a625fd36a86d70390e92124` | 002 |
-| `project.md` | `914eb006c9132b39f12787f816f42d76ef2803a1aaba371954e5ee81083c3ab1` | 002 |
+| `rounds/decision_003.md` | `a4956891de5fef4b9bd629fb3cceb270db5a247ba18b591aecee9480d96c5455` | 003 |
+| `rounds/sketch_003.json` | `51ebe3a735c7659309e781fd2f35286fd4e67acc86b5d0a9f6676f08f08af69c` | 003 |
+| `rounds/coder_result_003.md` | `d60e74e94f5e87ffbe2c535f8caea8d58c1fc7d4b104e1b0351fb9d854ac948d` | 003 |
+| `rounds/report_003.md` | `f5dbb4dfefadd88ee8b7ea1f98efb657334143cf18050706f424585f9cd9dcef` | 003 |
+| `rounds/decision_004.md` | `30758ad4dd30ccb0087534e47f61ea0443bdeead40ba64d41c28dd052c397088` | 003 |
+| `rounds/sketch_004.json` | `d3e52f6af032014381908e03e87a6b1c3f5694090686df2af3bfe3a6d9474dbf` | 003 |
+| `triton_mm_encoder_attention_e2_001.py` | `c75ec5ffaab3883ef7c5b1e62778b39fbd5413619a625fd36a86d70390e92124` | 003 |
+| `triton_mm_encoder_attention_e2_003.py` | `c39142c1df7d719e9ef7680b4712b226e293f683d934228f930fa966324c6bfe` | 003 |
+| `project.md` | `914eb006c9132b39f12787f816f42d76ef2803a1aaba371954e5ee81083c3ab1` | 003 |
 | `state/runtime-snapshot.json` | `6004296625865f2aea0ed6e72b1ff0e0d2b6122b9eff7567de3382d53dfb4ad1` | 001 |
-| `state/implementation_profile_snapshot/profile.yaml` | `a2c3e2e4622fd2d9d2ffd67206912699217279238a14d66a0816cdc188d96321` | 002 |
-| `state/project_capability_claim.json` | `a46ce09de93c671865f2c1b661a335a8b7f5714db475a27bae763f9d84a56b9d` | 002 |
-| `skills/kernel-opt-loop/prompts/designer.md` | `7227706c7068ad4a20caebb95c045721f643a409473fc9768e73d828fb2e5ab5` | 002 |
-| `skills/kernel-opt-loop/references/decision-template.md` | `a081503562fa30751f8df63ba3553e1766b9707d9af663810d800f829409ffa0` | 002 |
-| `skills/kernel-opt-loop/references/bottleneck-judgment.md` | `664d1e622333559a08419bb39b0b19b04054507a8adb58e3e347ab308c69eae7` | 002 |
-| `skills/kernel-opt-loop/references/anti-patterns.md` | `aebcdee623024594ad6a19905d626dd7c7ba099d68eba203315229608a40d0c4` | 002 |
+| `state/implementation_profile_snapshot/profile.yaml` | `a2c3e2e4622fd2d9d2ffd67206912699217279238a14d66a0816cdc188d96321` | 003 |
+| `state/project_capability_claim.json` | `a46ce09de93c671865f2c1b661a335a8b7f5714db475a27bae763f9d84a56b9d` | 003 |
+| `skills/kernel-opt-loop/prompts/designer.md` | `7227706c7068ad4a20caebb95c045721f643a409473fc9768e73d828fb2e5ab5` | 003 |
+| `skills/kernel-opt-loop/references/decision-template.md` | `a081503562fa30751f8df63ba3553e1766b9707d9af663810d800f829409ffa0` | 003 |
+| `skills/kernel-opt-loop/references/bottleneck-judgment.md` | `664d1e622333559a08419bb39b0b19b04054507a8adb58e3e347ab308c69eae7` | 003 |
+| `skills/kernel-opt-loop/references/anti-patterns.md` | `aebcdee623024594ad6a19905d626dd7c7ba099d68eba203315229608a40d0c4` | 003 |
