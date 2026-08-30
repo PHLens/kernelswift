@@ -121,6 +121,13 @@ evidence normalized per forward call.
 |---:|---|---|---|---|---:|---:|---:|---|---|
 | 000 | Phase 0 | `baseline_adapter.py` | baseline | `base.py` | 0.347800 | 104.1264 | - | not-applicable | `baseline_adapter.py` |
 | 001 | `rounds/decision_001.md` | `triton_mm_encoder_attention_e2_001.py` | accepted | `baseline_adapter.py` | 0.327770 | 13.4064 | +10.30% | confirmed on device and launch, partially-confirmed on host | `triton_mm_encoder_attention_e2_001.py` |
+| 002 | `rounds/decision_002.md` | - | aborted | `triton_mm_encoder_attention_e2_001.py` | - | - | - | not-applicable: device-only ceiling is 4.09%, below the 5% threshold | `triton_mm_encoder_attention_e2_001.py` |
+
+Round 002 abort rationale: the complete device budget (`13.4064 us/call`) is smaller
+than the 5% adoption budget (`16.3885 us/call` of the `327.770 us` wall median), so
+even eliminating device time entirely yields only 4.09%. Launch count is already
+`1.00`, and the per-call host residual where all headroom lives is outside the
+maintainer constraint for this epoch.
 
 Reference (base.py) median was `0.349625` ms at `116.1696 us/call` device time;
 the row records the candidate-side values per `rounds/report_000.md`. This

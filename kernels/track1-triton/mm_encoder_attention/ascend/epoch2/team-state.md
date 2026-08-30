@@ -9,22 +9,22 @@ phase: ready
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-30T05:10:30Z
-current_round: "001"
-last_completed_round: "001"
+current_round: "002"
+last_completed_round: "002"
 last_accepted_round: "001"
 last_accepted_kernel: triton_mm_encoder_attention_e2_001.py
 last_accepted_report: rounds/report_001.md
-last_completed_decision: rounds/decision_001.md
-last_completed_sketch: rounds/sketch_001.json
+last_completed_decision: rounds/decision_002.md
+last_completed_sketch: null
 last_completed_binding: null
 last_completed_verdict: null
 last_attribution: null
-last_completed_coder_result: rounds/coder_result_001.md
-last_completed_report: rounds/report_001.md
-last_result: accepted
+last_completed_coder_result: null
+last_completed_report: null
+last_result: aborted
 performance_miss_streak: 0
-failed_attempt_streak: 0
-total_rounds: 1
+failed_attempt_streak: 1
+total_rounds: 2
 max_rounds: 20
 valid_no_improvement_limit: 3
 adoption_threshold_pct: 5
@@ -83,7 +83,8 @@ change, incident, or commit yet.
 | Timestamp | Phase | Round | Result | Canonical | Incident | Commit |
 |---|---|---:|---|---|---|---|
 | 2026-08-30T05:10:30Z | initializing -> ready | 000 | baseline | `baseline_adapter.py` | - | `230a378` |
-| 2026-08-30T05:38:00Z | ready -> designing -> coding -> verifying -> ready | 001 | accepted | `triton_mm_encoder_attention_e2_001.py` | - | `pending` |
+| 2026-08-30T05:38:00Z | ready -> designing -> coding -> verifying -> ready | 001 | accepted | `triton_mm_encoder_attention_e2_001.py` | - | `cd44339` |
+| 2026-08-30T06:05:00Z | ready -> designing -> ready | 002 | aborted | unchanged (`triton_mm_encoder_attention_e2_001.py`) | - | `pending` |
 
 ## Policy Revisions
 
