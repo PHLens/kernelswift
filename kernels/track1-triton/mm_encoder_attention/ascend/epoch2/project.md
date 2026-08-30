@@ -123,6 +123,47 @@ evidence normalized per forward call.
 | 001 | `rounds/decision_001.md` | `triton_mm_encoder_attention_e2_001.py` | accepted | `baseline_adapter.py` | 0.327770 | 13.4064 | +10.30% | confirmed on device and launch, partially-confirmed on host | `triton_mm_encoder_attention_e2_001.py` |
 | 002 | `rounds/decision_002.md` | - | aborted | `triton_mm_encoder_attention_e2_001.py` | - | - | - | not-applicable: device-only ceiling is 4.09%, below the 5% threshold | `triton_mm_encoder_attention_e2_001.py` |
 | 003 | `rounds/decision_003.md` | `triton_mm_encoder_attention_e2_003.py` | accepted | `triton_mm_encoder_attention_e2_001.py` | 0.298240 | 13.4224 | +17.40% | confirmed: device held at +0.095%, allocation 1 -> 0 | `triton_mm_encoder_attention_e2_003.py` |
+| 004 | `rounds/decision_004.md` | `triton_mm_encoder_attention_e2_004.py` | no-improvement | `triton_mm_encoder_attention_e2_003.py` | 0.295850 | 13.3228 | +2.89% (bar +5%) | partially-confirmed: direction certain, magnitude short | `triton_mm_encoder_attention_e2_003.py` |
+| 005 | `rounds/decision_005.md` | `triton_mm_encoder_attention_e2_005.py` | accepted | `triton_mm_encoder_attention_e2_003.py` | 0.211295 | 13.4780 | +41.55% (bar) / +28.83% (wall) | confirmed: every causal link held including the wall link | `triton_mm_encoder_attention_e2_005.py` |
+
+### Bottleneck composition after round 005 (wall `212.445 us`)
+
+| Term | us/call | Share |
+|---|---:|---:|
+| harness-fixed (unreachable) | 97.260 | 45.8% |
+| Triton launch path | 89.220 | 42.0% |
+| residual Python wrapper | 25.965 | 12.2% |
+| device | 13.478 | 6.3% |
+
+The harness-fixed term did not grow in absolute terms (`94.645 → 97.260`); it became
+the largest slice because everything else shrank. Since it is unreachable, returns
+are now sharply diminishing: each further microsecond removed is a smaller fraction
+of a wall that is nearly half harness overhead.
+
+The largest single identified remaining item is the **23.000 us** cost of resolving
+the stream per call, which `device_stream_behavior` currently mandates. Two
+independent probes agree within `1 us`. Recovering it requires a decision amending
+that field, and must also specify how the raw stream handle is obtained, because
+`torch.npu.current_stream()` cannot be passed to `CompiledKernel.__getitem__` on this
+runtime (it raises `TypeError: argument 4 must be int, not Stream`).
+
+Round 004 measured the M1 `fast_libentry` launch path under strict pair-by-pair
+alternation against the incumbent `e2_003` in one window: four pairs, every pair
+favouring the candidate, best pair `+3.474%`, median `+2.8874%` against a `+5%` bar.
+The capability is proven and the direction is not in doubt — 11 of 12 control blocks
+and 4 of 4 strict pairs favour `e2_004` — but M1's entire launch saving is only
+`19.305 us` on a `~300 us` wall, and roughly a quarter of it is lost in the
+conversion to wall time. M1 is a real but sub-threshold improvement.
+
+**Measurement methodology correction, established in round 004.** A speedup only
+cancels drift when it is compared against another speedup drawn from the *same*
+reference measurements. Within a single turn `base.py`'s median moved `-5.96%`
+(`0.376040` → `0.353615`) while the candidate moved only `-2.26%`
+(`0.295850` → `0.289150`), swinging `e2_004`'s speedup by `4.13%`
+(`1.270171` → `1.217744`). Both candidates must therefore be measured in strict
+pair-by-pair alternation inside one window; a cross-window or cross-turn gap below
+about `0.1%` is two orders of magnitude under the method's own instability and must
+not be defended.
 
 Cumulative against the epoch-2 starting point (`baseline_adapter.py` at
 `0.347800 ms`), the accepted candidate is `0.298240 ms`, a **14.25%** gain.
