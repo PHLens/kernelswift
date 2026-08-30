@@ -10,9 +10,10 @@
 - last_completed_round: `003`
 - accepted_kernel: `triton_mm_encoder_attention_e2_003.py`
 - accepted_report: `rounds/report_003.md`
-- current_decision: `rounds/decision_004.md` (uncommitted, `proceed`, `change_scope` `host`, `change_family` `launch-path-reduction`, capability-gated)
+- current_decision: `rounds/decision_005.md` (draft, `proceed`, `change_scope` `host`, `change_family` `launch-path-reduction`, mechanism **M2 cached `CompiledKernel`**)
+- round_004_status: **not terminated.** `rounds/report_004.md` is not on disk. Round 004 produced `coder_result_004.md` (`candidate-ready`, M1 `fast_libentry`, `f5aa1d70…`) and has not been measured. **No round-004 result, wall figure, or terminal classification is recorded here.**
 - recent_three_round_evidence: `003 accepted at +17.3965% against base.py (0.361050 -> 0.298240 ms); +11.2080% raw / +8.8072% base-normalized against e2_001. 002 aborted on the 4.0902% device ceiling. 001 accepted at +10.2983%. Epoch-1 history under ../ is labeled noncanonical and is not a source baseline.`
-- open_hypotheses: `Level 2 measured the Triton launch path at 183.740 us/call (61.78% of wall) — the dominant reachable term. Round 004 attacks it under a Decision-scoped capability gate run by Coder. The 22.635 us wrapper is the fallback family. The device side stays closed at 4.0902%.`
+- open_hypotheses: `The round-004 probe proved lifecycle.fast-launcher and measured three realizations. M2 (cached CompiledKernel, 66.895 us) is selected for round 005: 119.360 us saving needing only 12.5% propagation, versus M1's 22.030 us needing 67.5%. M3 is dominated. The 22.635 us wrapper is the fallback family. The device side stays closed at 4.0902%.`
 - artifact_read_hashes: `see the table below`
 
 ## Maintainer Constraint
@@ -86,6 +87,31 @@ complete device budget                       = 13.4064 us/call
 best possible device-only wall improvement   =  4.0902%
 ```
 
+## Round-004 Launch-ABI Probe (retained evidence)
+
+Coder-produced Decision-scoped probe under `log/probes/`. **Legality evidence, not
+a Verifier adoption measurement.** Reused by citation; it does not amend the
+frozen snapshot (`lifecycle.fast-launcher` stays `Unknown`, hash-pinned) and does
+not license later rounds beyond those that re-establish legality on their own.
+
+Artifacts: `round_004_launch_abi_probe.json`,
+`round_004_probe_evidence.md`, `round_004_candidate_conformance.json`.
+
+In-process, warmup 50 / repeat 100 / 3 blocks, M0 baseline reproduced in-script:
+
+| Mechanism | us/call | saving vs M0 | bit-identical | same kernel object |
+|---|---:|---:|---|---|
+| M0 proven `kernel[grid](...)` | 186.255 | — | control | control |
+| M1 `fast_libentry` | 164.225 | 22.030 | yes (`0.0`) | yes |
+| M2 cached `CompiledKernel` | 66.895 | 119.360 | yes (`0.0`) | yes |
+| M3 `NPULauncher.launch` C entry | 46.675 | 139.580 | yes (`0.0`) | yes |
+
+- All four share kernel hash `18db9f0320830a397f740d02078551aeea898355fd7e06d59bb3a7bca2e1c903`, so the same-compiled-kernel criterion holds for every mechanism.
+- M0 reproduces Verifier's `183.740 us` at `186.255 us` (`+1.37%`), so the regime matches and **no new probe is needed** for round 005.
+- M1 forward-level lever measured at `-18.470 us` (`223.505 -> 205.035`) against a `14.871 us` threshold: margin `3.599 us` = `1.21%` of wall. Coder's attempt ledger shows it was `-11.715 us` before hoisting the launch kwargs bundle, so ~10 us of the lever is implementation-detail fragile.
+- Propagation needed to clear 5%: M1 `67.5%`, M2 `12.5%`, M3 `10.7%`. M1 observed `83.8%`.
+- M3 vs M2 is only `20.220 us` more, against materially deeper coupling (compiled C++ `ascend.NPULauncher` C entry, hand-marshalled `function` + `packed_metadata`, no `launch_metadata`, failure mode is a wrong successful call rather than an exception). **M3 is dominated.**
+
 ## Recent Three-round Evidence
 
 - `003` / `accepted` / `rounds/report_003.md` / change family `allocation-reuse`:
@@ -108,27 +134,31 @@ best possible device-only wall improvement   =  4.0902%
 
 ## Open Hypotheses or Checks
 
-1. **`launch-path-reduction`** — SELECTED for round 004, capability-gated. The
-   launch path is `183.740 us/call`; capturing `8.09%` of it clears 5%. Probe is
-   Decision-scoped, run by **Coder** before `candidate-ready`, evidence under
-   `log/probes/`. Candidate mechanisms in order: `fast_libentry`, cached
-   `CompiledKernel` direct invocation, vendor precompiled entry point. The probe
-   must prove existence, the same compiled kernel with the same grid and
-   configuration, a bit-identical output, and a same-regime per-launch cost
-   strictly below `183.740 us`. **Terminal classification:** proven + ≥5% →
-   `accepted`; proven + <5% → `no-improvement`; absent or incorrect →
-   `capability-miss`. In the latter two `e2_003` remains canonical.
-2. **`host-wrapper-reduction`** — fallback family. Only `22.635 us` remain and
+1. **`launch-path-reduction` / M2 cached `CompiledKernel`** — SELECTED for round
+   005. Legality already discharged by the retained round-004 probe; no new probe
+   work. M2 saves `119.360 us/call` at the bare-launch level and needs only
+   `12.5%` propagation to clear the `14.871 us` threshold, against M1's `67.5%`.
+   Expected wall `32.9-39.3%` (declared `30.0` conservatively). **M1 rejected on
+   margin** (`3.599 us`, `1.21%` of wall, against ~7% intra-turn drift, and its
+   lever was below threshold before an implementation detail was fixed).
+   **M3 rejected as dominated**: `20.220 us` more than M2 for a jump from
+   Triton-runtime `CompiledKernel.__getitem__` to the backend-internal compiled
+   C++ `ascend.NPULauncher` C entry, whose failure mode is a wrong successful
+   call that the sticky fallback cannot detect.
+2. **`launch-path-reduction` / M3** — held in reserve. Only `20.220 us` above M2.
+   A future round wanting it must re-establish legality on its own evidence and
+   must answer the coupling cost set out above.
+3. **`host-wrapper-reduction`** — fallback family. Only `22.635 us` remain and
    clearing 5% needs `65.71%` of it. Contents at a cache hit: `query.shape`
    unpacking, the four-component cache-key tuple including a fresh
    `query.device` construction per call, the key comparison, and the grid tuple.
    Needs no new capability, which is its entire merit.
-3. **`kernel-config-tuning`** — `num_warps` 1/2/4/8 and `num_stages` 1/2/3/4.
+4. **`kernel-config-tuning`** — `num_warps` 1/2/4/8 and `num_stages` 1/2/3/4.
    **Rejected on the merits:** bounded by the `4.0902%` device ceiling. Also
    unavailable as `final-autotune` while `last_completed_binding` is `null`.
-4. **`kernel-tiling`** — row-blocked loop to lift `S <= 128`. Correctness and
+5. **`kernel-tiling`** — row-blocked loop to lift `S <= 128`. Correctness and
    generality only; no wall upside at the campaign shape `S=83`.
-5. **`harness-fixed reduction`** — **permanently out of scope.** `91.035 us` is
+6. **`harness-fixed reduction`** — **permanently out of scope.** `91.035 us` is
    harness code; `bottleneck-judgment.md` forbids altering the harness to
    manufacture a speedup.
 
@@ -185,6 +215,10 @@ best possible device-only wall improvement   =  4.0902%
 | `rounds/report_003.md` | `f5dbb4dfefadd88ee8b7ea1f98efb657334143cf18050706f424585f9cd9dcef` | 003 |
 | `rounds/decision_004.md` | `30758ad4dd30ccb0087534e47f61ea0443bdeead40ba64d41c28dd052c397088` | 003 |
 | `rounds/sketch_004.json` | `d3e52f6af032014381908e03e87a6b1c3f5694090686df2af3bfe3a6d9474dbf` | 003 |
+| `rounds/coder_result_004.md` | `9c8c46ef1b58233e464a30022fd2b0dedf2fce7b95410a501d95e2e24ac59e0e` | 003 |
+| `log/probes/round_004_launch_abi_probe.json` | `ec9c7f61560cfd07bd6bff24ad9b801045d97ba9ce8d0f45fb3b01feb4325fdd` | 003 |
+| `rounds/decision_005.md` | `1fdd16d7ddca961760260b9e6130c7e6d2fb17b689728474ee9e5bea9b8ce551` | 003 |
+| `rounds/sketch_005.json` | `f44ed2bfbef80e9dc603494221bbc2cd47db40a9d8d48d85ee2ae344cd11c4ee` | 003 |
 | `triton_mm_encoder_attention_e2_001.py` | `c75ec5ffaab3883ef7c5b1e62778b39fbd5413619a625fd36a86d70390e92124` | 003 |
 | `triton_mm_encoder_attention_e2_003.py` | `c39142c1df7d719e9ef7680b4712b226e293f683d934228f930fa966324c6bfe` | 003 |
 | `project.md` | `914eb006c9132b39f12787f816f42d76ef2803a1aaba371954e5ee81083c3ab1` | 003 |
