@@ -1,0 +1,15 @@
+{
+  "implementation_profile_id": "triton_ascend",
+  "implementation_profile_sha256": "a2c3e2e4622fd2d9d2ffd67206912699217279238a14d66a0816cdc188d96321",
+  "implementation_profile_version": 1,
+  "primary_contract": "matrix.dot",
+  "primary_signature": {
+    "accumulator_dtype": "fp32",
+    "lhs_dtype": "fp16",
+    "rhs_dtype": "fp16"
+  },
+  "qualification_dispositions": [],
+  "runtime_fingerprint": "6856c616ddb16544c3e913136c514742d94ab44f5e9072484bae73d680f08a6b",
+  "schema_version": 1,
+  "target_id": "ascend910b"
+}
