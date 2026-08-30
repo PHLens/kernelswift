@@ -88,7 +88,7 @@ change, incident, or commit yet.
 | 2026-08-30T06:30:00Z | coding -> verifying -> ready | 003 | accepted | `triton_mm_encoder_attention_e2_003.py` | - | `6312866` |
 | 2026-08-30T07:55:00Z | coding -> verifying -> ready | 004 | no-improvement | unchanged (`triton_mm_encoder_attention_e2_003.py`) | - | `afba857` |
 | 2026-08-30T08:20:00Z | coding -> verifying -> ready | 005 | accepted | `triton_mm_encoder_attention_e2_005.py` | - | `2119131` |
-| 2026-08-30T08:54:43Z | ready -> stopped | - | epoch-closed | `triton_mm_encoder_attention_e2_005.py` | - | `pending` |
+| 2026-08-30T08:54:43Z | ready -> stopped | - | epoch-closed | `triton_mm_encoder_attention_e2_005.py` | - | `5415c22` |
 
 ## Policy Revisions
 
