@@ -120,6 +120,7 @@ evidence normalized per forward call.
 | Round | Decision | Candidate | Result | Compared against | Wall ms | Device us/call | Improvement | Hypothesis verdict | Canonical after round |
 |---:|---|---|---|---|---:|---:|---:|---|---|
 | 000 | Phase 0 | `baseline_adapter.py` | baseline | `base.py` | 0.347800 | 104.1264 | - | not-applicable | `baseline_adapter.py` |
+| 001 | `rounds/decision_001.md` | `triton_mm_encoder_attention_e2_001.py` | accepted | `baseline_adapter.py` | 0.327770 | 13.4064 | +10.30% | confirmed on device and launch, partially-confirmed on host | `triton_mm_encoder_attention_e2_001.py` |
 
 Reference (base.py) median was `0.349625` ms at `116.1696 us/call` device time;
 the row records the candidate-side values per `rounds/report_000.md`. This
