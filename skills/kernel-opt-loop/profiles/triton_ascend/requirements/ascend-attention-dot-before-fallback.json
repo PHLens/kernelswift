@@ -1,0 +1,16 @@
+{
+  "fallback_contract": "reduction.sum",
+  "fallback_kind": "algorithm-substitution",
+  "fallback_signature": {
+    "axis": "k",
+    "dtype": "fp32"
+  },
+  "primary_contract": "matrix.dot",
+  "primary_signature": {
+    "accumulator_dtype": "fp32",
+    "lhs_dtype": "fp16",
+    "rhs_dtype": "fp16"
+  },
+  "probe_policy": "before-fallback",
+  "requirement_id": "ascend-attention-dot-before-fallback"
+}
