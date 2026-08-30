@@ -1,0 +1,263 @@
+{
+  "causal_nodes": [
+    {
+      "expected": "per-call kernel launches fall from 6.96-6.98 to one fused attention kernel",
+      "id": "n_launch",
+      "kind": "launch-count"
+    },
+    {
+      "expected": "the three materialized transposes and the inplace-copy transpose disappear because q/k/v are indexed in their native layout",
+      "id": "n_device_layout",
+      "kind": "device-time"
+    },
+    {
+      "expected": "device us per call decreases below the 104.1264 us baseline",
+      "id": "n_device_time",
+      "kind": "device-time"
+    },
+    {
+      "expected": "synchronized wall median decreases by at least five percent",
+      "id": "n_wall",
+      "kind": "wall-time"
+    }
+  ],
+  "control": [
+    {
+      "domain": "B*NH",
+      "id": "c_parallel_bh",
+      "kind": "parallel",
+      "variable": "bh"
+    },
+    {
+      "condition": "row_idx < S",
+      "id": "c_guard_row",
+      "kind": "guard"
+    }
+  ],
+  "declarations": [
+    {
+      "dtype": "fp16",
+      "id": "query",
+      "kind": "tensor",
+      "layout": "contiguous",
+      "memory": "global",
+      "shape": ["B", "S", "NH*HEAD_DIM"]
+    },
+    {
+      "dtype": "fp16",
+      "id": "key",
+      "kind": "tensor",
+      "layout": "contiguous",
+      "memory": "global",
+      "shape": ["B", "S", "NH*HEAD_DIM"]
+    },
+    {
+      "dtype": "fp16",
+      "id": "value",
+      "kind": "tensor",
+      "layout": "contiguous",
+      "memory": "global",
+      "shape": ["B", "S", "NH*HEAD_DIM"]
+    },
+    {
+      "dtype": "fp16",
+      "id": "out",
+      "kind": "tensor",
+      "layout": "contiguous",
+      "memory": "global",
+      "shape": ["B", "S", "NH*HEAD_DIM"]
+    },
+    {
+      "dtype": "fp16",
+      "id": "q_tile",
+      "kind": "tile",
+      "layout": "blocked",
+      "memory": "register",
+      "shape": ["BLOCK_M", "HEAD_DIM"]
+    },
+    {
+      "dtype": "fp16",
+      "id": "k_tile",
+      "kind": "tile",
+      "layout": "blocked",
+      "memory": "register",
+      "shape": ["BLOCK_N", "HEAD_DIM"]
+    },
+    {
+      "dtype": "fp16",
+      "id": "v_tile",
+      "kind": "tile",
+      "layout": "blocked",
+      "memory": "register",
+      "shape": ["BLOCK_N", "HEAD_DIM"]
+    },
+    {
+      "dtype": "fp32",
+      "id": "scale",
+      "kind": "scalar",
+      "layout": "scalar",
+      "memory": "register",
+      "shape": ["1"]
+    }
+  ],
+  "effects": {
+    "aliases": [],
+    "mutations": [],
+    "outputs": ["out"]
+  },
+  "hints": [
+    {
+      "modality": "required",
+      "name": "target",
+      "value": "triton_ascend"
+    },
+    {
+      "modality": "required",
+      "name": "BLOCK_M",
+      "value": 128
+    },
+    {
+      "modality": "required",
+      "name": "BLOCK_N",
+      "value": 128
+    },
+    {
+      "modality": "required",
+      "name": "HEAD_DIM",
+      "value": 64
+    },
+    {
+      "modality": "required",
+      "name": "accumulator_dtype",
+      "value": "fp32"
+    },
+    {
+      "modality": "preferred",
+      "name": "num_warps",
+      "value": 4
+    },
+    {
+      "modality": "preferred",
+      "name": "num_stages",
+      "value": 1
+    }
+  ],
+  "operations": [
+    {
+      "causal_nodes": ["n_launch", "n_device_layout"],
+      "effects": {
+        "reads": ["query"],
+        "writes": ["q_tile"]
+      },
+      "id": "op_load_q",
+      "index_domain": "query[b, 0:BLOCK_M, h*HEAD_DIM : h*HEAD_DIM+HEAD_DIM]",
+      "inputs": ["query"],
+      "kind": "load",
+      "mask": "row_idx < S",
+      "outputs": ["q_tile"]
+    },
+    {
+      "causal_nodes": ["n_device_layout"],
+      "effects": {
+        "reads": ["key"],
+        "writes": ["k_tile"]
+      },
+      "id": "op_load_k",
+      "index_domain": "key[b, 0:BLOCK_N, h*HEAD_DIM : h*HEAD_DIM+HEAD_DIM]",
+      "inputs": ["key"],
+      "kind": "load",
+      "mask": "row_idx < S",
+      "outputs": ["k_tile"]
+    },
+    {
+      "causal_nodes": ["n_device_layout"],
+      "effects": {
+        "reads": ["value"],
+        "writes": ["v_tile"]
+      },
+      "id": "op_load_v",
+      "index_domain": "value[b, 0:BLOCK_N, h*HEAD_DIM : h*HEAD_DIM+HEAD_DIM]",
+      "inputs": ["value"],
+      "kind": "load",
+      "mask": "row_idx < S",
+      "outputs": ["v_tile"]
+    },
+    {
+      "causal_nodes": ["n_device_time"],
+      "conversion": {
+        "scale": "fp32 scalar 0.125 applied to the fp16 dot product accumulated in fp32"
+      },
+      "effects": {
+        "reads": ["q_tile", "k_tile", "scale"],
+        "writes": []
+      },
+      "id": "op_qk",
+      "inputs": ["q_tile", "k_tile", "scale"],
+      "kind": "compute",
+      "outputs": ["qk"]
+    },
+    {
+      "causal_nodes": ["n_device_time"],
+      "effects": {
+        "reads": ["qk"],
+        "writes": []
+      },
+      "id": "op_mask_and_softmax",
+      "inputs": ["qk"],
+      "kind": "compute",
+      "outputs": ["p"]
+    },
+    {
+      "causal_nodes": ["n_device_time"],
+      "conversion": {
+        "p": "fp32 probabilities cast to fp16 before the second dot"
+      },
+      "effects": {
+        "reads": ["p", "v_tile"],
+        "writes": []
+      },
+      "id": "op_pv",
+      "inputs": ["p", "v_tile"],
+      "kind": "compute",
+      "outputs": ["acc"]
+    },
+    {
+      "causal_nodes": ["n_device_time"],
+      "effects": {
+        "reads": ["acc"],
+        "writes": []
+      },
+      "id": "op_normalize",
+      "inputs": ["acc"],
+      "kind": "compute",
+      "outputs": ["acc_norm"]
+    },
+    {
+      "causal_nodes": ["n_launch", "n_device_layout", "n_wall"],
+      "effects": {
+        "reads": ["acc_norm"],
+        "writes": ["out"]
+      },
+      "id": "op_store_out",
+      "index_domain": "out[b, 0:BLOCK_M, h*HEAD_DIM : h*HEAD_DIM+HEAD_DIM]",
+      "inputs": ["acc_norm"],
+      "kind": "store",
+      "mask": "row_idx < S",
+      "outputs": ["out"]
+    }
+  ],
+  "round": "001",
+  "schema_version": 1,
+  "scope": {
+    "entrypoints": ["ModelNew.forward"],
+    "kind": "changed-computation-boundary",
+    "unchanged_boundary": [
+      "ModelNew.__init__",
+      "get_inputs",
+      "get_init_inputs",
+      "public output shape dtype and device",
+      "numerical tolerance contract"
+    ]
+  },
+  "sketch_id": "mmenc-attn-ascend-e2-fused-flash-attention-001"
+}
