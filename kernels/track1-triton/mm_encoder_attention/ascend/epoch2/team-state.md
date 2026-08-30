@@ -5,7 +5,7 @@ contract_version: 3
 semantic_contract: typed-sketch-v1
 attribution_contract: verdict-v1
 runtime: ascend910b4
-phase: coding
+phase: verifying
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-30T05:10:30Z
@@ -37,7 +37,7 @@ last_checkpoint_round: null
 base_branch: trunk
 base_commit: db09613
 run_branch: kernel-opt/mmenc-attn-e2-ascend-20260830
-measurement_exclusive: false
+measurement_exclusive: true
 implementation_language: triton
 implementation_backend: ascend
 target_profile: triton_ascend
