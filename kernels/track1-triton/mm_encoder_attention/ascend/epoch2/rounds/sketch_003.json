@@ -1,0 +1,288 @@
+{
+  "causal_nodes": [
+    {
+      "expected": "output allocations per call fall from one to zero on a cache hit because the output buffer is owned by the ModelNew instance",
+      "id": "n_output_alloc",
+      "kind": "host-allocation"
+    },
+    {
+      "expected": "per-call host work inside ModelNew.forward decreases because no allocation, no empty_like warning path, and no launch-constant reconstruction remains",
+      "id": "n_host_work",
+      "kind": "host-time"
+    },
+    {
+      "expected": "device us per call and kernel count per call stay at 13.4064 and 1.00 because the kernel body and launch configuration are unchanged",
+      "id": "n_device_unchanged",
+      "kind": "device-time"
+    },
+    {
+      "expected": "synchronized wall median decreases by at least five percent",
+      "id": "n_wall",
+      "kind": "wall-time"
+    }
+  ],
+  "control": [
+    {
+      "domain": "B*NH",
+      "id": "c_parallel_bh",
+      "kind": "parallel",
+      "variable": "bh"
+    },
+    {
+      "condition": "row_idx < S",
+      "id": "c_guard_row",
+      "kind": "guard"
+    },
+    {
+      "condition": "offs_n < S",
+      "id": "c_guard_col",
+      "kind": "guard"
+    }
+  ],
+  "declarations": [
+    {
+      "dtype": "fp16",
+      "id": "query",
+      "kind": "tensor",
+      "layout": "contiguous",
+      "memory": "global",
+      "shape": ["B", "S", "NH*HEAD_DIM"]
+    },
+    {
+      "dtype": "fp16",
+      "id": "key",
+      "kind": "tensor",
+      "layout": "contiguous",
+      "memory": "global",
+      "shape": ["B", "S", "NH*HEAD_DIM"]
+    },
+    {
+      "dtype": "fp16",
+      "id": "value",
+      "kind": "tensor",
+      "layout": "contiguous",
+      "memory": "global",
+      "shape": ["B", "S", "NH*HEAD_DIM"]
+    },
+    {
+      "dtype": "fp16",
+      "id": "out",
+      "kind": "tensor",
+      "layout": "contiguous",
+      "memory": "global",
+      "shape": ["B", "S", "NH*HEAD_DIM"]
+    },
+    {
+      "dtype": "int64",
+      "id": "out_shape",
+      "kind": "scalar",
+      "layout": "scalar",
+      "memory": "host",
+      "shape": ["3"]
+    },
+    {
+      "dtype": "fp16",
+      "id": "q_tile",
+      "kind": "tile",
+      "layout": "blocked",
+      "memory": "register",
+      "shape": ["BLOCK_M", "HEAD_DIM"]
+    },
+    {
+      "dtype": "fp16",
+      "id": "k_tile",
+      "kind": "tile",
+      "layout": "blocked",
+      "memory": "register",
+      "shape": ["BLOCK_N", "HEAD_DIM"]
+    },
+    {
+      "dtype": "fp16",
+      "id": "v_tile",
+      "kind": "tile",
+      "layout": "blocked",
+      "memory": "register",
+      "shape": ["BLOCK_N", "HEAD_DIM"]
+    },
+    {
+      "dtype": "fp32",
+      "id": "scale",
+      "kind": "scalar",
+      "layout": "scalar",
+      "memory": "register",
+      "shape": ["1"]
+    }
+  ],
+  "effects": {
+    "aliases": [],
+    "mutations": [],
+    "outputs": ["out"]
+  },
+  "hints": [
+    {
+      "modality": "required",
+      "name": "target",
+      "value": "triton_ascend"
+    },
+    {
+      "modality": "required",
+      "name": "BLOCK_M",
+      "value": 128
+    },
+    {
+      "modality": "required",
+      "name": "BLOCK_N",
+      "value": 128
+    },
+    {
+      "modality": "required",
+      "name": "HEAD_DIM",
+      "value": 64
+    },
+    {
+      "modality": "required",
+      "name": "accumulator_dtype",
+      "value": "fp32"
+    },
+    {
+      "modality": "preferred",
+      "name": "num_warps",
+      "value": 4
+    },
+    {
+      "modality": "preferred",
+      "name": "num_stages",
+      "value": 1
+    }
+  ],
+  "operations": [
+    {
+      "causal_nodes": ["n_output_alloc", "n_host_work"],
+      "effects": {
+        "reads": ["out_shape"],
+        "writes": ["out"]
+      },
+      "id": "op_alloc_out",
+      "inputs": ["out_shape"],
+      "kind": "alloc",
+      "outputs": ["out"]
+    },
+    {
+      "causal_nodes": ["n_device_unchanged"],
+      "effects": {
+        "reads": ["query"],
+        "writes": ["q_tile"]
+      },
+      "id": "op_load_q",
+      "index_domain": "query[b, 0:BLOCK_M, h*HEAD_DIM : h*HEAD_DIM+HEAD_DIM]",
+      "inputs": ["query"],
+      "kind": "load",
+      "mask": "row_idx < S",
+      "outputs": ["q_tile"]
+    },
+    {
+      "causal_nodes": ["n_device_unchanged"],
+      "effects": {
+        "reads": ["key"],
+        "writes": ["k_tile"]
+      },
+      "id": "op_load_k",
+      "index_domain": "key[b, 0:BLOCK_N, h*HEAD_DIM : h*HEAD_DIM+HEAD_DIM]",
+      "inputs": ["key"],
+      "kind": "load",
+      "mask": "offs_n < S",
+      "outputs": ["k_tile"]
+    },
+    {
+      "causal_nodes": ["n_device_unchanged"],
+      "effects": {
+        "reads": ["value"],
+        "writes": ["v_tile"]
+      },
+      "id": "op_load_v",
+      "index_domain": "value[b, 0:BLOCK_N, h*HEAD_DIM : h*HEAD_DIM+HEAD_DIM]",
+      "inputs": ["value"],
+      "kind": "load",
+      "mask": "offs_n < S",
+      "outputs": ["v_tile"]
+    },
+    {
+      "causal_nodes": ["n_device_unchanged"],
+      "conversion": {
+        "scale": "fp32 scalar 0.125 applied to the fp16 dot product accumulated in fp32"
+      },
+      "effects": {
+        "reads": ["q_tile", "k_tile", "scale"],
+        "writes": []
+      },
+      "id": "op_qk",
+      "inputs": ["q_tile", "k_tile", "scale"],
+      "kind": "compute",
+      "outputs": ["qk"]
+    },
+    {
+      "causal_nodes": ["n_device_unchanged"],
+      "effects": {
+        "reads": ["qk"],
+        "writes": []
+      },
+      "id": "op_mask_and_softmax",
+      "inputs": ["qk"],
+      "kind": "compute",
+      "outputs": ["p"]
+    },
+    {
+      "causal_nodes": ["n_device_unchanged"],
+      "conversion": {
+        "p": "fp32 probabilities cast to fp16 before the second dot"
+      },
+      "effects": {
+        "reads": ["p", "v_tile"],
+        "writes": []
+      },
+      "id": "op_pv",
+      "inputs": ["p", "v_tile"],
+      "kind": "compute",
+      "outputs": ["acc"]
+    },
+    {
+      "causal_nodes": ["n_device_unchanged"],
+      "effects": {
+        "reads": ["acc"],
+        "writes": []
+      },
+      "id": "op_normalize",
+      "inputs": ["acc"],
+      "kind": "compute",
+      "outputs": ["acc_norm"]
+    },
+    {
+      "causal_nodes": ["n_output_alloc", "n_host_work", "n_device_unchanged", "n_wall"],
+      "effects": {
+        "reads": ["acc_norm"],
+        "writes": ["out"]
+      },
+      "id": "op_store_out",
+      "index_domain": "out[b, 0:BLOCK_M, h*HEAD_DIM : h*HEAD_DIM+HEAD_DIM]",
+      "inputs": ["acc_norm"],
+      "kind": "store",
+      "mask": "row_idx < S",
+      "outputs": ["out"]
+    }
+  ],
+  "round": "003",
+  "schema_version": 1,
+  "scope": {
+    "entrypoints": ["ModelNew.forward", "ModelNew.__init__"],
+    "kind": "unchanged-computation-boundary",
+    "unchanged_boundary": [
+      "fused attention kernel body",
+      "kernel launch count at one",
+      "BLOCK_M BLOCK_N HEAD_DIM accumulator_dtype",
+      "num_warps and num_stages",
+      "public output shape dtype and device",
+      "numerical tolerance contract atol=1e-2 rtol=1e-2"
+    ]
+  },
+  "sketch_id": "mmenc-attn-ascend-e2-host-allocation-reuse-003"
+}
