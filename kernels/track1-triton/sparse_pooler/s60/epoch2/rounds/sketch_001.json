@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "sketch_id": "sketch-sparse-pooler-s60-tail-fusion-001",
+  "round": "001",
+  "scope": {
+    "kind": "changed-computation-boundary",
+    "entrypoints": [
+      "ModelNew.forward"
+    ],
+    "unchanged_boundary": [
+      "mathematical semantics: decoder(LayerNorm(GELU(dense(h)))) for the MLM head remains EXACTLY the vendor library GEMM chain (dense [83,768]@[768,768] + decoder [83,768]@[768,30522]); the Triton kernel touches ONLY the post-decoder tail — log1p(relu(x)) elementwise on [83,30522] fp32 followed by per-sequence max pooling over segments [20,25,18,20]",
+      "output structure: list of 4 x [30522] fp32 tensors, one per sequence segment, max-pooled over tokens within each segment (chunk.max(dim=0).values), order preserved",
+      "public ModelNew(hidden_size=768, vocab_size=30522, pooling='max') constructor and forward(hidden_states, seq_lens) signature; get_inputs/get_init_inputs retained",
+      "capability legality: NO tl.dot anywhere in the candidate (both GEMMs stay vendor-bound); only tl.load / tl.store / tl.arange / elementwise (log1p, relu, max) / reduction.max over a power-of-2 padded vocab axis; tl.arange extents are power-of-2 (V=30522 padded to 32768); num_warps in {1,2,4,8}",
+      "stateless module contract: zero cross-call state, zero caches, zero workspace; caller device and current stream preserved; no torch.compile anywhere"
+    ]
+  },
+  "declarations": [
+    {
+      "id": "x",
+      "kind": "tensor",
+      "shape": ["S", "V"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "global"
+    },
+    {
+      "id": "out",
+      "kind": "tensor",
+      "shape": ["NS", "V"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "global"
+    },
+    {
+      "id": "x_tile",
+      "kind": "tile",
+      "shape": ["S", "BV"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "register"
+    },
+    {
+      "id": "out_tile",
+      "kind": "tile",
+      "shape": ["NS", "BV"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "register"
+    }
+  ],
+  "operations": [
+    {
+      "id": "op.load.x",
+      "kind": "load",
+      "inputs": ["x"],
+      "outputs": ["x_tile"],
+      "index_domain": "token x vocab",
+      "mask": "vocab < V",
+      "causal_nodes": ["cn.dispatch-collapse"],
+      "effects": { "reads": ["x"], "writes": [] }
+    },
+    {
+      "id": "op.compute.act",
+      "kind": "compute",
+      "inputs": ["x_tile"],
+      "outputs": ["act"],
+      "causal_nodes": ["cn.device-time-delta"],
+      "effects": { "reads": ["x_tile"], "writes": [] }
+    },
+    {
+      "id": "op.compute.segment_max",
+      "kind": "compute",
+      "inputs": ["act"],
+      "outputs": ["pooled"],
+      "causal_nodes": ["cn.device-time-delta"],
+      "effects": { "reads": ["act"], "writes": [] }
+    },
+    {
+      "id": "op.store.out",
+      "kind": "store",
+      "inputs": ["pooled"],
+      "outputs": ["out"],
+      "index_domain": "segment x vocab",
+      "mask": "vocab < V",
+      "causal_nodes": ["cn.dispatch-collapse"],
+      "effects": { "reads": ["pooled"], "writes": ["out"] }
+    }
+  ],
+  "control": [
+    {
+      "id": "ctrl.parallel.seg",
+      "kind": "parallel",
+      "variable": "seg",
+      "domain": "0 <= seg < NS (NS=4 segments)"
+    },
+    {
+      "id": "ctrl.parallel.vid",
+      "kind": "parallel",
+      "variable": "vid",
+      "domain": "0 <= vid < ceil(V / BV) vocab blocks"
+    },
+    {
+      "id": "ctrl.guard.token",
+      "kind": "guard",
+      "condition": "vocab < V"
+    }
+  ],
+  "effects": {
+    "outputs": ["out"],
+    "mutations": [],
+    "aliases": []
+  },
+  "hints": [
+    { "name": "pad_vocab_power_of_2", "modality": "required" },
+    { "name": "fp32_elementwise_tail", "modality": "required" },
+    { "name": "num_warps_2", "modality": "preferred" },
+    { "name": "block_vocab_256", "modality": "exploratory" }
+  ],
+  "causal_nodes": [
+    {
+      "id": "cn.dispatch-collapse",
+      "kind": "mechanism",
+      "expected": "the base tail path materializes an intermediate [83,30522] fp32 tensor and issues a Python-loop of 4 chunk.max(dim=0) reductions plus the log1p/relu elementwise ops (several aten dispatches and topsLaunchKernel launches); the candidate replaces log1p(relu) + segment-max with ONE direct-launched Triton kernel over grid=(NS, ceil(V/BV)) programs writing straight into the 4 x [30522] fp32 outputs, collapsing the elementwise + per-segment max dispatch chain (host ops and launch count decrease)"
+    },
+    {
+      "id": "cn.device-time-delta",
+      "kind": "mechanism",
+      "expected": "the Triton kernel's device time replaces the base's elementwise (110us) + pooling device time; V=30522 pads to 32768 (power-of-2 tl.arange constraint) adding ~7% wasted lanes, and the 125us seq_lens.tolist() D2H sync is NOT eliminated (segment boundaries still arrive host-side); expected device delta is two-sided and honest: the round does NOT claim a 5% wall win, only a correctness-PASS Triton deliverable plus a canonical measurement of the fused-tail device time"
+    }
+  ]
+}

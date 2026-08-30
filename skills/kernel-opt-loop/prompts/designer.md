@@ -90,3 +90,19 @@ Orchestrator commits the current round.
 log. It retains the current bottleneck, recent three-round evidence, the bounded
 backlog, and artifact read hashes. It labels historical candidates as
 noncanonical and contains no runtime claim without a Verifier report.
+
+## vNext typed Sketch and capability preflight
+
+In read-only capability preflight (before campaign state), Designer identifies
+explicit optimization-critical primary/fallback pairs from operator semantics
+without writing a Decision, Sketch, or campaign file; Orchestrator validates and
+materializes the normalized qualification input. After Phase 0, Designer writes
+the typed JSON Sketch (`rounds/sketch_NNN.json`), the causal graph references,
+and any explicit fallback provenance inside the Decision. Designer never writes
+a runtime fact pack or verdict, never equates an Unknown capability with
+unavailable, and never claims an expected lowering is guaranteed when the
+profile only supports a probe or inference. For final tuning, Designer reuses
+the accepted Sketch and declares only finite profile-legal `preferred|
+exploratory` configuration fields, immutable input hashes, budget, comparison
+objective, and deterministic winner rule; the accepted Sketch, algorithm,
+precision, effects, aliases, Host Plan, and public interface remain immutable.

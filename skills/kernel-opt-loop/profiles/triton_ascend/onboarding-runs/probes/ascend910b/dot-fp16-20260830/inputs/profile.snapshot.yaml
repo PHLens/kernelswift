@@ -1,0 +1,603 @@
+{
+  "capability_matrix": [
+    {
+      "capability_kind": "primitive",
+      "contract_name": "memory.load",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "memory",
+      "id": "memory.load.contiguous",
+      "implementation_symbol": "tl.load",
+      "notes": "masked contiguous loads verified by the recorded Ascend primitive probe; bounds and alignment remain shape-specific",
+      "scope": {
+        "device_arch": "ascend-910b4",
+        "runtime": "torch 2.7.1+cpu / torch_npu 2.7.1.post4 / triton 3.2.0 / CANN 9.0.0 (recorded setup)",
+        "shape_signature": "project-defined",
+        "target_id": "ascend910b"
+      },
+      "signature": {
+        "dtype": "fp32",
+        "layout": "contiguous"
+      },
+      "status": "supported"
+    },
+    {
+      "capability_kind": "primitive",
+      "contract_name": "memory.store",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "memory",
+      "id": "memory.store.contiguous",
+      "implementation_symbol": "tl.store",
+      "notes": "contiguous stores verified for the probed dtypes by the recorded Ascend primitive probe",
+      "scope": {
+        "device_arch": "ascend-910b4",
+        "runtime": "torch 2.7.1+cpu / torch_npu 2.7.1.post4 / triton 3.2.0 / CANN 9.0.0 (recorded setup)",
+        "shape_signature": "project-defined",
+        "target_id": "ascend910b"
+      },
+      "signature": {
+        "dtype": "fp32",
+        "layout": "contiguous"
+      },
+      "status": "supported"
+    },
+    {
+      "capability_kind": "primitive",
+      "constraints": [
+        "only extents 64, 128, and 256 are recorded; any other extent is Unknown and requires a matched probe"
+      ],
+      "contract_name": "index.range",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "index",
+      "id": "index.range.one-dimensional",
+      "implementation_symbol": "tl.arange",
+      "notes": "extents 64, 128, and 256 verified by the recorded Ascend probe; other extents remain Unknown",
+      "scope": {
+        "device_arch": "ascend-910b4",
+        "runtime": "torch 2.7.1+cpu / torch_npu 2.7.1.post4 / triton 3.2.0 / CANN 9.0.0 (recorded setup)",
+        "shape_signature": "project-defined",
+        "target_id": "ascend910b"
+      },
+      "signature": {
+        "dimension": 1
+      },
+      "status": "constrained"
+    },
+    {
+      "capability_kind": "primitive",
+      "contract_name": "parallel.program-id",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "parallel",
+      "id": "parallel.program-id.axis0",
+      "implementation_symbol": "tl.program_id",
+      "notes": "axis-0 program_id verified in single- and multi-program launches by the recorded Ascend probe",
+      "scope": {
+        "device_arch": "ascend-910b4",
+        "runtime": "torch 2.7.1+cpu / torch_npu 2.7.1.post4 / triton 3.2.0 / CANN 9.0.0 (recorded setup)",
+        "shape_signature": "project-defined",
+        "target_id": "ascend910b"
+      },
+      "signature": {
+        "axis": 0
+      },
+      "status": "supported"
+    },
+    {
+      "capability_kind": "primitive",
+      "contract_name": "creation.zeros",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "creation",
+      "id": "creation.zeros",
+      "implementation_symbol": "tl.zeros",
+      "notes": "float32 (64,) fill verified by the recorded Ascend primitive probe",
+      "scope": {
+        "device_arch": "ascend-910b4",
+        "runtime": "torch 2.7.1+cpu / torch_npu 2.7.1.post4 / triton 3.2.0 / CANN 9.0.0 (recorded setup)",
+        "shape_signature": "project-defined",
+        "target_id": "ascend910b"
+      },
+      "signature": {
+        "dtype": "fp32"
+      },
+      "status": "supported"
+    },
+    {
+      "capability_kind": "primitive",
+      "contract_name": "creation.full",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "creation",
+      "id": "creation.full",
+      "implementation_symbol": "tl.full",
+      "notes": "float32 scalar fill (64,) verified by the recorded Ascend primitive probe",
+      "scope": {
+        "device_arch": "ascend-910b4",
+        "runtime": "torch 2.7.1+cpu / torch_npu 2.7.1.post4 / triton 3.2.0 / CANN 9.0.0 (recorded setup)",
+        "shape_signature": "project-defined",
+        "target_id": "ascend910b"
+      },
+      "signature": {
+        "dtype": "fp32"
+      },
+      "status": "supported"
+    },
+    {
+      "capability_kind": "primitive",
+      "contract_name": "select.where",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "select",
+      "id": "select.where",
+      "implementation_symbol": "tl.where",
+      "notes": "masked selection verified by the recorded Ascend primitive probe",
+      "scope": {
+        "device_arch": "ascend-910b4",
+        "runtime": "torch 2.7.1+cpu / torch_npu 2.7.1.post4 / triton 3.2.0 / CANN 9.0.0 (recorded setup)",
+        "shape_signature": "project-defined",
+        "target_id": "ascend910b"
+      },
+      "signature": {
+        "dtype": "fp32"
+      },
+      "status": "supported"
+    },
+    {
+      "capability_kind": "primitive",
+      "contract_name": "layout.reshape",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "layout",
+      "id": "layout.reshape",
+      "implementation_symbol": "tl.reshape",
+      "notes": "element-count-preserving (16,) to (4,4) reshape verified by the recorded Ascend probe",
+      "scope": {
+        "device_arch": "ascend-910b4",
+        "runtime": "torch 2.7.1+cpu / torch_npu 2.7.1.post4 / triton 3.2.0 / CANN 9.0.0 (recorded setup)",
+        "shape_signature": "project-defined",
+        "target_id": "ascend910b"
+      },
+      "signature": {
+        "element_count_preserving": true
+      },
+      "status": "supported"
+    },
+    {
+      "capability_kind": "primitive",
+      "contract_name": "layout.broadcast-to",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "layout",
+      "id": "layout.broadcast-to",
+      "implementation_symbol": "tl.broadcast_to",
+      "notes": "(4,1) to (4,4) broadcast verified by the recorded Ascend primitive probe",
+      "scope": {
+        "device_arch": "ascend-910b4",
+        "runtime": "torch 2.7.1+cpu / torch_npu 2.7.1.post4 / triton 3.2.0 / CANN 9.0.0 (recorded setup)",
+        "shape_signature": "project-defined",
+        "target_id": "ascend910b"
+      },
+      "signature": {
+        "kind": "broadcast"
+      },
+      "status": "supported"
+    },
+    {
+      "capability_kind": "primitive",
+      "contract_name": "reduction.max",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "reduction",
+      "id": "reduction.max",
+      "implementation_symbol": "tl.max",
+      "notes": "axis-1 reduction over (4,4) and axis-0 scalar reduction verified by the recorded Ascend probe",
+      "scope": {
+        "device_arch": "ascend-910b4",
+        "runtime": "torch 2.7.1+cpu / torch_npu 2.7.1.post4 / triton 3.2.0 / CANN 9.0.0 (recorded setup)",
+        "shape_signature": "project-defined",
+        "target_id": "ascend910b"
+      },
+      "signature": {
+        "axis": 1,
+        "dtype": "fp32"
+      },
+      "status": "supported"
+    },
+    {
+      "capability_kind": "primitive",
+      "contract_name": "reduction.sum",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "reduction",
+      "id": "reduction.sum",
+      "implementation_symbol": "tl.sum",
+      "notes": "axis-0 scalar reduction verified by the recorded Ascend probe; named as the algorithm-substitution fallback for matrix.dot",
+      "scope": {
+        "device_arch": "ascend-910b4",
+        "runtime": "torch 2.7.1+cpu / torch_npu 2.7.1.post4 / triton 3.2.0 / CANN 9.0.0 (recorded setup)",
+        "shape_signature": "project-defined",
+        "target_id": "ascend910b"
+      },
+      "signature": {
+        "axis": "k",
+        "dtype": "fp32"
+      },
+      "status": "supported"
+    },
+    {
+      "capability_kind": "primitive",
+      "constraints": [
+        "tie ordering is not established; a semantic tie mismatch is implementation repair or design rejection"
+      ],
+      "contract_name": "reduction.argmax",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "reduction",
+      "id": "reduction.argmax",
+      "implementation_symbol": "tl.argmax",
+      "notes": "axis-0 reduction over a float32 vector verified; the recorded probe uses unique values only so tie behaviour is not characterized",
+      "scope": {
+        "device_arch": "ascend-910b4",
+        "runtime": "torch 2.7.1+cpu / torch_npu 2.7.1.post4 / triton 3.2.0 / CANN 9.0.0 (recorded setup)",
+        "shape_signature": "project-defined",
+        "target_id": "ascend910b"
+      },
+      "signature": {
+        "dtype": "fp32"
+      },
+      "status": "constrained"
+    },
+    {
+      "capability_kind": "primitive",
+      "contract_name": "math.exp",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "math",
+      "id": "math.exp",
+      "implementation_symbol": "tl.exp",
+      "notes": "elementwise float32 exponential verified by the recorded Ascend primitive probe",
+      "scope": {
+        "device_arch": "ascend-910b4",
+        "runtime": "torch 2.7.1+cpu / torch_npu 2.7.1.post4 / triton 3.2.0 / CANN 9.0.0 (recorded setup)",
+        "shape_signature": "project-defined",
+        "target_id": "ascend910b"
+      },
+      "signature": {
+        "dtype": "fp32"
+      },
+      "status": "supported"
+    },
+    {
+      "capability_kind": "primitive",
+      "contract_name": "control.static-range",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "control",
+      "id": "control.static-range",
+      "implementation_symbol": "tl.static_range",
+      "notes": "compile-time loop with K=8 verified by the recorded Ascend primitive probe",
+      "scope": {
+        "device_arch": "ascend-910b4",
+        "runtime": "torch 2.7.1+cpu / torch_npu 2.7.1.post4 / triton 3.2.0 / CANN 9.0.0 (recorded setup)",
+        "shape_signature": "project-defined",
+        "target_id": "ascend910b"
+      },
+      "signature": {
+        "kind": "compile-time-loop"
+      },
+      "status": "supported"
+    },
+    {
+      "capability_kind": "primitive",
+      "contract_name": "matrix.dot",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "matrix",
+      "id": "matrix.dot.fp16-fp16-fp32.tile-coverage",
+      "implementation_symbol": "tl.dot",
+      "notes": "only (16,16)@(16,16) float32 dot is recorded; fp16 tile and dtype coverage at the attention and MoE GEMM shapes is unproven and is the primary epoch-2 qualification",
+      "scope": {
+        "device_arch": "ascend-910b4",
+        "runtime": "torch 2.7.1+cpu / torch_npu 2.7.1.post4 / triton 3.2.0 / CANN 9.0.0 (recorded setup)",
+        "shape_signature": "project-defined",
+        "target_id": "ascend910b"
+      },
+      "signature": {
+        "accumulator_dtype": "fp32",
+        "lhs_dtype": "fp16",
+        "rhs_dtype": "fp16"
+      },
+      "status": "unknown"
+    },
+    {
+      "capability_kind": "resource",
+      "contract_name": "resource.num-warps",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "resource",
+      "id": "resource.num-warps",
+      "implementation_symbol": "num_warps",
+      "notes": "the recorded Markdown context mentions 1/2/4 compiling, but no machine-readable approved probe evidence exists for this canonical profile",
+      "scope": {
+        "device_arch": "ascend-910b4",
+        "runtime": "torch 2.7.1+cpu / torch_npu 2.7.1.post4 / triton 3.2.0 / CANN 9.0.0 (recorded setup)",
+        "shape_signature": "project-defined",
+        "target_id": "ascend910b"
+      },
+      "signature": {
+        "name": "num_warps"
+      },
+      "status": "unknown"
+    },
+    {
+      "capability_kind": "resource",
+      "contract_name": "resource.num-stages",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "resource",
+      "id": "resource.num-stages",
+      "implementation_symbol": "num_stages",
+      "notes": "no Ascend architecture-specific legality or performance probe is recorded",
+      "scope": {
+        "device_arch": "ascend-910b4",
+        "runtime": "torch 2.7.1+cpu / torch_npu 2.7.1.post4 / triton 3.2.0 / CANN 9.0.0 (recorded setup)",
+        "shape_signature": "project-defined",
+        "target_id": "ascend910b"
+      },
+      "signature": {
+        "name": "num_stages"
+      },
+      "status": "unknown"
+    },
+    {
+      "capability_kind": "primitive",
+      "contract_name": "memory.make-block-ptr",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "memory",
+      "id": "memory.make-block-ptr",
+      "implementation_symbol": "tl.make_block_ptr",
+      "notes": "memory-placement and support semantics require a matched Ascend probe",
+      "scope": {
+        "device_arch": "ascend-910b4",
+        "runtime": "torch 2.7.1+cpu / torch_npu 2.7.1.post4 / triton 3.2.0 / CANN 9.0.0 (recorded setup)",
+        "shape_signature": "project-defined",
+        "target_id": "ascend910b"
+      },
+      "signature": {
+        "kind": "block-ptr"
+      },
+      "status": "unknown"
+    },
+    {
+      "capability_kind": "primitive",
+      "contract_name": "memory.async-copy",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "memory",
+      "id": "memory.async-copy",
+      "implementation_symbol": "tl.async_copy",
+      "notes": "availability, synchronization, and memory semantics require a matched Ascend probe",
+      "scope": {
+        "device_arch": "ascend-910b4",
+        "runtime": "torch 2.7.1+cpu / torch_npu 2.7.1.post4 / triton 3.2.0 / CANN 9.0.0 (recorded setup)",
+        "shape_signature": "project-defined",
+        "target_id": "ascend910b"
+      },
+      "signature": {
+        "kind": "async"
+      },
+      "status": "unknown"
+    },
+    {
+      "capability_kind": "resource",
+      "contract_name": "resource.vectorize",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "resource",
+      "id": "resource.vectorize",
+      "implementation_symbol": "vectorize",
+      "notes": "accepted values and backend effect require a matched Ascend probe",
+      "scope": {
+        "device_arch": "ascend-910b4",
+        "runtime": "torch 2.7.1+cpu / torch_npu 2.7.1.post4 / triton 3.2.0 / CANN 9.0.0 (recorded setup)",
+        "shape_signature": "project-defined",
+        "target_id": "ascend910b"
+      },
+      "signature": {
+        "name": "vectorize"
+      },
+      "status": "unknown"
+    },
+    {
+      "capability_kind": "lifecycle",
+      "contract_name": "lifecycle.fast-launcher",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "lifecycle",
+      "id": "lifecycle.fast-launcher",
+      "implementation_symbol": "fast_libentry",
+      "notes": "no Ascend probe establishes a fast launcher path; direct launch remains the proven launcher",
+      "scope": {
+        "device_arch": "ascend-910b4",
+        "runtime": "torch 2.7.1+cpu / torch_npu 2.7.1.post4 / triton 3.2.0 / CANN 9.0.0 (recorded setup)",
+        "shape_signature": "project-defined",
+        "target_id": "ascend910b"
+      },
+      "signature": {
+        "kind": "launcher"
+      },
+      "status": "unknown"
+    }
+  ],
+  "fallback_and_unknown_policy": {
+    "probe_policies": [
+      {
+        "fallback_contract": "reduction.sum",
+        "fallback_kind": "algorithm-substitution",
+        "fallback_signature": {
+          "axis": "k",
+          "dtype": "fp32"
+        },
+        "primary_contract": "matrix.dot",
+        "primary_signature": {
+          "accumulator_dtype": "fp32",
+          "lhs_dtype": "fp16",
+          "rhs_dtype": "fp16"
+        },
+        "probe_policy": "before-fallback"
+      }
+    ],
+    "waiver_requirements": [
+      "an algorithm-substitution fallback requires a demand-scoped exact probe and maintainer confirmation before Phase 0"
+    ]
+  },
+  "identity_match": {
+    "match_rules": [
+      "target and device architecture must be discovered and matched at Phase 0",
+      "API compatibility never transfers evidence across vendors, devices, architectures, or toolchains",
+      "the Ascend backend is reached through triton.backends.backends['ascend']; there is no importable triton_ascend module"
+    ],
+    "permitted_device_architectures": [
+      "ascend-910b4"
+    ],
+    "permitted_target_ids": [
+      "ascend910b"
+    ]
+  },
+  "implementation": {
+    "backend": "ascend",
+    "language": "python",
+    "runner_adapter": "python-command",
+    "toolchain": "triton 3.2.0 on Ascend 910B4 with torch_npu 2.7.1.post4 and CANN 9.0.0 (discover at Phase 0)"
+  },
+  "implementation_profile_id": "triton_ascend",
+  "implementation_profile_version": 1,
+  "probe_catalog": [
+    {
+      "definition_path": "probes/dot-tiles.json",
+      "definition_sha256": "9efc2c86c27a87714eb7529a267f3c1f01b644a2000139db1ef969022f0eca34",
+      "probe_id": "triton-ascend-dot-tiles-001"
+    },
+    {
+      "definition_path": "probes/num-warps.json",
+      "definition_sha256": "870f9cbec0d8d1e47152a8ec217f4370bbfa1e00f3b96b598a3251b198d04a13",
+      "probe_id": "triton-ascend-num-warps-001"
+    },
+    {
+      "definition_path": "probes/num-stages.json",
+      "definition_sha256": "fc4baa5a8109d89c39e33192aa7e04ffb2cacb1737b461ef5b49c15b3b20684d",
+      "probe_id": "triton-ascend-num-stages-001"
+    }
+  ],
+  "profile_schema_ref": "schema/profile.schema.json",
+  "profile_schema_sha256": "4ce1a4f8fbc36428808012b5e0f54af2b71fb81a7a746eaa2ff334f89ed5b436",
+  "profile_status": "partial",
+  "profiler_evidence": {
+    "available_event_types": [
+      "host-cpu-op",
+      "cann-ai-core-op-summary"
+    ],
+    "normalized_fields": [
+      "device_us_per_call",
+      "kernel_count_per_call"
+    ],
+    "scopes": [
+      "project-local"
+    ],
+    "unavailable_event_types": [
+      "torch-profiler-kernel-events",
+      "instruction-level"
+    ]
+  },
+  "runtime_launcher": {
+    "harness_constraints": [
+      "import torch_npu before allocating NPU tensors or launching Triton kernels",
+      "use device=\"npu\" and torch.npu.synchronize() as the observed synchronization boundary",
+      "direct Triton launch syntax kernel[(grid,)](...) is the proven launcher path",
+      "the shared base.py writes device=\"cuda\" as a neutral placeholder; the harness AST loader rewrites it to npu before exec, so candidate get_inputs must not hardcode cuda",
+      "MLU, GCU, and CUDA device strings, stream assumptions, and launcher behavior must not be inferred for Ascend"
+    ],
+    "imports": [
+      "torch",
+      "torch_npu",
+      "triton"
+    ],
+    "launch_abi": "kernel[(grid)](args)",
+    "stream_synchronization": "torch.npu.synchronize()"
+  },
+  "schema_version": 1,
+  "shared_profile_schema_ref": "schema/shared-profile.schema.json",
+  "shared_profile_schema_sha256": "4ce1a4f8fbc36428808012b5e0f54af2b71fb81a7a746eaa2ff334f89ed5b436",
+  "shared_profile_schema_version": 1,
+  "source_conformance": {
+    "analyzer": "python-ast-triton",
+    "binding_model": "primitive-call"
+  }
+}

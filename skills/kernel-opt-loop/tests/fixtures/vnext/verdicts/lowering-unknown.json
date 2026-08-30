@@ -1,0 +1,34 @@
+{
+  "binding_sha256": "__BINDING_HASH__",
+  "classification": "lowering-unknown",
+  "confidence": "medium",
+  "decision_sha256": "__DECISION_HASH__",
+  "evidence": [],
+  "explanation": "rule-selected explanation",
+  "failed_attempt_effect": "unchanged",
+  "preconditions": [
+    {
+      "name": "binding_valid",
+      "status": "pass"
+    },
+    {
+      "name": "correctness_pass",
+      "status": "pass"
+    },
+    {
+      "name": "lowering_observed",
+      "status": "pass"
+    },
+    {
+      "name": "expected_mechanism_absent",
+      "status": "pass"
+    }
+  ],
+  "profile_sha256": "__PROFILE_HASH__",
+  "report_fact_pack_sha256": "__FACTS_HASH__",
+  "route": null,
+  "rule_id": "LOWERING.EXPECTED.ABSENT",
+  "schema_version": 1,
+  "sketch_sha256": "__SKETCH_HASH__",
+  "terminal_result": "design-rejected"
+}

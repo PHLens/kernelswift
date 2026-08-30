@@ -1,0 +1,54 @@
+{
+  "accepted_reference_file_sha256": "b8ec3458bf810e6f3e81f759a716810b2046e5b32e22fc1339ec526e319445d1",
+  "binding_sha256": "4c5222a03190d726c1491159c866b280b5792668d5c0c070741f7741f76f43e7",
+  "candidate_sha256": "b490acc674ef5570900e8273bd6e3ab2a10102612b8c6fc6da63271a2dfcadec",
+  "classification": "none",
+  "confidence": "high",
+  "decision_file_sha256": "fa11b1152306e4cc4b33a02e31bc52d4c76de210c79385f41e02ee25c3bc7b1d",
+  "decision_sha256": "d6c4026044c8687cee923a7bd0cc9b39bc8bc89cbf8d23ff64ea86a10c73059f",
+  "evidence": [
+    "authoritative pairs --warmup 50 --repeat 100 x3 (protocol v0=base.py, default stream): reference medians [0.155043, 0.153720, 0.156726] -> 0.155043 ms; candidate medians [0.161593, 0.154599, 0.157659] -> 0.157659 ms; unrounded paired improvement -1.6873% vs +5.0% bar (negative sign; regression)",
+    "all four anchor bases recorded in report_001.md: prescribed paired v0 basis == direct same-session pair vs r000 v0 (last_accepted IS the base adapter; identical comparison, stated explicitly) = -1.6873%; cross-anchor report_000 0.151107 ms -> -4.3355% with session drift +2.604% on the v0 side; manifest anchor identical to report_000 anchor this early (stated explicitly)",
+    "ACTIVE TIER behavioral finding = manual-replay: real graph handle + workspace present + replay_failed=False; 150/150 distinct-input calls bitwise==eager reference at harness-like scale; trace corroboration 1.00 cudaGraphLaunch/call",
+    "bitwise_tier_retention_equivalence pass: seed42 + fp16-extreme tie-free suite bitwise-equal replay vs eager through forward AND run_out (poisoned x2, data_ptr preserved, never workspace-aliased)",
+    "kernel_count_per_call adjudicated BRANCH A per decision two-branch rule: attributed cat=kernel 0.14/call vs base 0.86/call (collapsed far below); host census shows 1.00 cudaGraphLaunch + 4.00 cudaMemcpyAsync + 3.99 Memcpy DtoD per call with no other GPU submissions; failure clause (attributed ~0.88 WITH flat wall) moot",
+    "host_dispatch_compression_signature pass: aten cpu_ops 34 -> 6 per call; compression signatures PRESENT while wall <5% -> decision's pre-declared reading (a): host floor harder than sibling analog (per-submission/sync-class costs; candidate route pays 5 GPU submissions/call vs eager 1, plus per-call cudaDeviceSynchronize/cudaDriverGetVersion observed)",
+    "fallback_tier_selectivity_and_recovery pass: T=41-first zero artifacts, recovery captured once, replay route bitwise-correct",
+    "deviations: D1 default-stream discipline honored everywhere; D2 kernel-mode attempt on THIS candidate failed verbatim 'TypeError: ModelNew.run_out() missing 2 required positional arguments: value and out' exit 1 (harness passes run_out(gating_output, *output_args) only); D3 coder-shaped binding statement consumed, all checkable claims independently re-verified (DANGER rescan all-zero, hashes match)"
+  ],
+  "explanation": "Verifier facts only: correctness pass through the manual-replay tier with full bitwise retention; the H-001 mechanism ENGAGED (capture + dispatch compression measured at scale) but the primary wall criterion FAILED with negative sign (-1.6873% paired, -4.3355% cross-anchor): the decision's pre-declared honest no-improvement reading (a). Hypothesis verdict partially-confirmed (mechanism links confirmed; expected wall outcome falsified). Terminal_result no-improvement under verifier output authority; last_accepted pointer should remain baseline_adapter.py @b8ec3458... and performance_miss_streak accounting belongs to Orchestrator.",
+  "failed_attempt_effect": "unchanged",
+  "hypothesis_verdict": "partially-confirmed",
+  "preconditions": [
+    {
+      "name": "correctness_pass",
+      "status": "pass"
+    },
+    {
+      "name": "binding_valid",
+      "status": "pass"
+    },
+    {
+      "name": "lowering_observed",
+      "status": "pass"
+    },
+    {
+      "name": "observable_observed",
+      "status": "pass"
+    },
+    {
+      "name": "wall_improvement_at_or_above_bar",
+      "status": "fail"
+    }
+  ],
+  "profile_sha256": "dc8fa4c0c73caecc78c6a886e5ffb18cb97371f3add7cb382dbe30887743b7ae",
+  "report_fact_pack_sha256": "f4c72154287fc29215385889fe1d0166015560ac7e888e96c5cc8de0a030ff7d",
+  "report_file": "rounds/report_001.md",
+  "round": "001",
+  "route": null,
+  "rule_id": null,
+  "schema_version": 1,
+  "sketch_file_sha256": "199275b85e831238c2f0c9c694d3c4c03550c6681bd7a8e87f3474642b3c1fce",
+  "sketch_sha256": "06ab845c3302f08e6bc647513748f28983dc881303bf6fdf95329219def8e0ed",
+  "terminal_result": "no-improvement"
+}

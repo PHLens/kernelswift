@@ -1,0 +1,53 @@
+{
+  "binding_model": "primitive-call",
+  "bindings": [
+    {
+      "contract_name": "memory.load",
+      "implementation_symbol": "tl.load",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            12,
+            43
+          ],
+          "path": "candidates/valid_candidate.py",
+          "start": [
+            12,
+            11
+          ]
+        }
+      ],
+      "statement_id": "op.load.row",
+      "status": "implemented"
+    },
+    {
+      "contract_name": "memory.store",
+      "implementation_symbol": "tl.store",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            13,
+            43
+          ],
+          "path": "candidates/valid_candidate.py",
+          "start": [
+            13,
+            5
+          ]
+        }
+      ],
+      "statement_id": "op.store.output",
+      "status": "implemented"
+    }
+  ],
+  "candidate_path": "candidates/valid_candidate.py",
+  "candidate_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "decision_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "required_hint_bindings": [],
+  "round": "001",
+  "schema_version": 1,
+  "sketch_sha256": "6550218a1247005fcae54a3e148a914e13296d1be67bcd011464edbbedbf5309",
+  "source_analyzer": "python-ast-triton"
+}

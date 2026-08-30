@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "sketch_id": "sketch-cra-s60-e2-direct-launch-fusion-001",
+  "round": "001",
+  "scope": {
+    "kind": "changed-computation-boundary",
+    "entrypoints": [
+      "ModelNew.forward"
+    ],
+    "unchanged_boundary": [
+      "mathematical semantics: masked centering (masked mean of x_input_coords [256,3] fp32, keepdim, eps=1e-12) -> per-sample random rigid-body transform: quaternion rotation matrix R[n_sample,3,3] from uniform quaternion (u1,u2,u3), then 3x3 matvec per atom, then translation T=s_trans*randn(n_sample,3), then optional mask multiply (mask is None in get_inputs); output [n_sample, N_atom, 3] = [4, 256, 3] fp32",
+      "random-number semantics: u1=torch.rand(n_sample), u2=torch.rand(n_sample), u3=torch.rand(n_sample), T=s_trans*torch.randn(n_sample,3) generated on HOST in EXACTLY this order/count/shape to keep the seed-42 random sequence bit-identical to base (correctness exact-match)",
+      "output structure: single fp32 tensor [n_sample, N_atom, 3] = [4, 256, 3]",
+      "public API: ModelNew(n_sample=4, s_trans=1.0, centre_only=False).forward(x_input_coords, mask=None) preserved",
+      "capability legality: primary contract math.elementwise (sqrt/sin/cos/mul/add/sub, no tl.dot); tl.arange extents power-of-2 (N_atom BLOCK = 128 or 256); num_warps=1 (small-scale latency-bound elementwise); no algorithm substitution (no tl.dot, no reduction.sum substitution)",
+      "stateless module contract: zero cross-call state, zero caches, zero workspace; caller device and current stream preserved; no torch.compile, no graph capture"
+    ]
+  },
+  "declarations": [
+    {
+      "id": "x_input_coords",
+      "kind": "tensor",
+      "shape": ["N_atom", "3"],
+      "dtype": "fp32",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "u1",
+      "kind": "tensor",
+      "shape": ["n_sample"],
+      "dtype": "fp32",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "u2",
+      "kind": "tensor",
+      "shape": ["n_sample"],
+      "dtype": "fp32",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "u3",
+      "kind": "tensor",
+      "shape": ["n_sample"],
+      "dtype": "fp32",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "T",
+      "kind": "tensor",
+      "shape": ["n_sample", "3"],
+      "dtype": "fp32",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "x_centered",
+      "kind": "tensor",
+      "shape": ["N_atom", "3"],
+      "dtype": "fp32",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "out_flat",
+      "kind": "tensor",
+      "shape": ["n_sample", "N_atom", "3"],
+      "dtype": "fp32",
+      "layout": "row_major",
+      "memory": "global"
+    }
+  ],
+  "operations": [
+    {
+      "id": "op.load.x",
+      "kind": "load",
+      "inputs": ["x_centered"],
+      "outputs": ["x_tile"],
+      "index_domain": "atom x 3",
+      "mask": "atom < N_atom",
+      "effects": { "reads": ["x_centered"], "writes": [] }
+    },
+    {
+      "id": "op.load.u",
+      "kind": "load",
+      "inputs": ["u1", "u2", "u3", "T"],
+      "outputs": ["u1_s", "u2_s", "u3_s", "T_s"],
+      "index_domain": "sample",
+      "mask": "pid < n_sample",
+      "effects": { "reads": ["u1", "u2", "u3", "T"], "writes": [] }
+    },
+    {
+      "id": "op.compute.quaternion",
+      "kind": "compute",
+      "inputs": ["u1_s", "u2_s", "u3_s"],
+      "outputs": ["R_tile"],
+      "causal_nodes": ["cn.launch-collapse"],
+      "effects": { "reads": ["u1_s", "u2_s", "u3_s"], "writes": [] }
+    },
+    {
+      "id": "op.compute.rot_translate",
+      "kind": "compute",
+      "inputs": ["R_tile", "x_tile", "T_s"],
+      "outputs": ["out_tile"],
+      "causal_nodes": ["cn.launch-collapse", "cn.device-time-delta"],
+      "effects": { "reads": ["R_tile", "x_tile", "T_s"], "writes": [] }
+    },
+    {
+      "id": "op.store.out",
+      "kind": "store",
+      "inputs": ["out_tile"],
+      "outputs": ["out_flat"],
+      "index_domain": "sample x atom x 3",
+      "mask": "pid < n_sample",
+      "causal_nodes": ["cn.launch-collapse"],
+      "effects": { "reads": ["out_tile"], "writes": ["out_flat"] }
+    }
+  ],
+  "control": [
+    {
+      "id": "ctrl.parallel.sample",
+      "kind": "parallel",
+      "variable": "pid",
+      "domain": "0 <= pid < n_sample (n_sample=4 => 4 programs)"
+    },
+    {
+      "id": "ctrl.for.atom",
+      "kind": "for",
+      "variable": "atom_block",
+      "domain": "0 <= atom_block < ceil(N_atom / BLOCK) (BLOCK=256 => 1 iteration)"
+    },
+    {
+      "id": "ctrl.guard.atom",
+      "kind": "guard",
+      "condition": "atom < N_atom"
+    },
+    {
+      "id": "ctrl.if.mask",
+      "kind": "if",
+      "condition": "has_mask (constexpr branch; mask is None for this instantiation)"
+    }
+  ],
+  "effects": {
+    "outputs": ["out_flat"],
+    "mutations": [],
+    "aliases": []
+  },
+  "hints": [
+    { "name": "num_warps_1", "modality": "required" },
+    { "name": "pad_atom_block_power_of_2", "modality": "required" },
+    { "name": "static_unroll_3x3_matvec", "modality": "required" }
+  ],
+  "causal_nodes": [
+    {
+      "id": "cn.launch-collapse",
+      "kind": "mechanism",
+      "expected": "the 78 topsLaunchKernel/call base path (rand x3 + sqrt/sin/cos quaternion chain + stack/reshape rotation matrix + unbind/stack rot_vec_mul + expand/contiguous + mul/add/sub + mask) collapses to a single direct-launched Triton kernel (grid=(n_sample,)=4 programs, one per sample): host keeps only u1/u2/u3 torch.rand + T=s_trans*torch.randn + masked-mean center + x=x-center, then one kernel launch does quaternion->R (tl.sqrt/tl.sin/tl.cos, 9 matrix elements static-unrolled) -> 3x3 matvec per atom (3 dot products static-unrolled) -> +T -> mask (constexpr branch)"
+    },
+    {
+      "id": "cn.device-time-delta",
+      "kind": "mechanism",
+      "expected": "the fused kernel's device time D_cand replaces the base's many tiny-kernel device times; preflight probe (grid=(n_sample,), host generates only u1/u2/u3/T) measured ~1.59x (base 4442us -> fused 2794us) with correctness max_abs_diff 4.77e-7 (exact-match within fp32); GCU device-duration unavailable (launch-only trace), so wall is inferred from launch-count + launch-API time"
+    }
+  ]
+}

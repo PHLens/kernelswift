@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "sketch_id": "sketch-undefined-use",
+  "round": "001",
+  "scope": {
+    "kind": "changed-computation-boundary",
+    "entrypoints": ["ModelNew.forward"],
+    "unchanged_boundary": ["public ModelNew contract"]
+  },
+  "declarations": [
+    {"id": "scores", "kind": "tensor", "shape": ["T", "E"], "dtype": "fp32", "layout": "row_major", "memory": "global"},
+    {"id": "topk_values", "kind": "tensor", "shape": ["T", "E"], "dtype": "fp32", "layout": "row_major", "memory": "global"},
+    {"id": "row", "kind": "tile", "shape": ["BLOCK_E"], "dtype": "fp32", "layout": "contiguous", "memory": "register"}
+  ],
+  "operations": [
+    {
+      "id": "op.load.row",
+      "kind": "load",
+      "inputs": ["scores"],
+      "outputs": ["row"],
+      "index_domain": "token x expert",
+      "mask": "expert < E",
+      "effects": {"reads": ["scores"], "writes": []}
+    },
+    {
+      "id": "op.compute.topk",
+      "kind": "compute",
+      "inputs": ["ghost_value"],
+      "outputs": ["values"],
+      "effects": {"reads": ["ghost_value"], "writes": []}
+    }
+  ],
+  "control": [
+    {"id": "ctrl.token", "kind": "parallel", "variable": "token", "domain": "0 <= token < T"},
+    {"id": "guard.expert", "kind": "guard", "condition": "expert < E"}
+  ],
+  "effects": {"outputs": ["topk_values"], "mutations": [], "aliases": []},
+  "hints": [],
+  "causal_nodes": []
+}

@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "kernel-opt-loop project capability claim",
+  "description": "Immutable run-local operator applicability claim. Matches the concrete target_id against an implementation profile and may embed maintainer-authorized fallback dispositions. Never contains raw probe-result references.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "implementation_profile_id",
+    "implementation_profile_version",
+    "implementation_profile_sha256",
+    "target_id",
+    "runtime_fingerprint",
+    "primary_contract",
+    "primary_signature",
+    "qualification_dispositions"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "implementation_profile_id": {"type": "string"},
+    "implementation_profile_version": {"type": "integer", "minimum": 1},
+    "implementation_profile_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "target_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+    "runtime_fingerprint": {"type": "string"},
+    "primary_contract": {"type": "string"},
+    "primary_signature": {"type": "object", "additionalProperties": true},
+    "fallback_contract": {"type": "string"},
+    "fallback_signature": {"type": "object", "additionalProperties": true},
+    "fallback_kind": {"enum": ["semantic-accommodation", "algorithm-substitution"]},
+    "probe_policy": {"enum": ["optional", "before-fallback", "must-resolve"]},
+    "qualification_dispositions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "disposition_id",
+          "requirement",
+          "requirement_sha256",
+          "onboarding_outcome",
+          "promotion_disposition",
+          "fallback_authorized",
+          "reason",
+          "maintainer_confirmation",
+          "primary_remains_unknown"
+        ],
+        "properties": {
+          "disposition_id": {"type": "string"},
+          "requirement": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "requirement_id",
+              "primary_contract",
+              "primary_signature",
+              "fallback_contract",
+              "fallback_signature",
+              "fallback_kind",
+              "probe_policy"
+            ],
+            "properties": {
+              "requirement_id": {"type": "string"},
+              "primary_contract": {"type": "string"},
+              "primary_signature": {"type": "object", "additionalProperties": true},
+              "fallback_contract": {"type": "string"},
+              "fallback_signature": {"type": "object", "additionalProperties": true},
+              "fallback_kind": {"enum": ["semantic-accommodation", "algorithm-substitution"]},
+              "probe_policy": {"enum": ["optional", "before-fallback", "must-resolve"]}
+            }
+          },
+          "requirement_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "onboarding_outcome": {"enum": ["evidence-ready", "partial", "environment-blocked", "probe-failed", "no-exact-probe"]},
+          "promotion_disposition": {"enum": ["declined", "deferred", "not-applicable"]},
+          "fallback_authorized": {"type": "boolean"},
+          "reason": {"type": "string"},
+          "maintainer_confirmation": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["confirmed_by", "confirmed_at", "method"],
+            "properties": {
+              "confirmed_by": {"type": "string"},
+              "confirmed_at": {"type": "string"},
+              "method": {"enum": ["explicit-user-instruction", "maintainer-reviewed-commit"]}
+            }
+          },
+          "probe_id": {"type": "string"},
+          "probe_definition_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "probe_result_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "primary_remains_unknown": {"const": true}
+        }
+      }
+    }
+  }
+}

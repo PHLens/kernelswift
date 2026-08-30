@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "round": "002",
+  "decision_sha256": "31c972fb31d9760acf4bb271bbff9d919c910cf0231b5b9215f9c871af82ff37",
+  "sketch_sha256": "0ccbec4756d447d1365d0cae81ff2f8e3a020ecc3b99d84bbe2d4d7ce5d84cf3",
+  "binding_sha256": "9315ba1b5f6b431713e7699f6ba89515d292e9bba56edd9d5cd4e18f5093a6b6",
+  "profile_sha256": "dc8fa4c0c73caecc78c6a886e5ffb18cb97371f3add7cb382dbe30887743b7ae",
+  "report_fact_pack_sha256": "ffe20fec967b0d8b1ee736869dd57e02a8ca672ba3823053fc643fb659a97014",
+  "rule_id": null,
+  "classification": "none",
+  "terminal_result": "accepted",
+  "failed_attempt_effect": "unchanged",
+  "route": null,
+  "confidence": "high",
+  "preconditions": [
+    {"name": "correctness_pass", "status": "pass"},
+    {"name": "binding_valid", "status": "pass"},
+    {"name": "lowering_observed", "status": "pass"},
+    {"name": "observable_observed", "status": "pass"},
+    {"name": "wall_improvement_at_or_above_bar", "status": "pass"}
+  ],
+  "evidence": [
+    "authoritative pairs --warmup 50 --repeat 100 x3 (protocol v0=base.py): reference medians [0.475034, 0.472995, 0.479432] -> 0.475034 ms; candidate medians [0.338824, 0.338136, 0.344416] -> 0.338824 ms; unrounded paired improvement +28.6733% >= 5.0 adoption bar; H-002 expected 10.0 exceeded",
+    "supplementary same-session accepted-pair probe: r001 0.4170527681708336 ms -> r002 0.3410717472434044 ms = +18.21856290768121% vs last_accepted (outputs bitwise-identical pre-timing)",
+    "cross-anchors of record: vs report_001 last_accepted wall 0.416933 ms -> +18.7345%; vs manifest-of-record anchor 0.483530 ms -> +29.9270%",
+    "log/probes/verifier_tie_runout_result_002.json: compiled-route correctness incl. all four tie suites ids exact AND bitwise equality vs accepted r001 on every case; T=41 staged-fallback selectivity; run_out==forward bitwise over poisoned buffers x2",
+    "log/summary_round002_candidate_kernelmode.json (canonical tool): 6.90 kernels/call, 103.985009765625 us/call device within the declared 90-130 flatness band; retained gatherTopK+bitonicSortKVInPlace at 1.97 counts/call each; Triton stage kernels persist unchanged in names",
+    "rounds/report_001.md deviation-P1 double-record scope rejection did NOT recur this round: all three round-002 scopes summarized by the canonical summarize_trace.py without salvage"
+  ],
+  "explanation": "Verifier facts only: correctness pass through the compiled route including tie suites and bitwise-vs-r001 confirmation, lowering observed (stage kernels persist, no selection substitution), all four H-002 observables observed passing, authoritative wall improvement clears the 5% bar on both the prescribed-pair basis and the same-session accepted-reference basis. Attribution ownership and terminal routing belong to Orchestrator."
+}

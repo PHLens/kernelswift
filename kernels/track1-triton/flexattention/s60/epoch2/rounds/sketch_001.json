@@ -1,0 +1,189 @@
+{
+  "schema_version": 1,
+  "sketch_id": "sketch-flexattn-s60-causal-fp16-dot-001",
+  "round": "001",
+  "scope": {
+    "kind": "changed-computation-boundary",
+    "entrypoints": [
+      "ModelNew.forward",
+      "ModelNew.run_out"
+    ],
+    "unchanged_boundary": [
+      "mathematical semantics: CAUSAL scaled-dot-product attention (flexattention) with scale=1/8 exact power-of-two, per-head softmax(QK^T*scale)*V over the CAUSAL lower-triangle (query token i attends only keys j <= i; upper-triangle and out-of-range keys masked to -inf), num_heads == num_kv_heads == 8, head_size == 64, fp16",
+      "input structure: query/key/value each fp16 [num_tokens, num_heads, head_size] = [83, 8, 64] token-major (head stride = D = 64)",
+      "output structure: single fp16 tensor [num_tokens, num_heads * head_size] = [83, 512]",
+      "public ModelNew(num_heads=8, head_size=64, scale=None, num_kv_heads=8) constructor; forward(query, key, value) 3-arg; run_out(query, key, value, out) 4-arg preallocated-output surface per project.md public_contract",
+      "capability legality: tl.dot used ONLY at power-of-2 tiles (TP=128, D=64; 96=16x6 FAILS, only 16/32/64/128 pass); both tl.dot operands SAME dtype (fp16 QK^T -> q/k both fp16; fp32 PV -> attn/v both fp32); tl.max/tl.sum called WITHOUT keepdim (broadcast via [:,None]); tl.arange extent power-of-2 only; num_warps in {1,2,4,8}; no algorithm substitution (primary matrix.dot consumed at its constrained signature, not replaced; reduction.sum fallback BLOCKED — waiver NOT granted)",
+      "stateless module contract: zero cross-call state, zero caches, zero workspace; caller device and current stream preserved; no torch.compile anywhere"
+    ]
+  },
+  "declarations": [
+    {
+      "id": "query",
+      "kind": "tensor",
+      "shape": ["T", "H", "D"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "key",
+      "kind": "tensor",
+      "shape": ["T", "H", "D"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "value",
+      "kind": "tensor",
+      "shape": ["T", "H", "D"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "out_flat",
+      "kind": "tensor",
+      "shape": ["T", "H", "D"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "q_tile",
+      "kind": "tile",
+      "shape": ["TP", "D"],
+      "dtype": "fp16",
+      "layout": "contiguous",
+      "memory": "register"
+    },
+    {
+      "id": "k_tile",
+      "kind": "tile",
+      "shape": ["TP", "D"],
+      "dtype": "fp16",
+      "layout": "contiguous",
+      "memory": "register"
+    },
+    {
+      "id": "v_tile",
+      "kind": "tile",
+      "shape": ["TP", "D"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "register"
+    }
+  ],
+  "operations": [
+    {
+      "id": "op.load.q",
+      "kind": "load",
+      "inputs": ["query"],
+      "outputs": ["q_tile"],
+      "index_domain": "head x token x dim",
+      "mask": "token < S",
+      "effects": { "reads": ["query"], "writes": [] }
+    },
+    {
+      "id": "op.load.k",
+      "kind": "load",
+      "inputs": ["key"],
+      "outputs": ["k_tile"],
+      "index_domain": "head x token x dim",
+      "mask": "token < S",
+      "effects": { "reads": ["key"], "writes": [] }
+    },
+    {
+      "id": "op.load.v",
+      "kind": "load",
+      "inputs": ["value"],
+      "outputs": ["v_tile"],
+      "index_domain": "head x token x dim",
+      "mask": "token < S",
+      "conversion": "fp16 -> fp32 widen on load (PV path keeps v fp32; the only widening cast in the kernel)",
+      "effects": { "reads": ["value"], "writes": [] }
+    },
+    {
+      "id": "op.compute.qk",
+      "kind": "compute",
+      "inputs": ["q_tile", "k_tile"],
+      "outputs": ["scores"],
+      "conversion": "fp16 x fp16 -> fp32 accumulator via tl.dot(q_tile, tl.trans(k_tile)) * scale; q/k stay fp16 DIRECTLY into tl.dot (NO widening — the fp16 tensor-core MMA path); scale=1/8 exact power-of-two",
+      "causal_nodes": ["cn.fp16-dot", "cn.device-time-delta"],
+      "effects": { "reads": ["q_tile", "k_tile"], "writes": [] }
+    },
+    {
+      "id": "op.compute.mask_softmax",
+      "kind": "compute",
+      "inputs": ["scores"],
+      "outputs": ["attn"],
+      "conversion": "CAUSAL mask merged with out-of-range mask: s = where(offs_m[:,None] >= offs_n[None,:] & mask_n[None,:], s, -inf); softmax via tl.max(axis=1) + tl.exp(s - m[:,None]) + tl.sum(axis=1), NO keepdim ([:,None] broadcast)",
+      "effects": { "reads": ["scores"], "writes": [] }
+    },
+    {
+      "id": "op.compute.pv",
+      "kind": "compute",
+      "inputs": ["attn", "v_tile"],
+      "outputs": ["out_tile"],
+      "conversion": "fp32 x fp32 -> fp32 accumulator via tl.dot(attn, v_tile); attn is the fp32 softmax output, v_tile widened to fp32 on load (same-dtype operands)",
+      "causal_nodes": ["cn.fp16-dot", "cn.device-time-delta"],
+      "effects": { "reads": ["attn", "v_tile"], "writes": [] }
+    },
+    {
+      "id": "op.store.out",
+      "kind": "store",
+      "inputs": ["out_tile"],
+      "outputs": ["out_flat"],
+      "index_domain": "head x token x dim",
+      "mask": "token < S",
+      "conversion": "fp32 -> fp16 narrow on store; direct token-major store into the final [T, H, D] layout (host reshapes to [83, 512])",
+      "causal_nodes": ["cn.dispatch-collapse"],
+      "effects": { "reads": ["out_tile"], "writes": ["out_flat"] }
+    }
+  ],
+  "control": [
+    {
+      "id": "ctrl.parallel.head",
+      "kind": "parallel",
+      "variable": "h",
+      "domain": "0 <= h < H (H=8 => 8 programs, one per head; grid=(H,))"
+    },
+    {
+      "id": "ctrl.guard.token",
+      "kind": "guard",
+      "condition": "token < S"
+    }
+  ],
+  "effects": {
+    "outputs": ["out_flat"],
+    "mutations": [],
+    "aliases": []
+  },
+  "hints": [
+    { "name": "qk_dot_fp16", "modality": "required" },
+    { "name": "pv_dot_fp32", "modality": "required" },
+    { "name": "causal_mask", "modality": "required" },
+    { "name": "num_warps_1", "modality": "preferred" },
+    { "name": "pad_to_power_of_2_128", "modality": "required" },
+    { "name": "tl_dot_same_dtype", "modality": "required" },
+    { "name": "tl_max_sum_no_keepdim", "modality": "required" }
+  ],
+  "causal_nodes": [
+    {
+      "id": "cn.dispatch-collapse",
+      "kind": "mechanism",
+      "expected": "one direct-launched Triton causal-attention kernel (grid=(H,)=8 programs, one per head) replaces the entire base path — vendor F.scaled_dot_product_attention(is_causal=True) dispatch stack with 2 topsLaunchKernel launches/call (19.43 us/call launch-API per report_000) plus the unsqueeze/transpose/reshape host reshape chain — with a forward of one torch.empty + one kernel launch + one reshape writing results directly into the final [83,512] fp16 layout; run_out writes the caller buffer through the same kernel with zero allocation"
+    },
+    {
+      "id": "cn.fp16-dot",
+      "kind": "mechanism",
+      "expected": "the S60-optimal attention recipe (probe-backed from mm_encoder_attention s60 e2): QK^T feeds fp16 q/k DIRECTLY into tl.dot (fp16 x fp16 -> fp32 accumulator, the Ixmma/MMA tensor-core path, NO fp16->fp32 widening on q/k), PV keeps the fp32 path (attn fp32 softmax, v widened to fp32 on load); lead preflight probe measured causal fp16 dot correctness-PASS (max_abs_diff 1.95e-3 < 1e-2)"
+    },
+    {
+      "id": "cn.device-time-delta",
+      "kind": "mechanism",
+      "expected": "candidate device time D_cand replaces the base ~2-launch vendor flash-attention device floor; lead authoritative 3-pair measurement candidate ~0.2686ms vs base ~0.2521ms = 0.94x (-6.4%), still below the +5% adoption bar (S60 device-bound, hand-written attention ~0.9x ceiling vs vendor flash-attention library per project.md Key Prior) but 2.2x over epoch-1's 0.42x naive tl.sum kernel"
+    }
+  ]
+}

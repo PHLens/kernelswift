@@ -1,4 +1,9 @@
-# <Role> Context State
+# <Role> Context
+
+> Naming contract: the durable role context file is exactly
+> `state/designer_context.md`, `state/coder_context.md`, or
+> `state/verifier_context.md` — one `*_context.md` per role. No `*_state.md`
+> alias exists and no compatibility alias may be created.
 
 - role_contract_sha256: `<sha256>`
 - context_epoch: `<integer>`

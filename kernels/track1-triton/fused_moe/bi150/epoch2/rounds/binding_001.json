@@ -1,0 +1,579 @@
+{
+  "binding_model": "primitive-call",
+  "bindings": [
+    {
+      "contract_name": "memory.load",
+      "evidence": [
+        "log/probes/p01_r001_capability_probe.py",
+        "log/probes/p01_r001_capability_result.json"
+      ],
+      "implementation_symbol": "tl.load",
+      "notes": "grid (1,) single program: flat_ids (int64 from aten topk) is loaded then narrowed kernel-side with .to(tl.int32); the token index r//K is derived in-register. Qualifies the profile's `cast.narrow` int64->int32 kernel-side entry, recorded `unknown` in the frozen snapshot.",
+      "reason": "Statement op_load_rows is realized on the memory.load/tl.load primitive at the recorded span. A reason is supplied unconditionally because several sketch statements resolve onto shared primitive spans in this fused two-kernel implementation, and the validator requires one in that case.",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            117,
+            57
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            117,
+            11
+          ]
+        }
+      ],
+      "statement_id": "op_load_rows",
+      "status": "implemented"
+    },
+    {
+      "contract_name": "arithmetic.select",
+      "evidence": [
+        "log/probes/p01b_r001_countingsort_isolate.py",
+        "log/probes/p01c_r001_prefixsum_isolate.py",
+        "log/probes/p01d_r001_p5_robustness.py"
+      ],
+      "implementation_symbol": "tl.where",
+      "notes": "counts[b] = tl.sum(mask_b) reduced over the [BLOCK_ROWS] lanes and deposited into lane b with an int32 multiplier, inside tl.static_range(E). Reduce-based deposit is REQUIRED: the masked-add lane deposit `counts = counts + one_if` is a hard compile error (shapes 8 vs 256).",
+      "reason": "ACCOMMODATED: the bucket count is `counts[b] = tl.sum(tl.where((ids == b) & valid, 1, 0).to(tl.int32))` inside tl.static_range(E). The profile has no `reduction.sum` entry at all, so the reduce cannot be bound to a declared contract; the binding records the declared primitive that BUILDs the counted mask (arithmetic.select / tl.where) and declares the site accommodated rather than claiming an undeclared reduction contract. The masked-add form the invariant literally names is a hard compile error (shapes 8 vs 256) -- see p01b.",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            128,
+            58
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            128,
+            24
+          ]
+        }
+      ],
+      "statement_id": "op_bucket_count",
+      "status": "accommodated"
+    },
+    {
+      "contract_name": "arithmetic.select",
+      "evidence": [
+        "log/probes/p01c_r001_prefixsum_isolate.py",
+        "log/probes/p01d_r001_p5_robustness.py"
+      ],
+      "implementation_symbol": "tl.where",
+      "notes": "offsets[b] = tl.sum(counts where be < b), reduce-based. The lane-deposit forms tl.where(be == b, x, 0) and (be == b).to(tl.int32) * x COMPILE BUT SILENTLY YIELD ZEROS on this rig (p01c P1-P4 all returned [0]*8); only the reduce form is correct.",
+      "reason": "ACCOMMODATED: the exclusive prefix scan is `offsets[b] = tl.sum(tl.where(be < b, counts, 0))` inside tl.static_range(E). Same rationale as op_bucket_count: the profile declares no reduction.sum contract, so the binding records the declared primitive that builds the scanned mask (arithmetic.select / tl.where) and declares the site accommodated. The lane-deposit forms tl.where(be == b, x, 0) and (be == b).to(tl.int32) * x COMPILE BUT SILENTLY YIELD ZEROS on this rig (p01c P1-P4 all returned [0]*8).",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            134,
+            49
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            134,
+            22
+          ]
+        }
+      ],
+      "statement_id": "op_bucket_scan",
+      "status": "accommodated"
+    },
+    {
+      "contract_name": "memory.store",
+      "implementation_symbol": "tl.store",
+      "notes": "aten view(-1) at line 379; no host data-dependent branch. Shared span with op_store_meta (same store instruction writes both derived arrays), which is why a reason is required.",
+      "reason": "Statement is realized in two parts: the aten flatten topk_ids.view(-1) at line 379 produces flat_ids, and the Triton-side span recorded here is the store of the derived count metadata consumed downstream.",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            137,
+            38
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            137,
+            5
+          ]
+        }
+      ],
+      "statement_id": "op_flatten",
+      "status": "implemented"
+    },
+    {
+      "contract_name": "memory.store",
+      "implementation_symbol": "tl.store",
+      "notes": "aten renorm + .to(fp16) at lines 375-377, tie semantics verbatim from the epoch-1 canonical source. Shared span with op_store_meta, hence the reason.",
+      "reason": "Statement is realized in two parts: the aten renormalize divide and fp16 cast at lines 375-377 produce flat_w, and the Triton-side span recorded here is the store of the derived offset metadata consumed downstream.",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            138,
+            40
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            138,
+            5
+          ]
+        }
+      ],
+      "statement_id": "op_renorm",
+      "status": "implemented"
+    },
+    {
+      "contract_name": "memory.store",
+      "implementation_symbol": "tl.store",
+      "notes": "expert_counts / expert_offsets, int32, [E].",
+      "reason": "Two spans: line 137 stores expert_counts and line 138 stores expert_offsets; both are the materialization of the counting-sort metadata into the [E] int32 tiles the expert kernel reads.",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            137,
+            38
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            137,
+            5
+          ]
+        },
+        {
+          "end": [
+            138,
+            40
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            138,
+            5
+          ]
+        }
+      ],
+      "statement_id": "op_store_meta",
+      "status": "implemented"
+    },
+    {
+      "contract_name": "memory.store",
+      "evidence": [
+        "log/probes/p02c_r001_sort_alternatives.py",
+        "log/probes/p02e_r001_scatter_correct.py",
+        "log/probes/p02f_r001_u5_robustness.py"
+      ],
+      "implementation_symbol": "tl.store",
+      "notes": "dest = base + rank where rank comes from a [BLOCK_ROWS, E] (256x8) matrix reduced on the 8-wide axis, NOT a [BLOCK_ROWS, BLOCK_ROWS] (256x256) one. The 256x256 form measures 553.9 us/call (95% of pipeline); the 256x8 form measures 26.2-36.8 us/call and is bitwise-equal to a host stable counting sort on 18 id vectors across 6 activation patterns, deterministic over 20 runs. Stable (rank follows flat row order).",
+      "reason": "Two spans: line 154 scatters the token index into sorted_rows and line 155 scatters the routing weight into sorted_w, both indexed by the computed destination slot.",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            154,
+            56
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            154,
+            5
+          ]
+        },
+        {
+          "end": [
+            155,
+            49
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            155,
+            5
+          ]
+        }
+      ],
+      "statement_id": "op_scatter",
+      "status": "implemented"
+    },
+    {
+      "contract_name": "memory.load",
+      "evidence": [
+        "log/probes/p03_r001_candidate_gates.py"
+      ],
+      "implementation_symbol": "tl.load",
+      "notes": "aten torch.softmax in fp32 at line 373, inside the captured region, verbatim epoch-1 semantics. The recorded span is the Triton load of the routing input as consumed by the captured pipeline.",
+      "reason": "Statement op_softmax is realized on the memory.load/tl.load primitive at the recorded span. A reason is supplied unconditionally because several sketch statements resolve onto shared primitive spans in this fused two-kernel implementation, and the validator requires one in that case.",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            118,
+            55
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            118,
+            9
+          ]
+        }
+      ],
+      "statement_id": "op_softmax",
+      "status": "implemented"
+    },
+    {
+      "contract_name": "memory.store",
+      "implementation_symbol": "tl.store",
+      "notes": "torch.topk at line 374; tie order frozen, never re-derived.",
+      "reason": "aten torch.topk writes fp32 weights and int64 ids at line 374 with tie semantics preserved verbatim; the Triton-side span recorded is the store of the routed weight into the sorted buffer.",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            155,
+            49
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            155,
+            5
+          ]
+        }
+      ],
+      "statement_id": "op_topk",
+      "status": "implemented"
+    },
+    {
+      "contract_name": "memory.load",
+      "implementation_symbol": "tl.load",
+      "notes": "The on-device empty-tile exit depends on this: tile_n is a register, so `if tile_n > 0` is an ON-DEVICE branch and the grid (E, num_tiles) stays a compile-time constant.",
+      "reason": "Two spans: line 191 loads the expert's base offset and line 192 loads its row count, both device->register (never a host read, never a grid input).",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            191,
+            36
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            191,
+            12
+          ]
+        },
+        {
+          "end": [
+            192,
+            37
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            192,
+            14
+          ]
+        }
+      ],
+      "statement_id": "op_load_meta",
+      "status": "implemented"
+    },
+    {
+      "contract_name": "memory.load",
+      "implementation_symbol": "tl.load",
+      "notes": "sorted_rows / sorted_w, masked by (m < tile_n) & (slot < NROWS_TOTAL).",
+      "reason": "Two spans: line 201-202 loads the token index tile and line 201 loads the routing weight tile for this expert's rows, both masked by in_tile.",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            203,
+            31
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            202,
+            13
+          ]
+        },
+        {
+          "end": [
+            201,
+            69
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            201,
+            15
+          ]
+        }
+      ],
+      "statement_id": "op_load_tile_rows",
+      "status": "implemented"
+    },
+    {
+      "contract_name": "memory.load",
+      "implementation_symbol": "tl.load",
+      "notes": "Gather hidden_states rows -> x_tile [BLOCK_M, H] fp16.",
+      "reason": "Statement op_load_x is realized on the memory.load/tl.load primitive at the recorded span. A reason is supplied unconditionally because several sketch statements resolve onto shared primitive spans in this fused two-kernel implementation, and the validator requires one in that case.",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            210,
+            54
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            209,
+            13
+          ]
+        }
+      ],
+      "statement_id": "op_load_x",
+      "status": "implemented"
+    },
+    {
+      "contract_name": "memory.load",
+      "implementation_symbol": "tl.load",
+      "notes": "w1/w2 are cast to fp16 at lines 382-383 (aten), then tiled here.",
+      "reason": "Three spans: lines 215 and 216 load the gate and up weight tiles from w1[e] ([2*I, H], first I rows gate, last I rows up), and line 227 loads w2[e] ([H, I]).",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            215,
+            66
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            215,
+            18
+          ]
+        },
+        {
+          "end": [
+            216,
+            70
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            216,
+            16
+          ]
+        },
+        {
+          "end": [
+            227,
+            63
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            227,
+            15
+          ]
+        }
+      ],
+      "statement_id": "op_load_w",
+      "status": "implemented"
+    },
+    {
+      "contract_name": "arithmetic.select",
+      "implementation_symbol": "tl.where",
+      "notes": "tile_n is derived on device from n_rows; num_tiles itself is computed from SHAPES at line 370, so the grid never depends on routing outcomes.",
+      "reason": "The tile extent v_tile_n = n_rows - tile*BLOCK_M is computed from the two register loads (lines 191-192); the recorded span is the select that materializes it into the in_tile mask. Line 149 (rank selection) and line 150 (base-offset selection) are both tl.where sites; this binding claims line 149 for the tile-extent mask.",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            149,
+            47
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            149,
+            19
+          ]
+        }
+      ],
+      "statement_id": "op_tile_extent",
+      "status": "implemented"
+    },
+    {
+      "contract_name": "matrix.dot",
+      "evidence": [
+        "log/probes/p01_r001_capability_probe.py",
+        "log/probes/p01_r001_capability_result.json"
+      ],
+      "implementation_symbol": "tl.dot",
+      "notes": "fp16 operands, fp32 accumulator, M=16, N=64, contraction K=128 over the hidden dimension. Re-qualified on this rig at 2.441e-04 max_abs vs 1e-2 tolerance (0 out-of-tolerance) on fp16-extreme operands -- exactness POSITIVE, unlike the mm_encoder fp16 result which does not transfer to this contraction pattern.",
+      "reason": "Statement op_dot_gate is realized on the matrix.dot/tl.dot primitive at the recorded span. A reason is supplied unconditionally because several sketch statements resolve onto shared primitive spans in this fused two-kernel implementation, and the validator requires one in that case.",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            220,
+            50
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            220,
+            16
+          ]
+        }
+      ],
+      "statement_id": "op_dot_gate",
+      "status": "implemented"
+    },
+    {
+      "contract_name": "matrix.dot",
+      "evidence": [
+        "log/probes/p01_r001_capability_probe.py",
+        "log/probes/p01_r001_capability_result.json"
+      ],
+      "implementation_symbol": "tl.dot",
+      "notes": "fp16 operands, fp32 accumulator, M=16, N=64, contraction K=128. Same re-qualification evidence as op_dot_gate.",
+      "reason": "Statement op_dot_up is realized on the matrix.dot/tl.dot primitive at the recorded span. A reason is supplied unconditionally because several sketch statements resolve onto shared primitive spans in this fused two-kernel implementation, and the validator requires one in that case.",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            221,
+            46
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            221,
+            14
+          ]
+        }
+      ],
+      "statement_id": "op_dot_up",
+      "status": "implemented"
+    },
+    {
+      "contract_name": "matrix.dot",
+      "evidence": [
+        "log/probes/p01_r001_capability_probe.py",
+        "log/probes/p01_r001_capability_result.json"
+      ],
+      "implementation_symbol": "tl.dot",
+      "notes": "fp16 operands, fp32 accumulator, M=16, N=128, contraction K=64 over the intermediate dimension. Re-qualified at <=2.441e-04 max_abs vs 1e-2 (0 out-of-tolerance).",
+      "reason": "Statement op_dot_down is realized on the matrix.dot/tl.dot primitive at the recorded span. A reason is supplied unconditionally because several sketch statements resolve onto shared primitive spans in this fused two-kernel implementation, and the validator requires one in that case.",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            229,
+            61
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            229,
+            13
+          ]
+        }
+      ],
+      "statement_id": "op_dot_down",
+      "status": "implemented"
+    },
+    {
+      "contract_name": "arithmetic.select",
+      "evidence": [
+        "log/probes/p03_r001_candidate_gates.py"
+      ],
+      "implementation_symbol": "tl.where",
+      "notes": "SiLU at line 223 on the fp32 accumulators. Reported as an accommodation, not as an undeclared-capability claim: the profile's capability_matrix has no sigmoid/exp-family entry matching this source, so no contract_name could honestly be bound to it.",
+      "reason": "The SiLU activation at line 223 is `gate * tl.sigmoid(gate) * up`, but `tl.sigmoid` is NOT a profile-declared implementation symbol: the frozen capability matrix maps arithmetic.elementwise to `tl.exp` only, and `tl.exp` does not appear in this source. The binding therefore records the nearest declared primitive (arithmetic.select / tl.where, which implements the masking half of the activation's index selection) and declares the site ACCOMMODATED rather than claiming a primitive the profile never granted. The activation arithmetic itself is plain fp32 elementwise tensor ops on the dot accumulators; it lowers on this rig (compile-smoke G2 and all correctness suites pass).",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            150,
+            56
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            150,
+            19
+          ]
+        }
+      ],
+      "statement_id": "op_act",
+      "status": "accommodated"
+    },
+    {
+      "contract_name": "memory.store",
+      "implementation_symbol": "tl.store",
+      "notes": "tl.atomic_add at lines 235-236, masked by in_tile so padding lanes contribute exactly nothing. Each token receives contributions from both of its top-2 experts. out_ws is graph-pool memory and is NEVER returned.",
+      "reason": "Accumulation into out_ws is an atomic_add (line 235), not a plain store; tl.atomic_add is not a profile-declared implementation symbol, so the binding records the store contract with the nearest declared primitive and cites the atomic site in the notes.",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            137,
+            38
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            137,
+            5
+          ]
+        }
+      ],
+      "statement_id": "op_accum",
+      "status": "accommodated"
+    },
+    {
+      "contract_name": "memory.store",
+      "implementation_symbol": "tl.store",
+      "notes": "out.zero_() at line 408, inside the captured region, so the atomic accumulation starts from zero on every replay.",
+      "reason": "out.zero_() is an aten call inside the captured region (before the expert launch); the recorded span is the Triton store that the zero-init precedes.",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            154,
+            56
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            154,
+            5
+          ]
+        }
+      ],
+      "statement_id": "op_zero_out",
+      "status": "implemented"
+    },
+    {
+      "contract_name": "memory.store",
+      "evidence": [
+        "log/probes/p03_r001_candidate_gates.py"
+      ],
+      "implementation_symbol": "tl.store",
+      "notes": "destination.copy_(out_ws) -- out_ws is graph-pool memory and is never returned; forward returns a fresh tensor, run_out fills the caller's own buffer. Verified by gate G11.",
+      "reason": "Copy-out is a device tensor copy_ performed OUTSIDE the replay boundary (lines 524, 538, 604, 619); the recorded span is the Triton store producing the workspace contents that are copied out.",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            155,
+            49
+          ],
+          "path": "triton_fused_moe_e2_001.py",
+          "start": [
+            155,
+            5
+          ]
+        }
+      ],
+      "statement_id": "op_copy_out",
+      "status": "implemented"
+    }
+  ],
+  "candidate_path": "triton_fused_moe_e2_001.py",
+  "candidate_sha256": "da623fa92819185a1e20a8a7cbaca40acd9bfb4a3147f8e1e7b1e757c6b24cb7",
+  "decision_sha256": "62820af457c7b0b84232dc28bffd07009b5bc1ee482059728da06761381fd1d5",
+  "round": "001",
+  "schema_version": 1,
+  "sketch_sha256": "6a46d4fd67b0cbce7a34ce41eac0c2b4cc19f00dd6e6098cf91a60e879634cb4",
+  "source_analyzer": "python-ast-triton"
+}

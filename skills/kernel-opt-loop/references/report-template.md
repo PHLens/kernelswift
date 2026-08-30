@@ -155,3 +155,47 @@ For `Result: baseline`, this report must contain correctness, baseline wall
 samples, a Level 1 profiler summary, runtime and measurement fingerprints, and
 exact reproduction commands. Its Evaluation Contract mirror is
 `not-applicable: Phase 0` because no round decision exists.
+
+## vNext Verifier Fact Pack
+
+A vNext report carries the structured fact pack under `## vNext Fact Pack` with
+exactly one fenced JSON object. It is the only input to deterministic verdict
+attribution and records no design/code blame:
+
+```json
+{
+  "schema_version": 1,
+  "candidate_sha256": "88c41c1f1d6ee5fb35a55f1f8638f3dd3f4b27c63a4a2d91b54f5b9a6d8c7e31",
+  "correctness": {
+    "status": "pass",
+    "evidence": ["python3 auto_bench.py --check-correctness --v1_file candidate.py"]
+  },
+  "observables": [
+    {
+      "name": "external-kernel-count",
+      "status": "observed",
+      "value": "3 -> 2",
+      "confidence": "high",
+      "evidence": ["log/profiler_candidate_summary.json"]
+    }
+  ],
+  "lowering": {
+    "status": "observed",
+    "expected_mechanism": "absent",
+    "evidence_contract": "mlu-kernel-summary-v1",
+    "evidence": ["log/profiler_candidate_summary.json"]
+  },
+  "evidence_gap_cause": "none"
+}
+```
+
+For `decision_kind: final-autotune`, report metadata uses
+`artifact_kind: submission-finalization` plus the Decision-matching
+`artifact_index` (no campaign `round`), and the same fact pack adds
+`final_configuration_tuning` with the canonical `submission_snapshot_id`,
+immutable contract hashes, `search_trials`, selected configuration and selector
+rule, `selection_outcome: improved|fallback-retained`, `temporary_storage_clean`,
+final candidate/binding hashes, and a separate `post_pin_official` block.
+Verifier writes the report atomically only after pinning or accepted-fallback
+confirmation and final verification; search measurements never authorize a
+submission.

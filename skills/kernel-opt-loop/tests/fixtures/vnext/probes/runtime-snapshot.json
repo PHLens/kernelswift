@@ -1,0 +1,10 @@
+{
+  "bootstrap_modules": [],
+  "device": "fixture-device",
+  "device_arch": "fixture-arch",
+  "interpreter": "python3",
+  "runner_adapter": "python-command",
+  "synchronize_api": "fixture-sync",
+  "target_id": "fixture-device",
+  "toolchain": "fixture-toolchain"
+}

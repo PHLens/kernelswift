@@ -1,0 +1,56 @@
+{
+  "accepted_reference_file_sha256": "b8ec3458bf810e6f3e81f759a716810b2046e5b32e22fc1339ec526e319445d1",
+  "binding_sha256": "e6d24bda01b0974ba6d39fab52cb5f3b395ffc4b4b83683c842353449bdba08c",
+  "candidate_sha256": "6ffb0c94bf6b126317acddcf14119bfd27fab5709c20a1f33cfdf8883d58bf1e",
+  "classification": "none",
+  "confidence": "high",
+  "decision_file_sha256": "d4f7203e9a032a40eb0164eeb515a8a0be31c9e5067e2a80036af4344affb203",
+  "decision_sha256": "5fefb3816c4ddc79e86173f4ca79fe3d6aad3e2f1feb864d21777ac581582e0d",
+  "evidence": [
+    "authoritative pairs --warmup 50 --repeat 100 x3 (protocol v0=base.py, default stream): reference medians [0.151042, 0.149147, 0.147234] -> 0.149147 ms; candidate medians [0.148821, 0.150517, 0.143639] -> 0.148821 ms; unrounded paired improvement +0.2186% vs +5.0% bar (a wash); identity-control pair delta -0.021 us confirms the noise floor",
+    "tier1_hit_rate_in_timed_regime pass \u2014 design premise VERIFIED at measurement scale via behavioral counters: initial binding budget-free (correctness-phase pointers), EXACTLY ONE recapture inside warmup (budget 4->3, bound_sets 1->2), ZERO recaptures across the 100-call timed analog, 100/100 timed calls bitwise==r002 twin; census: zero copy-in memcpys, 1.00 cudaGraphLaunch + 0.99 copy-out DtoD per call",
+    "lean boundary exactly as designed: 3.00 aten cpu_ops/call (empty_like + empty_strided + copy_), 2.00 GPU submissions/call, ZERO cudaLaunchKernel, ZERO cuLaunchKernel \u2014 the r002 python launcher (~85 us tax) executes ZERO times in serving",
+    "R-TERM ADJUDICATED (pre-declared branch c): per-call cudaDeviceSynchronize 69.02 us/call + cudaDriverGetVersion 0.18 us OBSERVED in the LEAN tier-1 route whose model code contains zero sync/query (source-audited, DANGER-scan zero) \u2014 identical observation to r001's fat route => BUILD-INTRINSIC to this build's replay path, not an r001 code artifact, not candidate-caused; it absorbs the priced ~17-28 us python savings (implied replay fixed latency ~49 us above the ~20 us device work)",
+    "device_us_per_call pass via the decision's census-substitution rule: zero attributed kernel events in candidate scope (in-graph coarsening, r001 branch-B pattern); copy-out 3.70 us/call device + kernel 16.51 us/call (r002 direct measurement of the BYTE-IDENTICAL kernel) => composite ~20.2 vs Ixmma 14.99 this session (+5.2, inside the priced +3.3..5.3 band); no foreign kernels",
+    "cross_tier_bitwise_retention pass: 5-way bitwise ALL TRUE on seed42 (tier-1/tier-2/tier-3 + run_out poisoned x2 with data_ptr preserved + r002-twin); stale-trap fresh bits without recapture; fp16-extreme max_abs 7.8125e-03; non-target T=41 tier-3 with zero graph artifacts",
+    "proven_envelope_binding_audit pass: 4 tl.dot sites all (32,32)@(32,32) fp32 widened operands, num_warps=1 single site, 14 DANGER tokens zero; kernel block BYTE-IDENTICAL to r002 (machine extraction-diff); binding statement live sha256 f8be3a6b68f080e39f5a0b772b82f541fc590e37708df0aa8a2dfe04e956a7c1, all machine-checkable claims independently re-verified",
+    "anchor bases all recorded: paired v0 basis +0.2186% (headline; == accepted-reference basis since adapter is byte-equivalent to base pipeline, adapter-as-v0 structurally blocked per r002 named deviation); cross-anchor report_000 0.151107 -> +1.5128% (below bar; session v0 drift -1.30%); manifest anchor identical to report_000 anchor this early \u2014 stated explicitly",
+    "CAMPAIGN CLOSE-OUT (five-number decomposition, all measured): (1) base host path ~134 us/call (wall-device, r003 session); (2) r001 aten-captured replay wrapper net +2.6 us/call wall; (3) r002 direct-launch launcher tax ~+86-89 us/call net host; (4) r003 lean direct-address replay net remaining -0.3 us/call (wash; R-term 69.02 us/call build-intrinsic absorbs the python prize); (5) device floors Ixmma 13.61-15.0 vs Triton 16.51 us/call (+2.9..5.2)",
+    "PRE-DECLARED FAILURE READINGS: (b) wall <5% with hit-rate 100 AND lean census => boundary floor exceeds the prize; refined by (c) build-intrinsic replay floor named as root cause; (d)(e)(f) never triggered"
+  ],
+  "explanation": "Verifier facts only: correctness pass everywhere (5-way bitwise, harness-premise verified at scale, stale-trap, extreme suite); the H-003 composition ENGAGED exactly as designed (launcher neutralized \u2014 zero python launcher executions in serving; lean 2-submission boundary; tier-1 hit-rate 100% with zero timed recaptures; device composite inside the priced band) but the primary wall criterion FAILED as a wash (+0.2186% << +5.0%) because the build-intrinsic replay-sync floor (69.02 us/call cudaDeviceSynchronize, pre-declared branch (c)) absorbs the python savings. Hypothesis verdict partially-confirmed (four mechanism edges confirmed; wall outcome falsified with the R-term attributed). Terminal_result no-improvement #3 => campaign auto-terminates per team-state rules; last_accepted pointer should remain baseline_adapter.py @b8ec3458... as the final deliverable; counter updates and the stop transition belong to Orchestrator.",
+  "failed_attempt_effect": "unchanged",
+  "hypothesis_verdict": "partially-confirmed",
+  "preconditions": [
+    {
+      "name": "correctness_pass",
+      "status": "pass"
+    },
+    {
+      "name": "binding_valid",
+      "status": "pass"
+    },
+    {
+      "name": "lowering_observed",
+      "status": "pass"
+    },
+    {
+      "name": "observable_observed",
+      "status": "pass"
+    },
+    {
+      "name": "wall_improvement_at_or_above_bar",
+      "status": "fail"
+    }
+  ],
+  "profile_sha256": "dc8fa4c0c73caecc78c6a886e5ffb18cb97371f3add7cb382dbe30887743b7ae",
+  "report_fact_pack_sha256": "a7b0f319b57f8557124e147cd573c12f1f653a3993da7d1fee5e38b8b719240c",
+  "report_file": "rounds/report_003.md",
+  "round": "003",
+  "route": null,
+  "rule_id": null,
+  "schema_version": 1,
+  "sketch_file_sha256": "4ef267b9bb67f8abc52889684412336785b4281612647f55efbacdc29f8dc6f0",
+  "sketch_sha256": "88484e509f0b0290d8862dc2dd7953295c6fdf80ac4f00f658519309e3869204",
+  "terminal_result": "no-improvement"
+}

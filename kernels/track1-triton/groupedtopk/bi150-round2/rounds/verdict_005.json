@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "round": "005",
+  "decision_sha256": "4a549653a939eafa2c36ade9b51e849633e702cdbd6d2f7463597f6257ed6021",
+  "sketch_sha256": "21d13b983a4bf1ac1e6913bbaff635dd2932006bf9df04cd888406edcd6c92de",
+  "binding_sha256": "b28abf7200c1a904fb0bf56233e1b4ba2f4a1c315e1369ab8d43c9b624f0535e",
+  "profile_sha256": "dc8fa4c0c73caecc78c6a886e5ffb18cb97371f3add7cb382dbe30887743b7ae",
+  "report_fact_pack_sha256": "0c25e5ad689a5401fd1db18f9ed1c76214c159d3993ea843251928e162dee96e",
+  "rule_id": null,
+  "classification": "none",
+  "terminal_result": "no-improvement",
+  "failed_attempt_effect": "unchanged",
+  "route": null,
+  "confidence": "high",
+  "preconditions": [
+    {"name": "correctness_pass", "status": "pass"},
+    {"name": "binding_valid", "status": "pass"},
+    {"name": "lowering_observed", "status": "pass"},
+    {"name": "observable_observed", "status": "pass"},
+    {"name": "wall_improvement_at_or_above_bar", "status": "fail"}
+  ],
+  "evidence": [
+    "DECISIVE same-session interleaved accepted-pair probe (ABAB order control): pass-A r004 0.19645411521196365 ms -> r005 0.19653234630823135 ms = -0.039821561479276%; pass-B r004 0.20089372992515564 -> r005 0.1961914822459221 = +2.340664231275613% — coalescing effect in the noise band, far below the ~=9.85 us absolute adoption bar; cross-anchor vs report_004 wall 0.196909: -0.5640% (slower)",
+    "prescribed protocol pairs --warmup 50 --repeat 100 x3: reference median 0.473649 ms; candidate median 0.198019 ms (+58.1908% protocol basis belongs to the accepted rounds-001..004 stack and must not be credited to round 005)",
+    "boundary_host_trip_count_per_call adjudicated BRANCH A PASS with independent verifier census log/diagnostic_scope_census_round005.json: exactly ONE aten::_foreach_copy_ dispatcher trip per call + single copy-in = 2 python-level trips/call (r004 was 3); failure clause moot since trips != 3 and wall is flat rather than regressed beyond noise; quantitative root cause of the null result recorded: underlying gpu_memcpy DtoD events remain ~3/call and cudaMemcpyAsync-class submissions ~7/call — _foreach_copy_ coalesces dispatch, not submission, on this build",
+    "correctness guardrails all PASS: active tier manual-replay on both instances with strategy branch A-batched bound at construction (_batched_copyout_ok=True, artifact None); bitwise==r004 True/True on seed42-regime + warm NEW-bytes + stale-trap re-inputs + all four tie suites; fresh-buffer leak trap distinct-data_ptr/same-bits PASS; T=41-first zero-artifact selectivity then capture/recovery via manual-replay; fp16 eager-route case base-consistent; run_out==forward bitwise x2 poisoned with data_ptr preserved; cross-instance alternation correct",
+    "profiler scoping contract held verbatim: candidate scope cat=kernel events ZERO under manual replay ('scope has no kernel events' from canonical tool, counted as named attempt P-D); host census substitutes diagnostically per decision precedent"
+  ],
+  "explanation": "Verifier facts only: correctness pass, all retention/selectivity/trip-count observables observed passing (trip collapse to 2/call confirmed independently), but H-005's primary wall criterion FAILED — same-session accepted-pair deltas (-0.04%/+2.34%) and cross-anchor (-0.56%) all below the 5% bar; the mechanism engaged exactly as designed yet dispatcher-trip elimination did not translate into wall time because runtime submission counts were unchanged on this build. Terminal_result no-improvement issued under verifier output authority; last_accepted pointer should remain r004 @c02d956c… and valid-no-improvement-streak accounting belongs to Orchestrator."
+}

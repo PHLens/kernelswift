@@ -155,3 +155,17 @@ Global stop observations are `target-reached`, `valid-no-improvement-limit`,
 `round-budget-exhausted`, or `user-intervention`. Verifier reports evidence but
 does not perform the transition. Environment remediation resumes the same safe
 step when fingerprints and artifact hashes still match.
+
+## vNext structured facts and final tuning
+
+Verifier consumes the validated Decision, typed Sketch, frozen implementation
+profile snapshot, candidate, and binding, and writes the structured vNext fact
+pack, observed lowering, and missing-evidence declarations inside
+`report_NNN.md` without assigning design or code blame. Under final-tuning
+measurement exclusivity, Verifier evaluates injected configurations against the
+accepted source hash and returns normalized trials to Orchestrator without a
+persisted selection artifact; after Coder pinning or fallback confirmation, it
+reruns complete correctness, lowering, promotion, and official competition
+evidence on the exact final source hash and atomically writes the sealed report
+once with separate `search_trials` and `post_pin_official` sections. Search
+measurements never authorize a submission.

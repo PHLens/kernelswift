@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "round": "002",
+  "decision_sha256": "a8ff185bcc6fdea5b3a6ac60a356ab4e7ef32fd1f6c8c36987548f0a572e5f0c",
+  "sketch_sha256": "4defe1995a8e9a6c4748d85bbad85615543692c78845b4773df377ba059b36c2",
+  "binding_sha256": "394964fdf5bc66e3360f3d9e623b8a6cdb91efcec9e6572fceff837b2938ea47",
+  "profile_sha256": "dc8fa4c0c73caecc78c6a886e5ffb18cb97371f3add7cb382dbe30887743b7ae",
+  "report_fact_pack_sha256": "d15b1a81d018804ff7d4df6385e71107d3f5330b5f4e99cf4e390ea2478efaa8",
+  "classification": "none",
+  "terminal_result": "no-improvement",
+  "failed_attempt_effect": "unchanged",
+  "route": null,
+  "confidence": "high",
+  "rule_id": null,
+  "preconditions": [
+    {
+      "name": "correctness_pass",
+      "status": "pass"
+    },
+    {
+      "name": "binding_valid",
+      "status": "pass"
+    },
+    {
+      "name": "lowering_observed",
+      "status": "pass"
+    },
+    {
+      "name": "observable_observed",
+      "status": "pass"
+    },
+    {
+      "name": "wall_improvement_at_or_above_bar",
+      "status": "fail"
+    }
+  ],
+  "evidence": [
+    "authoritative pairs --warmup 50 --repeat 100 x3 (v0=base.py, default stream): reference medians [0.146358, 0.144984, 0.144069] -> 0.144984 ms; candidate medians [0.232103, 0.231037, 0.231689] -> 0.231689 ms; unrounded paired improvement -59.8032% vs +5.0% bar (decisively negative; wall INSIDE the pre-declared honest band 0.222-0.241 ms)",
+    "anchor bases recorded in report_002.md: prescribed paired v0 basis = -59.8032% (adoption-decisive); direct same-session pair vs r000 v0 identical (last_accepted IS the base adapter, stated explicitly); cross-anchor report_000 0.150149 ms -> -54.3061% with v0 session drift -3.4399% vs r000 / -0.2690% vs r001; manifest anchor identical to report_000 anchor (no accepted round committed, stated explicitly)",
+    "correctness pass: seed42 allclose(atol=rtol=1e-2, equal_nan) vs base PASS in all 4 harness invocations (max_abs 4.883e-04); fp16-extreme vs fp32 ground truth max_abs 3.052e-05 (r001-identical); B1S41/B2S96/B2S82 non-target shapes PASS; run_out poisoned x2 bitwise both orderings with data_ptr preserved; forward bitwise-stable; stateless attr delta empty; r002 outputs BITWISE-equal to r001 on every suite (warp-count output-invariance verified)",
+    "AUTHORITATIVE D_cand(nw2) = 19.5550 us/call (attributed GPU-span projection, 100/100; whole-trace identical; nw1 r001 same-method 28.2030 -> attributed cut -8.648 us / -30.66%; probe-method cut -8.175 us; wall cut -9.264 us; vendor Ixmma 17.4212 whole-trace) \u2014 the 18-25 partial band: net_F2 = 19.555 - 16.455 = +3.10 us/call WORSE than base (sub-parity 0.94-0.96x composed class); the dispatch's ~15-16 parity-plus branch did NOT materialize on the attributed basis; parity band 16.5 not reached (+3.06 short); win band 9.2 not reached (+10.36 short)",
+    "host-invariance check PASS (kernel-only scope verified): aten cpu_ops 1.00/call (single aten::empty), exactly 1.00 cuLaunchKernel/call (cuda_driver, 3.66 us/call host), zero memcpys, zero graph submissions, zero model-code syncs \u2014 all identical to r001; T_launcher invariance +84.5712 us/call net vs r001 +84.7651 (delta -0.19 us; +80-90 band PASS)",
+    "capability probe evidence reviewed and honored: exactness-passing configs nw1_fp32widen 23.492 / nw2_fp32widen 15.317 / nw4_fp32widen 15.441 us probe-method; selection rule applied exactly (fastest, 0.5us tie band -> nw2/nw4 tied, fewer-new-capabilities tie, lower num_warps -> nw2 SHIPPED); capability negatives banked: fp16-operand dots compile but fail exactness on the extreme suite (max_abs 1459, vendor-class one-hot tie-flip) at every warp count - Ixmma-MMA-via-Triton capability-NEGATIVE for this lineage; nw4 no gain over nw2",
+    "proven envelope binding re-verified over final bytes: 4 tl.dot sites all (32,32)@(32,32) fp32 widened (6 casts); single num_warps=2 site; num_stages absent; 9 DANGER tokens zero; zero .contiguous/layout-copy calls; diff-verified the ONLY functional delta vs r001 is num_warps 1->2 at the single launch site",
+    "deviations: D1 kernel-mode arity failed verbatim 'TypeError: ModelNew.run_out() missing 2 required positional arguments: value and out' exit 1 (standing); D2 canonical summarize_trace.py 'overlapping scope events' on candidate scope -> census-substitution scoped on host span + GPU projection + whole-trace cross-check (standing, both bases agree exactly); no verifier-probe fixes needed this round (candidate hash cc98318b... constant end-to-end)",
+    "deliverable-ledger note: banked direct deliverable improves to triton_mm_encoder_attention_e2_002.py @cc98318b... - 0.6258x vs base (was 0.6033x), outputs bitwise-equal to r001, device strictly faster, host unchanged; canonical performance pointer does NOT move (no-improvement)"
+  ],
+  "explanation": "Verifier facts only: correctness passes on every mandated surface (seed42 comparator, extreme vs fp32 ground truth, non-target shapes, run_out poisoned x2 bitwise, stateless, envelope-legal source audits, r002==r001 bitwise); the H-002 occupancy mechanism ENGAGED and was measured end-to-end (attributed device -30.66% = 28.203 -> 19.555 us/call, wall cut -9.264 us transferring ~1:1, outputs bitwise-identical, host census fully invariant, T_launcher invariance band pass); the capability sweep was honored exactly (nw2 selected under the pre-declared rule; fp16-operand dots recorded capability-negative; nw4 no gain). The primary wall criterion FAILED with a decisively negative sign (-59.8032% paired) landing inside the decision's pre-declared honest band - the 0.0 expectation realized exactly. The round's declared products were banked: the AUTHORITATIVE D_cand(nw2) = 19.5550 us/call that gates r003 (F2 composition projection now sub-parity at +3.10 us/call worse than base, 0.94-0.96x composed class - parity needs a further -3.06 us device cut) and the improved 0.6258x deliverable with bitwise-equal outputs. Terminal_result no-improvement under verifier output authority; last_accepted pointer stays baseline_adapter.py @c3980a2c... and streak accounting belongs to Orchestrator."
+}

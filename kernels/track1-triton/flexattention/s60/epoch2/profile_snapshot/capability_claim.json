@@ -1,0 +1,28 @@
+{
+  "fallback_contract": "reduction.sum",
+  "fallback_kind": "algorithm-substitution",
+  "fallback_signature": {
+    "axis": "k",
+    "dtype": "fp16"
+  },
+  "implementation_profile_id": "triton_gcu",
+  "implementation_profile_sha256": "8dfabd0af59b8f6640b47179fee19bca2f5fe35b18535a3db24f60c842e42b70",
+  "implementation_profile_version": 1,
+  "primary_contract": "matrix.dot",
+  "primary_signature": {
+    "accumulator_dtype": "fp32",
+    "attention_kind": "causal-sdpa",
+    "head_dim": 64,
+    "layout": "token-major",
+    "lhs_dtype": "fp16",
+    "num_heads": 8,
+    "num_tokens": 83,
+    "rhs_dtype": "fp16",
+    "tile_constraint": "power-of-2 (num_tokens 83 padded to 128)"
+  },
+  "probe_policy": "optional",
+  "qualification_dispositions": [],
+  "runtime_fingerprint": "triton 3.6.0 / triton_gcu 3.6.0+1.0.20260722 / torch 2.10.0+cpu / torch_gcu 2.10.0+3.8.0.2 / Enflame GCU major=3 minor=0",
+  "schema_version": 1,
+  "target_id": "s60"
+}

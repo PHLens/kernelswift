@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "round": "001",
+  "decision_sha256": "d7dbecbf49246cec04e92012c38c257ec53b90dd9d032f89be1f41d187d664a8",
+  "sketch_sha256": "d39e144dd79532e0d15855e5578a87771c8250d7ea8a6ed9a7cff5aecbdcd8ea",
+  "binding_sha256": "02d72e7dd8f518c6b3070512cd688ec4993fba1d439144832889090840372416",
+  "profile_sha256": "dc8fa4c0c73caecc78c6a886e5ffb18cb97371f3add7cb382dbe30887743b7ae",
+  "report_fact_pack_sha256": "b7eb0b45fb15134671ac5842c912d6cbd5011c02251b9b5304f4668c68ffbb17",
+  "classification": "none",
+  "terminal_result": "no-improvement",
+  "failed_attempt_effect": "unchanged",
+  "route": null,
+  "confidence": "high",
+  "rule_id": null,
+  "preconditions": [
+    {
+      "name": "correctness_pass",
+      "status": "pass"
+    },
+    {
+      "name": "binding_valid",
+      "status": "pass"
+    },
+    {
+      "name": "lowering_observed",
+      "status": "pass"
+    },
+    {
+      "name": "observable_observed",
+      "status": "pass"
+    },
+    {
+      "name": "wall_improvement_at_or_above_bar",
+      "status": "fail"
+    }
+  ],
+  "evidence": [
+    "authoritative pairs --warmup 50 --repeat 100 x3 (v0=base.py, default stream): reference medians [0.145375, 0.145466, 0.145368] -> 0.145375 ms; candidate medians [0.238943, 0.242051, 0.240953] -> 0.240953 ms; unrounded paired improvement -65.7458% vs +5.0% bar (decisively negative; wall inside the decision's pre-declared 0.235-0.29 ms launcher-tax-transfers band)",
+    "anchor bases recorded in report_001.md: prescribed paired v0 basis = -65.7458% (adoption-decisive); direct same-session pair vs r000 v0 identical (last_accepted IS the base adapter, stated explicitly); cross-anchor report_000 0.150149 ms -> -60.4759% with session drift -3.1795% on the v0 side; manifest anchor identical to report_000 anchor (no accepted round committed yet, stated explicitly)",
+    "correctness pass: seed42 allclose(atol=rtol=1e-2, equal_nan) vs base PASS in all 4 harness invocations (max_abs 4.883e-04); fp16-extreme suite candidate-vs-fp32-ground-truth max_abs 3.052e-05 (vendor base itself diverges 1457 from ground truth at |score|<=2.4e7 - vendor precision limit, not candidate defect); B1S41/B2S96 non-target shapes PASS; run_out poisoned x2 bitwise both orderings with data_ptr preserved; forward bitwise-stable; stateless attr delta empty",
+    "dispatch collapse fully engaged: aten cpu_ops 33 -> 1.00/call (single aten::empty); exactly 1.00 cuLaunchKernel/call (cuda_driver, 3.64 us/call host); zero memcpys, zero graph submissions, zero model-code syncs",
+    "dual-gate duty measured: T_launcher = +84.7651 us/call net at bsz=2 (delta_wall 95.578 - delta_device 10.813; attributed-basis +83.0603 corroborates; sibling bsz=1 prior +86-89 transfers in full - transfer model falsification target CONFIRMED); D_cand = 28.2030 us/call (_mm_encoder_attn_fwd, 100/100 attributed in GPU-span projection, whole-trace identical) - pre-declared band (b) exactly",
+    "F2 gate side-of-threshold: OPEN (T_launcher 84.77 >= 50 AND D_cand 28.20 <= 35); parity band ~18 NOT reached (+10.2); win band ~10 NOT reached (+18.2); measured-number graph-family projection = +11.75 us/call worse than base",
+    "proven envelope binding re-verified over final bytes: 4 tl.dot sites all (32,32)@(32,32) fp32 widened (6 casts at the 6 load sites); single num_warps=1 site; 9 DANGER tokens zero; zero .contiguous/layout-copy calls",
+    "deviations: D1 kernel-mode arity failed verbatim 'TypeError: ModelNew.run_out() missing 2 required positional arguments: value and out' exit 1 (standing; 4-arg run_out is decision-mandated); D2 canonical summarize_trace.py 'overlapping scope events' on candidate scope (kineto dual-span shape) -> census-substitution scoped on host span + GPU projection + whole-trace cross-check, sibling r002 pattern; two verifier-probe expected-value defects fixed probe-side (candidate hash constant 4171de8d... end-to-end)"
+  ],
+  "explanation": "Verifier facts only: correctness passes on every mandated surface (seed42 comparator, extreme vs fp32 ground truth, non-target shapes, run_out poisoned x2 bitwise, stateless, envelope-legal source audits); the H-001 mechanism ENGAGED exactly as designed (33 aten ops -> 1, exactly one cuLaunchKernel submission, zero boundary traffic) and both canonical physics numbers were banked with census-grade attribution (T_launcher +84.77 us/call at bsz=2 - the sibling launcher tax transfers in full; D_cand 28.20 us/call); the primary wall criterion FAILED with a decisively negative sign (-65.7458% paired) landing exactly in the decision's pre-declared honest band - reading (b) of the device_us_per_call observable. Hypothesis verdict partially-confirmed (every mechanism link measured and attributed; the >=5% wall outcome falsified exactly as the honest 0.0 expectation predicted; the falsification target - launcher-tax transfer - CONFIRMED). Terminal_result no-improvement under verifier output authority; the round banks the campaign's PRIMARY contractual product per project.md DELIVERABLE RULE (correctness-PASS Triton deliverable with forward + 4-arg run_out surfaces at 0.603x); last_accepted pointer should remain baseline_adapter.py @c3980a2c... and performance_miss_streak accounting belongs to Orchestrator."
+}

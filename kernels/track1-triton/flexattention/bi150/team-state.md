@@ -75,3 +75,4 @@ at a safe terminal boundary; begin a new epoch for any other policy change.
 
 | Timestamp | Run epoch | Field | Old value | New value | Reason | Commit |
 |---|---:|---|---|---|---|---|
+| 2026-08-28T04:40:00Z | stopped | stopped | - | archival note by orchestrator: v3 successor campaign materialized at ./epoch2/ (contract_version 3); epoch-1 artifacts preserved intact in place; this manifest remains historical read-only |

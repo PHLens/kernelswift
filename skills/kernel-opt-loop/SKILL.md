@@ -1,46 +1,32 @@
 ---
 name: kernel-opt-loop
-description: Coordinate bounded, continuous kernel or operator optimization using durable Designer, Coder, and Verifier evidence plus an implementation profile.
+description: Coordinate a bounded, continuous Triton kernel or operator optimization campaign against an auto_bench-style harness using durable Designer, Coder, and Verifier artifacts.
 ---
 
 # Kernel Optimization Loop
 
-This skill coordinates a bounded kernel or operator optimization workflow. The
-Orchestrator manages state, validates handoffs, selects the accepted
-implementation, records Git checkpoints, and handles stopping or recovery.
-Designer, Coder, and Verifier have separate responsibilities and may modify only
-the files assigned to their roles. A live run has one active candidate, and
-performance measurements have one exclusive owner.
+This skill is the runtime-neutral Orchestrator contract. It owns workflow state,
+artifact gates, deterministic routing, canonical pointers, project overview
+updates, Git commits, global termination, and recovery. Designer, Coder, and
+Verifier own only the files declared in their role contracts. One live campaign
+has one active candidate and a measurement-exclusive shared machine.
 
 ## Deliverable requirement
 
-The deliverable is a runnable, correctness-PASS implementation in the selected
-implementation language for the target backend. Performance determines whether a
-new candidate replaces the current accepted implementation; it does not
-determine whether valid target-language code is delivered. If an optimized
-candidate does not beat the baseline, preserve the best correctness-PASS
-implementation and report the measured result without leaving the target empty.
-A terminal optimization result such as `aborted`, `no-improvement`, or
-`screened-out` must not delete an already valid deliverable.
-
-## Current implementation scope
-
-The v1 contract currently supports the competition's Python `ModelNew` interface
-loaded by an `auto_bench.py`-style harness, with one Python candidate file and a
-complete Triton target profile. C-like candidates, native compilation, multi-file
-artifacts, shared-library or executable ABIs, and native profiler adapters are
-not supported yet. Add those through an implementation-profile and runner layer;
-do not bypass the existing correctness, measurement, or adoption gates. See
-`../track2-clike-roadmap.md`.
+The deliverable is a Triton implementation. A campaign must always produce a
+correctness-PASS Triton candidate as its committed deliverable. Never leave a
+target empty because its Triton candidate does not beat the baseline: a correct
+but non-winning Triton implementation is still the required submission, and the
+final summary must record it as the canonical deliverable rather than an empty
+result. `aborted`, `no-improvement`, and `screened-out` are workflow-terminal
+states, not a license to omit the candidate source.
 
 ## When to use
 
-Use this skill when a project has an immutable reference implementation, a
-reproducible benchmark harness, a complete implementation profile, and a request
-for iterative operator or kernel optimization. The current v1 runner additionally
-requires a PyTorch-style `base.py`, an `auto_bench.py`-style harness, and a Triton
-candidate. It preserves correctness, benchmark wall time, and attributable
-profiler evidence across bounded continuous rounds.
+Use this skill when a project has an immutable PyTorch-style `base.py`, an
+`auto_bench.py`-style harness, and a request for iterative Triton operator or
+kernel optimization. It preserves correctness, benchmark wall time, and
+attributable profiler evidence across bounded continuous rounds.
 
 Do not use it for a one-shot bug fix, a non-iterative refactor, a workflow that
 may modify reference or harness semantics, or a target without a complete
@@ -124,8 +110,8 @@ Perform initialization in this order:
    `team-state.md`, and `state/designer_context.md`, `state/coder_context.md`,
    and `state/verifier_context.md` from their templates. Only Orchestrator
    writes the manifest and project overview.
-4. Discover implementation language, backend, target profile, implementation
-   toolchain distribution/version (Triton in v1), active backend target/version when available, and
+4. Discover implementation language, backend, target profile, Triton
+   distribution/version, active backend target/version when available, and
    device architecture. Select exactly one matching complete profile from
    `prompts/coder_targets/`; never fall back across backends. A missing runtime,
    missing profile, or identity mismatch is an environment block.
@@ -163,11 +149,11 @@ second active round. Resolve `last_accepted_kernel` and
    guidance. Designer writes one `decision_NNN.md`.
 2. Run `scripts/validate_decision.py` with the manifest target profile. Record
    decision hash. A proceeding decision is immutable before coding.
-3. A valid abort form produces terminal result `aborted` without dispatching
-   Coder or Verifier for that decision. Preserve any previously validated
-   target-language deliverable. If no correctness-PASS implementation exists yet, the
-   overall submission objective remains incomplete and requires a separate
-   implementation round rather than silently ending with an empty target.
+3. A valid abort form produces terminal result `aborted` without Coder or
+   Verifier. An `aborted` result does not erase the deliverable requirement: if
+   a correctness-PASS Triton candidate already exists, keep it as the canonical
+   deliverable; if none exists, the Orchestrator must still dispatch a minimal
+   correctness-PASS Triton implementation before ending the run.
 4. Set `phase: coding`. Dispatch Coder with immutable decision and canonical
    source. Require `coder_result_NNN.md` and, for `candidate-ready`, matching
    candidate hashes and compile-smoke evidence.
@@ -323,8 +309,8 @@ commit. Do not rewrite existing project histories.
 - `prompts/designer.md`, `prompts/coder.md`, and `prompts/verifier.md`: role
   behavior and ownership.
 - `prompts/coder_targets/<target_profile>.md`: the one complete profile selected
-  by the current runtime; this repository includes `triton_mlu`, `triton_gcu`,
-  `triton_cuda`, `triton_maca`, and `triton_ascend`.
+  by the current runtime; this repository currently includes `triton_mlu`,
+  `triton_gcu`, and `triton_cuda`.
 - `references/decision-template.md`: normative decision schema.
 - `references/project-template.md`, `references/report-template.md`,
   `references/team-state-template.md`, and `references/role-context-template.md`:
@@ -334,3 +320,97 @@ commit. Do not rewrite existing project histories.
 - `scripts/validate_decision.py`, `scripts/make_baseline_adapter.py`,
   `scripts/summarize_trace.py`, and `scripts/evaluate_run_policy.py`:
   deterministic gates and helpers.
+
+## vNext semantic attribution and finalization routing
+
+A vNext run records `contract_version: 3`, `semantic_contract: typed-sketch-v1`,
+and `attribution_contract: verdict-v1` in `team-state.md`. Existing v1/v2
+campaigns remain historical and are never migrated. Routing is exact:
+
+1. For an explicit profile-onboarding request, Orchestrator validates
+   profile/probe/runtime inputs, runs one bounded pre-campaign probe lifecycle,
+   emits proposed promotion artifacts, reports them to the user, and may stop
+   without entering Phase 0.
+2. When a campaign is requested, Orchestrator obtains explicit requirements from
+   the user/maintainer or Designer read-only capability preflight, validates and
+   materializes them without inventing design claims, and invokes
+   `select_profile_probes()` before campaign state or snapshot creation.
+3. A unique exact-scope Unknown primary with `must-resolve|before-fallback` runs
+   one bounded probe; unrelated Unknowns are ignored and ambiguous matches fail
+   deterministically.
+4. Eligible observed success emits promotion artifacts and stops as
+   `promotion-pending`. Phase 0 resumes only after maintainer promotion, or
+   after explicit decline/defer plus fallback authorization. Partial/failure/
+   block/no-match leaves the primary Unknown.
+5. Phase 0 validates only reviewed exact-scope prior evidence, rediscovers
+   current target/runtime identity, materializes the project capability claim
+   including any complete maintainer-confirmed fallback disposition, rejects raw
+   probe refs, and freezes the implementation-profile snapshot. Claim/Decision
+   validation must not depend on the pre-campaign run directory.
+6. A schema-v2 Decision validates Sketch, references, frozen implementation
+   profile snapshot, claim, causal graph, and any fallback provenance before
+   Coder dispatch.
+7. Coder runs only Decision-scoped capability/compile probes and the binding
+   checker before `candidate-ready`; its results stay under campaign-local
+   `log/probes/`.
+8. Verifier writes authoritative runtime facts, correctness, observed lowering,
+   and performance only.
+9. Orchestrator validates `verdict_NNN.json`; it may route one `code-error`
+   repair.
+10. `design-error` terminates as `design-rejected` with increment.
+11. `lowering-unknown` terminates as `design-rejected` with unchanged failed
+    streak.
+12. Bounded `evidence-gap` routes environment absence to `blocked`; a Decision
+    missing a measurable contract terminates as `design-rejected` with explicit
+    design-error effect. A correct candidate with insufficient accepted-to-
+    candidate e2e improvement remains `no-improvement` and attribution `none`.
+13. At submission finalization, Orchestrator computes the canonical
+    `submission_snapshot_id`, calls `resolve_finalization_slot()`, and opens or
+    resumes one artifact index only when no qualification, promotion, repair,
+    fingerprint transition, missing profile legality, completed identical input,
+    or already-finalized current output exists.
+14. Designer reuses the accepted Sketch and declares a finite reviewed
+    profile-legal config-only domain, accepted fallback/control, search
+    budget/protocol, objective, and deterministic order/tie rule.
+15. Verifier executes the accepted source through temporary launch/meta-
+    parameter injection under measurement exclusivity. It returns normalized
+    trials to Orchestrator without writing a selection artifact or report and
+    verifies that temporary storage contains no derived candidate source.
+16. Orchestrator runs the pure selector and sends only the normalized selection
+    to Coder. For an improved winner, Coder emits exactly one pinned candidate
+    derived from the accepted source; for the fallback/control, Coder emits no
+    source. Binding validation then runs on the exact final source.
+17. Verifier reruns full correctness, lowering, required promotion evidence, and
+    official competition measurements on that source, then atomically writes the
+    report once with separate `search_trials` and `post_pin_official` sections.
+18. Orchestrator reruns the selector from the sealed report and evaluates the
+    pure submission-promotion predicate. An improved winner atomically advances
+    `last_accepted_kernel` and `last_accepted_report` to the pinned source and
+    sealed report while preserving `last_accepted_round`; a fallback-retained
+    winner changes neither pointer; both require all final gates, and partial
+    pair updates are rejected.
+19. Orchestrator emits only `submission-ready|blocked` through the separate
+    finalization verdict branch. It never calls `evaluate_terminal()` and the
+    verdict rejects attribution, campaign terminal, counter-effect, and
+    run-policy fields.
+20. The final candidate contains one fixed selected configuration and no
+    runtime/online `@triton.autotune`, adaptive search, or autotune-cache
+    selection dependency.
+
+
+## Profile onboarding and vNext new-run boundary
+
+Profile onboarding may run versioned probes, emit hashed run-local evidence and a
+proposed promotion candidate, and stop without creating a campaign. It never edits
+the canonical implementation profile.
+
+A vNext campaign records `contract_version: 3`, a frozen implementation-profile
+snapshot hash, a project capability claim, typed Sketch, binding ledger, and
+verdict artifact. Existing v1/v2 campaigns remain historical and are not migrated.
+
+Each Triton submission snapshot runs one offline bounded configuration-only search over
+profile-legal fields. The selected configuration is pinned into one candidate and
+must pass fresh binding, correctness, lowering, promotion, and official benchmark
+gates. The workflow adds no finalization-specific state or artifact family. The final
+candidate contains one fixed configuration and no runtime/online autotune,
+first-use search, or cache-dependent configuration selection.

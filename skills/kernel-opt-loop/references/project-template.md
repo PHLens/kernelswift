@@ -2,8 +2,11 @@
 
 ## Project Identity
 
-- schema_version: 1
-- skill_version: 2.0.0
+- schema_version: 2
+- skill_version: 3.0.0
+- contract_version: 3
+- semantic_contract: typed-sketch-v1
+- attribution_contract: verdict-v1
 - project_root: `<absolute-project-root>`
 - base: `<operator-shared base relative to project_root — normally ../base.py>`
 - baseline_adapter: `baseline_adapter.py`
@@ -13,6 +16,20 @@
 - implementation_language: `triton`
 - implementation_backend: `<selected runtime backend>`
 - target_profile: `<selected complete target profile>`
+- target_id: `<concrete deployment target id, such as bi150 or s60>`
+- implementation_profile_id: `<language/backend/toolchain capability contract, such as triton_mlu>`
+- implementation_profile_snapshot_ref: `state/implementation_profile_snapshot/profile.yaml`
+- implementation_profile_snapshot_sha256: `<sha256>`
+- project_capability_claim_ref: `state/project_capability_claim.json`
+- project_capability_claim_sha256: `<sha256>`
+
+The concrete `target_id` is always distinct from the `implementation_profile_id`;
+API compatibility never transfers capability evidence across vendors, devices,
+architectures, or toolchains. Phase 0 freezes the entire root-confined
+implementation-profile closure (profile.yaml, vendored schema copies, probe
+definitions/inputs, and approved evidence records) under
+`state/implementation_profile_snapshot/`; validation must pass after the
+canonical profile directory changes or disappears.
 
 ## Semantics
 

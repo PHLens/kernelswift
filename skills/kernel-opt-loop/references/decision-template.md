@@ -266,3 +266,40 @@ N/A: aborted
 
 The accepted report and completed round evidence do not justify another stable improvement attempt.
 ````
+
+## vNext (schema_version 2) Decision Contract
+
+A new-run vNext decision uses `schema_version: 2` and is validated with
+`--expected-implementation-profile <profile-id>` (and `--project-root`).
+Metadata adds:
+
+| Field | Type and requirement |
+|---|---|
+| `decision_kind` | `optimization` or `final-autotune` |
+| `sketch_ref` / `sketch_sha256` | Relative path and SHA-256 of the normative JSON Sketch |
+| `implementation_profile_snapshot_ref` / `_sha256` | Frozen profile snapshot `profile.yaml` and its hash |
+| `project_capability_claim_ref` / `_sha256` | Run-local project capability claim and its hash |
+| `round` | Three-digit string, optimization decisions only |
+| `artifact_index` | Three-digit string matching `decision_NNN.md`, final-autotune only |
+
+The `## Unified Sketch` section is one JSON object `{"artifact": ..., "sha256":
+..., "rendering": ...}`; the artifact is normative and the Markdown rendering is
+never authoritative. The `## Evaluation Contract` carries a structurally
+connected `causal_graph` with `nodes` and directed `edges`. An
+algorithm-substitution fallback for a previously Unknown primary requires
+`uses_algorithm_substitution: true` plus explicit `fallback_provenance`
+referencing the maintainer-authorized disposition id/hash embedded in the
+project claim; the primary must remain Unknown.
+
+A `final-autotune` decision reuses the accepted Sketch and declares one finite,
+deterministically ordered configuration domain in `## Final Configuration
+Tuning`: the canonical `submission_snapshot_id` (over the accepted candidate,
+accepted binding, Sketch, profile, claim, runtime snapshot, measurement
+fingerprint, harness, and base/reference hashes), immutable anchors, the
+accepted configuration as fallback/control, search budget and protocol,
+comparison objective, deterministic winner/tie rule, and `pin_selected_config:
+true`. Every tuned field is an accepted-Sketch `preferred|exploratory`
+configuration-only hint covered by reviewed exact-scope profile legality; any
+change to the algorithm, dataflow, precision, effects, aliases, Host Plan,
+public interface, or semantic layout is rejected and requires a normal Designer
+round.

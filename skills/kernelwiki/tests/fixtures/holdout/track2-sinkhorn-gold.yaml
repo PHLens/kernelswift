@@ -1,0 +1,53 @@
+schema_version: 1
+case_id: track2-sinkhorn-normalize-holdout
+query_text: "ascend repeated sinkhorn row column normalization reduction"
+designer_context:
+  schema_version: 1
+  role: designer
+  contract_version: null
+  target_id: ascend910b
+  implementation_profile_id: ascendc
+  implementation_profile_status: missing
+  runtime_fingerprint: null
+  languages: [ascendc]
+  operator_tags: [sinkhorn, normalization]
+  kernel_types: [normalization, reduction]
+  dtypes: [fp32]
+  semantic_features: [row-normalization, column-normalization, repeated-iteration]
+  shape_signature: {batch: 1, groups: 1024, rows: 4, columns: 4, repeat: 10}
+  current_bottlenecks: []
+  project_root: null
+  artifacts: {}
+  guidance_bindings: {}
+  loop_contract_identity: null
+coder_context:
+  schema_version: 1
+  role: coder
+  contract_version: 3
+  target_id: ascend910b
+  implementation_profile_id: ascendc
+  implementation_profile_status: missing
+  runtime_fingerprint: null
+  languages: [ascendc]
+  operator_tags: [sinkhorn, normalization]
+  kernel_types: [normalization, reduction]
+  dtypes: [fp32]
+  semantic_features: [row-normalization, column-normalization, repeated-iteration]
+  shape_signature: {batch: 1, groups: 1024, rows: 4, columns: 4, repeat: 10}
+  current_bottlenecks: []
+  project_root: null
+  artifacts: {}
+  guidance_bindings: {}
+  loop_contract_identity: null
+gold:
+  relevant_card_ids: [technique-kernel-fusion, technique-tiling-and-work-partitioning, technique-topk-selection-and-reduction, measurement-cann-device-attribution]
+  counterexample_card_ids: [pattern-device-win-wall-loss]
+  capability_gap_card_ids: [pattern-ascend-capability-gap]
+  forbidden_outcomes: [operator-named-card, coder-recipe, cross-target-fallback, unknown-promotion]
+metrics:
+  top5_relevant_denominator: 4
+  counterexample_denominator: 1
+  capability_gap_denominator: 1
+  unsafe_coder_expected: 0
+  cross_target_leak_expected: 0
+  unknown_promotion_expected: 0

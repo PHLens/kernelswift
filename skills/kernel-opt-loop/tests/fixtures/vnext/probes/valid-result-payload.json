@@ -1,0 +1,25 @@
+{
+  "implementation_profile_id": "fixture_profile",
+  "observations": [
+    {
+      "capability_id": "memory.load.contiguous-fp32",
+      "level": "observed",
+      "numerically_checked": true
+    },
+    {
+      "capability_id": "memory.store.contiguous-fp32",
+      "level": "observed",
+      "numerically_checked": true
+    }
+  ],
+  "observed_scope": {
+    "dtype": "fp32",
+    "layout": "contiguous",
+    "shape": [
+      "N"
+    ]
+  },
+  "probe_id": "fixture-basic-memory-001",
+  "schema_version": 1,
+  "target_id": "fixture-device"
+}

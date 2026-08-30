@@ -1,0 +1,54 @@
+{
+  "artifact_index": "002",
+  "artifact_kind": "submission-finalization",
+  "binding_model": "primitive-call",
+  "bindings": [
+    {
+      "contract_name": "memory.load",
+      "implementation_symbol": "tl.load",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            12,
+            43
+          ],
+          "path": "pinned_candidate.py",
+          "start": [
+            12,
+            11
+          ]
+        }
+      ],
+      "statement_id": "op.load.row",
+      "status": "implemented"
+    },
+    {
+      "contract_name": "memory.store",
+      "implementation_symbol": "tl.store",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            13,
+            43
+          ],
+          "path": "pinned_candidate.py",
+          "start": [
+            13,
+            5
+          ]
+        }
+      ],
+      "statement_id": "op.store.output",
+      "status": "implemented"
+    }
+  ],
+  "candidate_path": "pinned_candidate.py",
+  "candidate_sha256": "__PINNED_SHA256__",
+  "decision_sha256": "__DECISION_SHA256__",
+  "required_hint_bindings": [],
+  "schema_version": 1,
+  "sketch_sha256": "__SKETCH_SHA256__",
+  "source_analyzer": "python-ast-triton"
+}

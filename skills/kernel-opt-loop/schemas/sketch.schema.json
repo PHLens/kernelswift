@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "kernel-opt-loop typed unified sketch",
+  "description": "Versioned normative shape for the typed Sketch JSON artifact. Markdown rendering is never independently authoritative.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "sketch_id",
+    "round",
+    "scope",
+    "declarations",
+    "operations",
+    "control",
+    "effects",
+    "hints",
+    "causal_nodes"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "sketch_id": {"type": "string"},
+    "round": {"type": "string", "pattern": "^[0-9]{3}$"},
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "entrypoints", "unchanged_boundary"],
+      "properties": {
+        "kind": {"const": "changed-computation-boundary"},
+        "entrypoints": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "unchanged_boundary": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "declarations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "shape", "dtype", "layout", "memory"],
+        "properties": {
+          "id": {"type": "string"},
+          "kind": {"enum": ["tensor", "tile", "scalar"]},
+          "shape": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+          "dtype": {"type": "string"},
+          "layout": {"type": "string"},
+          "memory": {"type": "string"}
+        }
+      }
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "inputs", "outputs", "effects"],
+        "properties": {
+          "id": {"type": "string"},
+          "kind": {"enum": ["alloc", "load", "compute", "store"]},
+          "inputs": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+          "outputs": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+          "index_domain": {"type": "string"},
+          "mask": {"type": "string"},
+          "conversion": {"type": "object", "additionalProperties": true},
+          "causal_nodes": {"type": "array", "items": {"type": "string"}},
+          "effects": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["reads", "writes"],
+            "properties": {
+              "reads": {"type": "array", "items": {"type": "string"}},
+              "writes": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        }
+      }
+    },
+    "control": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind"],
+        "properties": {
+          "id": {"type": "string"},
+          "kind": {"enum": ["parallel", "for", "if", "else", "guard", "end"]},
+          "variable": {"type": "string"},
+          "domain": {"type": "string"},
+          "condition": {"type": "string"}
+        }
+      }
+    },
+    "effects": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outputs", "mutations", "aliases"],
+      "properties": {
+        "outputs": {"type": "array", "items": {"type": "string"}},
+        "mutations": {"type": "array", "items": {"type": "string"}},
+        "aliases": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "hints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "value", "modality"],
+        "properties": {
+          "name": {"type": "string"},
+          "value": {},
+          "modality": {"enum": ["required", "preferred", "exploratory"]}
+        }
+      }
+    },
+    "causal_nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "expected"],
+        "properties": {
+          "id": {"type": "string"},
+          "kind": {"type": "string"},
+          "expected": {"type": "string"}
+        }
+      }
+    }
+  }
+}
