@@ -9,22 +9,22 @@ phase: ready
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-30T05:10:30Z
-current_round: "001"
-last_completed_round: "001"
+current_round: "002"
+last_completed_round: "002"
 last_accepted_round: "001"
 last_accepted_kernel: triton_mm_encoder_attention_e2_001.py
 last_accepted_report: rounds/report_001.md
-last_completed_decision: rounds/decision_001.md
-last_completed_sketch: rounds/sketch_001.json
+last_completed_decision: rounds/decision_002.md
+last_completed_sketch: null
 last_completed_binding: null
 last_completed_verdict: null
 last_attribution: null
-last_completed_coder_result: rounds/coder_result_001.md
-last_completed_report: rounds/report_001.md
-last_result: accepted
+last_completed_coder_result: null
+last_completed_report: null
+last_result: aborted
 performance_miss_streak: 0
-failed_attempt_streak: 0
-total_rounds: 1
+failed_attempt_streak: 1
+total_rounds: 2
 max_rounds: 20
 valid_no_improvement_limit: 3
 adoption_threshold_pct: 5
@@ -83,7 +83,8 @@ change, incident, or commit yet.
 | Timestamp | Phase | Round | Result | Canonical | Incident | Commit |
 |---|---|---:|---|---|---|---|
 | 2026-08-30T05:10:30Z | initializing -> ready | 000 | baseline | `baseline_adapter.py` | - | `230a378` |
-| 2026-08-30T05:38:00Z | ready -> designing -> coding -> verifying -> ready | 001 | accepted | `triton_mm_encoder_attention_e2_001.py` | - | `pending` |
+| 2026-08-30T05:38:00Z | ready -> designing -> coding -> verifying -> ready | 001 | accepted | `triton_mm_encoder_attention_e2_001.py` | - | `cd44339` |
+| 2026-08-30T06:05:00Z | ready -> designing -> ready | 002 | aborted | unchanged (`triton_mm_encoder_attention_e2_001.py`) | - | `46d1135` |
 
 ## Policy Revisions
 
@@ -92,3 +93,4 @@ at a safe terminal boundary; begin a new epoch for any other policy change.
 
 | Timestamp | Run epoch | Field | Old value | New value | Reason | Commit |
 |---|---:|---|---|---|---|---|
+| 2026-08-30T05:50:54Z | 2 | maintainer_constraint.host_code | host-side code out of scope; host gain permitted only indirectly via launch-count reduction | host-side code authorized; `launch-path-reduction` and `allocation-reuse` Host Plan rounds permitted | maintainer explicit instruction after the round 002 abort. The device-only ceiling is 4.0902% against a 5% threshold (device budget 13.4064 us/call vs a 16.3885 us/call budget), launch count is already 1.00, and the ~316 us/call non-device residual is the only remaining lever with more than 16 us of headroom. Counters and run epoch are unchanged: this is a scope authorization, not a change to a frozen policy field. | `de1b9b7` |
