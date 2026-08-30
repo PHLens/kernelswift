@@ -5,11 +5,11 @@ contract_version: 3
 semantic_contract: typed-sketch-v1
 attribution_contract: verdict-v1
 runtime: ascend910b4
-phase: ready
+phase: coding
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-30T05:10:30Z
-current_round: "004"
+current_round: "005"
 last_completed_round: "004"
 last_accepted_round: "003"
 last_accepted_kernel: triton_mm_encoder_attention_e2_003.py
