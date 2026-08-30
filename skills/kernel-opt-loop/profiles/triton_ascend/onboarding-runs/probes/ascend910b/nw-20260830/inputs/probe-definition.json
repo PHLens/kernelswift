@@ -1,0 +1,45 @@
+{
+  "capability_ids": [
+    "resource.num-warps"
+  ],
+  "family": "resource",
+  "implementation_profile_id": "triton_ascend",
+  "input_artifacts": [
+    {
+      "path": "probes/num_warps.py",
+      "run_path": "num_warps.py",
+      "sha256": "8109aeebc6debbd4e41c4302b1e85726d40c103e4525f45e1b29586a8a0155d4"
+    }
+  ],
+  "probe_id": "triton-ascend-num-warps-001",
+  "purpose": "establish the legal and numerically correct num_warps value set on Ascend 910B as an occupancy lever",
+  "required_runtime_fields": [
+    "interpreter",
+    "device",
+    "toolchain",
+    "device_arch",
+    "runner_adapter",
+    "bootstrap_modules",
+    "synchronize_api"
+  ],
+  "runner": {
+    "argv": [
+      "{interpreter}",
+      "{probe_inputs_root}/num_warps.py",
+      "--result-json",
+      "{result_payload_path}",
+      "--target-id",
+      "{target_id}",
+      "--runtime-snapshot",
+      "{runtime_snapshot_path}"
+    ],
+    "cwd": "{probe_run_dir}",
+    "kind": "command",
+    "timeout_seconds": 600
+  },
+  "schema_version": 1,
+  "scope_kind": "device-family",
+  "scope_template": {
+    "name": "num_warps"
+  }
+}

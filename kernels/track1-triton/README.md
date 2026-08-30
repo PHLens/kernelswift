@@ -13,7 +13,7 @@ task 编号 ↔ 算子目录映射见 [docs/competition/track1-triton.md](../../
 | `fused_moe` | ✅ **50.4x** · v5 · **6.940→0.138 ms** | ✅ **13.1x** · r002 · **5.112→0.390 ms**（逐-token 路由 + selection 融合） | — | ✅ **14.81x** · e2r001 · **3.193→0.220 ms** | ✅ **19.4x** · r002 · **7.159→0.369 ms** |
 | `sparse_pooler` | ✅ **1.60x** · v4 · **0.910→0.567 ms** | 🟡 **0.79x** · r001 · **0.861→1.092 ms**（epoch-2 确认 measurement-bound：GEMM 61% 厂商库 + 手写 segment-max 慢 4x） | — | ✅ **1.22x** · r001 · **1.070→0.880 ms** | ✅ **1.51x** · r001 · **0.935→0.619 ms** |
 | `music_flamingo_rotary_embedding` | 📦 — · — · — | ✅ **1.11x** · e2r001 · **0.449→0.406 ms**（部分融合：freqs 进 kernel，cos/sin 保留 vendor） | ✅ **2.38x** · r001 · **0.191→0.080 ms** | ✅ **1.95x** · r001 · **0.353→0.176 ms** | ✅ **1.86x** · r001 · **0.622→0.334 ms** |
-| `mm_encoder_attention` | 📦 — · — · — | 🟡 **0.92x** · e2r002 · **0.2516→0.2750 ms**（fp16 `tl.dot` 单 kernel MHA，epoch-1 0.27x → 3.4x，device-bound 未超 GCU 厂商库） | 🟡 **0.91x** · r002 · **0.116→0.128 ms**（手写 Triton MHA，flash-attn 已最优） | ✅ **1.05x** · e2r003 · **0.1499→0.1423 ms** | 🟡 **0.92x** · r001 · **0.349→0.340 ms** |
+| `mm_encoder_attention` | 📦 — · — · — | 🟡 **0.92x** · e2r002 · **0.2516→0.2750 ms**（fp16 `tl.dot` 单 kernel MHA，epoch-1 0.27x → 3.4x，device-bound 未超 GCU 厂商库） | 🟡 **0.91x** · r002 · **0.116→0.128 ms**（手写 Triton MHA，flash-attn 已最优） | ✅ **1.05x** · e2r003 · **0.1499→0.1423 ms** | ✅ **1.68x** · e2r005 · **0.349→0.211 ms**（epoch-1 0.92x 反转：融合单 kernel + host 输出缓存 + 发射路径缓存；device 侧先撞 4.09% 算术天花板，主收益全在 host） |
 | `mhc_post_layer_mix` | 📦 — · — · — | 🟡 **0.77x** · e2r001 · **4.23→5.50 ms**（BLOCK_H 1024 + bf16 registers，epoch-1 0.56x → +37%） | ✅ **31.66x** · r001 · **7.636→0.241 ms** | ✅ **1.20x** · r001 · **8.189→6.427 ms** | ✅ **3.64x** · r001 · **3.198→0.880 ms** |
 | `mhc_head_compute_mix` | 📦 — · — · — | ✅ **6.8x** · r001（Sinkhorn 迭代融合） | ✅ **14.07x** · r001 · **1.515→0.118 ms** | ✅ **7.79x** · r001 · **1.433→0.184 ms** | ✅ **9.00x** · r001 · **3.527→0.392 ms** |
 | `centre_random_augmentation` | 📦 — · — · — | ✅ **1.90x** · e2r001 · **3.025→1.585 ms**（launch-fusion 96→10，四元数→R+旋转+平移+mask 单 kernel） | — | ✅ **4.49x** · r002 · **1.073→0.239 ms** | ✅ **1.22x** · r001 · **2.463→2.024 ms** |
@@ -94,16 +94,16 @@ Sinkhorn 融合是跨后端最稳定的大赢家（6.8x~14x）：它是纯 launc
 
 | 维度 | MLU590 | S60 | C500 | BI150 | 910B |
 |---|---|---|---|---|---|
-| `tl.dot` | ✅ campaign-backed | ⚠️ probe-backed：可用但 M/N/K 须为 **2 的幂**（96=16×6 FAIL），fp16/fp32/bf16 均正确 | ❌ Unknown | ✅ probe-backed + `fused_moe` 已兑现 | ⚠️ `(16,16)` fp32 probe-backed，任务 shape 仍待验证 |
-| `num_warps>1` | ⚠️ `2` 已失败，当前 `1` 最稳 | ✅ `1/2/4/8` 已 probe（fp16 dot 下 `1` 最优） | ❌ 未建立 | ⚠️ Unknown | ✅ `1/2/4` 已 probe |
-| 快速 launch 机制 | ✅ `fast_libentry` | — | — | ⚠️ direct launch + `torch.compile(reduce-overhead)`，无已证明 fast launcher | ✅ 成熟 launch |
+| `tl.dot` | ✅ campaign-backed | ⚠️ probe-backed：可用但 M/N/K 须为 **2 的幂**（96=16×6 FAIL），fp16/fp32/bf16 均正确 | ❌ Unknown | ✅ probe-backed + `fused_moe` 已兑现 | ✅ probe-backed + `mm_encoder_attention` 已兑现：fp16 tile 覆盖 11/11 通过，**含非 16 倍数**（`(83,64,64)` 等），无 S60 的 power-of-2 约束，`seq=83` 无需 pad |
+| `num_warps>1` | ⚠️ `2` 已失败，当前 `1` 最稳 | ✅ `1/2/4/8` 已 probe（fp16 dot 下 `1` 最优） | ❌ 未建立 | ⚠️ Unknown | ✅ `1/2/4/8` 已 probe（含 `8`），`num_stages` `1/2/3/4` 亦已 probe |
+| 快速 launch 机制 | ✅ `fast_libentry` | — | — | ⚠️ direct launch + `torch.compile(reduce-overhead)`，无已证明 fast launcher | ⚠️ 实测存在且可用（裸发射 `186 us` → `fast_libentry` `164 us` → 缓存 `CompiledKernel` `89 us`），**canonical profile 仍记 `Unknown`**，需另行 onboarding |
 | 设备侧 profiler 证据 | ✅ 相对成熟 | ❌ launch-only | ✅ 有 kernel events | ⚠️ campaign 有 summary，profile 仍待补齐 | ✅ 经 CANN/msprof 可得 |
 | 厂商库压制力 | 中（attention 可被超） | 强（GCU 厂商库） | 强（mcblas） | 强（Ixmma/TCU） | 强（原生 FA） |
 | 覆盖完整度 | 4/10 | 10/10 | 5/10 | **10/10** | 10/10 |
 
 ## 结论
 
-1. **当前已有四类 `tl.dot` 证据**：MLU 属于 campaign-backed，BI150 属于 probe-backed 且已有 `fused_moe` 实战收益，910B 已有小 fp32 probe，S60 属于 probe-backed（power-of-2 约束）且已在 `mm_encoder_attention` 兑现 0.27x→0.92x；仅 C500 仍把 `tl.dot` 可用性列为第一优先级。
+1. **当前已有四类 `tl.dot` 证据**：MLU 属于 campaign-backed，BI150 属于 probe-backed 且已有 `fused_moe` 实战收益，S60 属于 probe-backed（power-of-2 约束）且已在 `mm_encoder_attention` 兑现，910B 已由 epoch-2 onboarding 建立 fp16 tile 覆盖（11/11 含非 16 倍数）并在 `mm_encoder_attention` 兑现；仅 C500 仍把 `tl.dot` 可用性列为第一优先级。注意 910B 与 S60 约束相反：910B 可直接用 `seq=83`，S60 须 pad 到 128。
 
 2. **赛道主旋律仍是「kernel fusion 对抗厂商库」**：能绕开 GEMM/attention 主核的算子（Sinkhorn、逐-token 路由、elementwise 链），Triton 融合普遍拿到 6x~50x；撞上厂商张量核心主路径的算子（大 GEMM、flash attention），收益取决于 dot 路线成熟度和 baseline 库的接近下限程度。
 

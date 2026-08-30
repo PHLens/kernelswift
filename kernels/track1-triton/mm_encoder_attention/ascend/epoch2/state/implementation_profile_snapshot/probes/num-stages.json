@@ -1,0 +1,45 @@
+{
+  "capability_ids": [
+    "resource.num-stages"
+  ],
+  "family": "resource",
+  "implementation_profile_id": "triton_ascend",
+  "input_artifacts": [
+    {
+      "path": "probes/num_stages.py",
+      "run_path": "num_stages.py",
+      "sha256": "5b76d53f64f289b2a5cb6bae24a348d9842a3cf20ffb67b2ce7163803399a1d6"
+    }
+  ],
+  "probe_id": "triton-ascend-num-stages-001",
+  "purpose": "establish num_stages legality on Ascend 910B before any design depends on software pipelining",
+  "required_runtime_fields": [
+    "interpreter",
+    "device",
+    "toolchain",
+    "device_arch",
+    "runner_adapter",
+    "bootstrap_modules",
+    "synchronize_api"
+  ],
+  "runner": {
+    "argv": [
+      "{interpreter}",
+      "{probe_inputs_root}/num_stages.py",
+      "--result-json",
+      "{result_payload_path}",
+      "--target-id",
+      "{target_id}",
+      "--runtime-snapshot",
+      "{runtime_snapshot_path}"
+    ],
+    "cwd": "{probe_run_dir}",
+    "kind": "command",
+    "timeout_seconds": 600
+  },
+  "schema_version": 1,
+  "scope_kind": "device-family",
+  "scope_template": {
+    "name": "num_stages"
+  }
+}
