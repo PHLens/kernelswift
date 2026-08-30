@@ -84,7 +84,7 @@ change, incident, or commit yet.
 |---|---|---:|---|---|---|---|
 | 2026-08-30T05:10:30Z | initializing -> ready | 000 | baseline | `baseline_adapter.py` | - | `230a378` |
 | 2026-08-30T05:38:00Z | ready -> designing -> coding -> verifying -> ready | 001 | accepted | `triton_mm_encoder_attention_e2_001.py` | - | `cd44339` |
-| 2026-08-30T06:05:00Z | ready -> designing -> ready | 002 | aborted | unchanged (`triton_mm_encoder_attention_e2_001.py`) | - | `pending` |
+| 2026-08-30T06:05:00Z | ready -> designing -> ready | 002 | aborted | unchanged (`triton_mm_encoder_attention_e2_001.py`) | - | `46d1135` |
 
 ## Policy Revisions
 
