@@ -5,8 +5,8 @@ contract_version: 3
 semantic_contract: typed-sketch-v1
 attribution_contract: verdict-v1
 runtime: ascend910b4
-phase: ready
-workflow_status: running
+phase: stopped
+workflow_status: stopped
 run_epoch: 2
 project_started_at: 2026-08-30T05:10:30Z
 current_round: "005"
@@ -47,10 +47,10 @@ project_capability_claim_ref: state/project_capability_claim.json
 project_capability_claim_sha256: a46ce09de93c671865f2c1b661a335a8b7f5714db475a27bae763f9d84a56b9d
 runtime_fingerprint_ref: project.md#runtime-fingerprint
 blocked_incident: null
-stop_reason: null
-stop_timestamp: null
-resume_eligible: always
-resume_constraints: []
+stop_reason: user-intervention
+stop_timestamp: 2026-08-30T08:35:00Z
+resume_eligible: new-epoch-required
+resume_constraints: ["epoch 2 is closed by maintainer decision; a further epoch needs a new run epoch, a fresh Phase 0, and a re-frozen profile snapshot"]
 ---
 
 # Team State
@@ -88,6 +88,7 @@ change, incident, or commit yet.
 | 2026-08-30T06:30:00Z | coding -> verifying -> ready | 003 | accepted | `triton_mm_encoder_attention_e2_003.py` | - | `6312866` |
 | 2026-08-30T07:55:00Z | coding -> verifying -> ready | 004 | no-improvement | unchanged (`triton_mm_encoder_attention_e2_003.py`) | - | `afba857` |
 | 2026-08-30T08:20:00Z | coding -> verifying -> ready | 005 | accepted | `triton_mm_encoder_attention_e2_005.py` | - | `2119131` |
+| 2026-08-30T08:54:43Z | ready -> stopped | - | epoch-closed | `triton_mm_encoder_attention_e2_005.py` | - | `pending` |
 
 ## Policy Revisions
 
