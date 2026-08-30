@@ -1,0 +1,47 @@
+{
+  "capability_ids": [
+    "matrix.dot.fp16-fp16-fp32.mult-of-16-tiles"
+  ],
+  "family": "matrix-dot",
+  "implementation_profile_id": "triton_gcu",
+  "input_artifacts": [
+    {
+      "path": "probes/dot_mult16.py",
+      "run_path": "dot_mult16.py",
+      "sha256": "2c08aedaa3d35eb67fadc03f86b06eb512c2ac51f52f2013fb6c1d10f379b505"
+    }
+  ],
+  "probe_id": "triton-gcu-dot-mult16-001",
+  "purpose": "establish tl.dot fp16 mult-of-16 tile constraint on S60 GCU",
+  "required_runtime_fields": [
+    "interpreter",
+    "device",
+    "toolchain",
+    "device_arch",
+    "runner_adapter",
+    "bootstrap_modules",
+    "synchronize_api"
+  ],
+  "runner": {
+    "argv": [
+      "{interpreter}",
+      "{probe_inputs_root}/dot_mult16.py",
+      "--result-json",
+      "{result_payload_path}",
+      "--target-id",
+      "{target_id}",
+      "--runtime-snapshot",
+      "{runtime_snapshot_path}"
+    ],
+    "cwd": "{probe_run_dir}",
+    "kind": "command",
+    "timeout_seconds": 300
+  },
+  "schema_version": 1,
+  "scope_kind": "device-family",
+  "scope_template": {
+    "accumulator_dtype": "fp32",
+    "lhs_dtype": "fp16",
+    "rhs_dtype": "fp16"
+  }
+}

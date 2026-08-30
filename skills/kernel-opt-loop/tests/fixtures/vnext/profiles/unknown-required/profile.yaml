@@ -1,0 +1,305 @@
+{
+  "capability_matrix": [
+    {
+      "capability_kind": "primitive",
+      "contract_name": "matrix.dot",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "matrix",
+      "id": "matrix.dot.fp32",
+      "implementation_symbol": "tl.dot",
+      "scope": {
+        "device_arch": "mlu-arch",
+        "runtime": "triton 3.6.0 / CoreX 4.4.0",
+        "shape_signature": "project-defined",
+        "target_id": "mlu590"
+      },
+      "signature": {
+        "accumulator_dtype": "fp32",
+        "dtype": "fp32",
+        "layout": "row_major",
+        "shape": [
+          "M",
+          "N"
+        ]
+      },
+      "status": "unknown"
+    },
+    {
+      "capability_kind": "primitive",
+      "contract_name": "memory.load",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "memory",
+      "id": "memory.load.contiguous-fp32",
+      "implementation_symbol": "tl.load",
+      "scope": {
+        "device_arch": "mlu-arch",
+        "runtime": "triton 3.6.0 / CoreX 4.4.0",
+        "shape_signature": "project-defined",
+        "target_id": "mlu590"
+      },
+      "signature": {
+        "dtype": "fp32",
+        "layout": "contiguous",
+        "shape": [
+          "N"
+        ]
+      },
+      "status": "unknown"
+    },
+    {
+      "capability_kind": "primitive",
+      "constraints": [
+        "masked bounds required"
+      ],
+      "contract_name": "memory.store",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "memory",
+      "id": "memory.store.contiguous-fp32",
+      "implementation_symbol": "tl.store",
+      "scope": {
+        "device_arch": "mlu-arch",
+        "runtime": "triton 3.6.0 / CoreX 4.4.0",
+        "shape_signature": "project-defined",
+        "target_id": "mlu590"
+      },
+      "signature": {
+        "dtype": "fp32",
+        "layout": "contiguous",
+        "shape": [
+          "N"
+        ]
+      },
+      "status": "constrained"
+    },
+    {
+      "capability_kind": "primitive",
+      "contract_name": "index.range",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "index",
+      "id": "index.range.one-dimensional",
+      "implementation_symbol": "tl.arange",
+      "scope": {
+        "device_arch": "mlu-arch",
+        "runtime": "triton 3.6.0 / CoreX 4.4.0",
+        "shape_signature": "project-defined",
+        "target_id": "mlu590"
+      },
+      "signature": {
+        "dimension": 1
+      },
+      "status": "unknown"
+    },
+    {
+      "capability_kind": "primitive",
+      "constraints": [
+        "grid mapping must preserve control structure"
+      ],
+      "contract_name": "parallel.program-id",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "parallel",
+      "id": "parallel.program-id.axis0",
+      "implementation_symbol": "tl.program_id",
+      "scope": {
+        "device_arch": "mlu-arch",
+        "runtime": "triton 3.6.0 / CoreX 4.4.0",
+        "shape_signature": "project-defined",
+        "target_id": "mlu590"
+      },
+      "signature": {
+        "axis": 0
+      },
+      "status": "constrained"
+    },
+    {
+      "capability_kind": "primitive",
+      "contract_name": "memory.copy",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "memory",
+      "id": "memory.copy.device-to-device",
+      "implementation_symbol": "tl.copy",
+      "scope": {
+        "device_arch": "mlu-arch",
+        "runtime": "triton 3.6.0 / CoreX 4.4.0",
+        "shape_signature": "project-defined",
+        "target_id": "mlu590"
+      },
+      "signature": {
+        "direction": "device-to-device"
+      },
+      "status": "unsupported"
+    },
+    {
+      "capability_kind": "primitive",
+      "constraints": [
+        "fixture policy ban; no normative use"
+      ],
+      "contract_name": "tensor.zeros",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "tensor",
+      "id": "tensor.zeros.fp32",
+      "implementation_symbol": "tl.zeros",
+      "scope": {
+        "device_arch": "mlu-arch",
+        "runtime": "triton 3.6.0 / CoreX 4.4.0",
+        "shape_signature": "project-defined",
+        "target_id": "mlu590"
+      },
+      "signature": {
+        "dtype": "fp32"
+      },
+      "status": "prohibited"
+    }
+  ],
+  "configuration_constraints": {
+    "cross_field_exclusions": [
+      [
+        "num_stages",
+        "num_ctas"
+      ]
+    ],
+    "fields": [
+      {
+        "kind": "launch-option",
+        "name": "num_warps",
+        "scope": {
+          "shape_signature": "project-defined"
+        },
+        "values": [
+          1,
+          2
+        ]
+      },
+      {
+        "kind": "compile-time-meta",
+        "name": "num_stages",
+        "scope": {
+          "shape_signature": "project-defined"
+        },
+        "values": [
+          2,
+          3
+        ]
+      },
+      {
+        "kind": "launch-option",
+        "name": "num_ctas",
+        "scope": {
+          "shape_signature": "project-defined"
+        },
+        "values": [
+          1,
+          2
+        ]
+      }
+    ],
+    "temporary_injection_method": "kernel-specialize"
+  },
+  "fallback_and_unknown_policy": {
+    "probe_policies": [
+      {
+        "fallback_contract": "reduction.sum",
+        "fallback_kind": "algorithm-substitution",
+        "fallback_signature": {
+          "axis": "k",
+          "dtype": "fp32"
+        },
+        "primary_contract": "matrix.dot",
+        "primary_signature": {
+          "accumulator_dtype": "fp32",
+          "layout": "blocked",
+          "lhs_dtype": "fp16",
+          "rhs_dtype": "fp16"
+        },
+        "probe_policy": "before-fallback"
+      }
+    ],
+    "waiver_requirements": [
+      "maintainer confirmation required"
+    ]
+  },
+  "identity_match": {
+    "match_rules": [
+      "exact target and device architecture match required"
+    ],
+    "permitted_device_architectures": [
+      "mlu-arch"
+    ],
+    "permitted_target_ids": [
+      "mlu590"
+    ]
+  },
+  "implementation": {
+    "backend": "triton",
+    "language": "python",
+    "runner_adapter": "python-command",
+    "toolchain": "triton 3.6.0 / CoreX 4.4.0"
+  },
+  "implementation_profile_id": "triton_unknown",
+  "implementation_profile_version": 1,
+  "probe_catalog": [],
+  "profile_schema_ref": "schema/profile.schema.json",
+  "profile_schema_sha256": "4ce1a4f8fbc36428808012b5e0f54af2b71fb81a7a746eaa2ff334f89ed5b436",
+  "profile_status": "partial",
+  "profiler_evidence": {
+    "available_event_types": [
+      "kernel-summary"
+    ],
+    "normalized_fields": [
+      "kernel_count",
+      "device_us"
+    ],
+    "scopes": [
+      "project-local"
+    ],
+    "unavailable_event_types": [
+      "instruction-level"
+    ]
+  },
+  "runtime_launcher": {
+    "harness_constraints": [
+      "preserve caller device and stream"
+    ],
+    "imports": [
+      "torch",
+      "triton"
+    ],
+    "launch_abi": "kernel[(grid)](args)",
+    "stream_synchronization": "current-stream"
+  },
+  "schema_version": 1,
+  "shared_profile_schema_ref": "schema/shared-profile.schema.json",
+  "shared_profile_schema_sha256": "4ce1a4f8fbc36428808012b5e0f54af2b71fb81a7a746eaa2ff334f89ed5b436",
+  "shared_profile_schema_version": 1,
+  "source_conformance": {
+    "analyzer": "python-ast-triton",
+    "binding_model": "primitive-call"
+  }
+}

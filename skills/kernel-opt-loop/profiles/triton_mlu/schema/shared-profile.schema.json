@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "kernel-opt-loop canonical implementation profile",
+  "description": "Machine-readable language/backend/toolchain capability contract. Individual capabilities may be unknown or unavailable while the profile is structurally complete. Shared by pre-campaign onboarding and frozen campaign snapshots.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "implementation_profile_id",
+    "implementation_profile_version",
+    "profile_status",
+    "implementation",
+    "profile_schema_ref",
+    "profile_schema_sha256",
+    "shared_profile_schema_ref",
+    "shared_profile_schema_version",
+    "shared_profile_schema_sha256",
+    "identity_match",
+    "runtime_launcher",
+    "source_conformance",
+    "capability_matrix",
+    "probe_catalog",
+    "fallback_and_unknown_policy",
+    "profiler_evidence"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "implementation_profile_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+    "implementation_profile_version": {"type": "integer", "minimum": 1},
+    "profile_status": {"enum": ["partial", "complete"]},
+    "implementation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["language", "backend", "runner_adapter"],
+      "properties": {
+        "language": {"type": "string"},
+        "backend": {"type": "string"},
+        "runner_adapter": {"type": "string"},
+        "toolchain": {"type": "string"}
+      }
+    },
+    "profile_schema_ref": {"type": "string"},
+    "profile_schema_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "shared_profile_schema_ref": {"type": "string"},
+    "shared_profile_schema_version": {"type": "integer", "minimum": 1},
+    "shared_profile_schema_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "identity_match": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["permitted_target_ids", "permitted_device_architectures", "match_rules"],
+      "properties": {
+        "permitted_target_ids": {"type": "array", "items": {"type": "string"}},
+        "permitted_device_architectures": {"type": "array", "items": {"type": "string"}},
+        "match_rules": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "runtime_launcher": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["imports", "launch_abi", "stream_synchronization", "harness_constraints"],
+      "properties": {
+        "imports": {"type": "array", "items": {"type": "string"}},
+        "launch_abi": {"type": "string"},
+        "stream_synchronization": {"type": "string"},
+        "harness_constraints": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "source_conformance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["analyzer", "binding_model"],
+      "properties": {
+        "analyzer": {"type": "string"},
+        "binding_model": {"type": "string"}
+      }
+    },
+    "capability_matrix": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "family",
+          "capability_kind",
+          "contract_name",
+          "implementation_symbol",
+          "signature",
+          "status",
+          "scope",
+          "evidence"
+        ],
+        "properties": {
+          "id": {"type": "string"},
+          "family": {"type": "string"},
+          "capability_kind": {"enum": ["primitive", "native-operation", "resource", "lifecycle", "profiler"]},
+          "contract_name": {"type": "string"},
+          "implementation_symbol": {"type": "string"},
+          "signature": {"type": "object", "additionalProperties": true},
+          "status": {"enum": ["supported", "constrained", "unknown", "unsupported", "prohibited"]},
+          "constraints": {"type": "array", "items": {"type": "string"}},
+          "scope": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["target_id", "runtime", "device_arch", "shape_signature"],
+            "properties": {
+              "target_id": {"type": "string"},
+              "runtime": {"type": "string"},
+              "device_arch": {"type": "string"},
+              "shape_signature": {"type": "string"}
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "evidence_id",
+                "review_status",
+                "archived_result_ref",
+                "archived_result_sha256",
+                "probe_id",
+                "probe_definition_sha256",
+                "result_sha256",
+                "kind",
+                "target_id",
+                "toolchain_fingerprint",
+                "device_arch",
+                "runner_adapter",
+                "launcher_context",
+                "provenance"
+              ],
+              "properties": {
+                "evidence_id": {"type": "string"},
+                "review_status": {"const": "approved"},
+                "archived_result_ref": {"type": "string"},
+                "archived_result_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                "probe_id": {"type": "string"},
+                "probe_definition_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                "result_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                "kind": {"type": "string"},
+                "target_id": {"type": "string"},
+                "toolchain_fingerprint": {"type": "string"},
+                "device_arch": {"type": "string"},
+                "runner_adapter": {"type": "string"},
+                "launcher_context": {"type": "string"},
+                "provenance": {"enum": ["observed", "inferred", "unknown"]}
+              }
+            }
+          },
+          "failure_classification": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["mismatch", "unprovable_required_use"],
+            "properties": {
+              "mismatch": {"const": "environment-blocked"},
+              "unprovable_required_use": {"const": "capability-miss"}
+            }
+          }
+        }
+      }
+    },
+    "probe_catalog": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["probe_id", "definition_path", "definition_sha256"],
+        "properties": {
+          "probe_id": {"type": "string"},
+          "definition_path": {"type": "string"},
+          "definition_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "fallback_and_unknown_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["probe_policies", "waiver_requirements"],
+      "properties": {
+        "probe_policies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["primary_contract", "primary_signature", "fallback_contract", "fallback_signature", "fallback_kind", "probe_policy"],
+            "properties": {
+              "primary_contract": {"type": "string"},
+              "primary_signature": {"type": "object", "additionalProperties": true},
+              "fallback_contract": {"type": "string"},
+              "fallback_signature": {"type": "object", "additionalProperties": true},
+              "fallback_kind": {"enum": ["semantic-accommodation", "algorithm-substitution"]},
+              "probe_policy": {"enum": ["optional", "before-fallback", "must-resolve"]}
+            }
+          }
+        },
+        "waiver_requirements": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "profiler_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["available_event_types", "unavailable_event_types", "scopes", "normalized_fields"],
+      "properties": {
+        "available_event_types": {"type": "array", "items": {"type": "string"}},
+        "unavailable_event_types": {"type": "array", "items": {"type": "string"}},
+        "scopes": {"type": "array", "items": {"type": "string"}},
+        "normalized_fields": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "resource_constraints": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "configuration_constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fields", "temporary_injection_method", "cross_field_exclusions"],
+      "properties": {
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "kind", "values", "scope"],
+            "properties": {
+              "name": {"type": "string"},
+              "kind": {"enum": ["launch-option", "compile-time-meta"]},
+              "values": {
+                "type": "array",
+                "minItems": 1,
+                "items": {}
+              },
+              "scope": {"type": "object", "additionalProperties": true}
+            }
+          }
+        },
+        "temporary_injection_method": {"type": "string"},
+        "cross_field_exclusions": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "minItems": 2,
+            "items": {"type": "string"}
+          }
+        }
+      }
+    },
+    "host_lifecycle": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

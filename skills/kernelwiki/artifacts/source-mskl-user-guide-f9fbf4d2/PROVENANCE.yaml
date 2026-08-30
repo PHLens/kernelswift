@@ -1,0 +1,19 @@
+schema_version: 1
+origin_url: https://github.com/Ascend/mskl/blob/f9fbf4d21273a4f1fa2793b902872fa7da47d86b/docs/en/user_guide/mskl_user_guide.md
+upstream_repo: Ascend/mskl
+upstream_sha: f9fbf4d21273a4f1fa2793b902872fa7da47d86b
+license_state: approved
+retrieved_at: '2026-08-21T00:00:00Z'
+asset_mode: verbatim
+allowed_audiences:
+- designer
+coder_access: denied
+source_ids:
+- source-mskl-user-guide-f9fbf4d2
+files:
+- local_path: files/docs/en/user_guide/mskl_user_guide.md
+  upstream_path: docs/en/user_guide/mskl_user_guide.md
+  heading_path: null
+  role: upstream-file
+  mode: verbatim
+  sha256: be60acc7f6b6f5c185ebbdd687a75c2e07f061574656753efc280ab1231e73e5

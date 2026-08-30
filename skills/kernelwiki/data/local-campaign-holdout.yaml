@@ -1,0 +1,13 @@
+schema_version: 1
+sealed_at: 2026-08-21T00:00:00Z
+development_campaigns:
+  - kernels/track1-triton/groupedtopk/ascend
+  - kernels/track1-triton/flexattention/ascend
+  - kernels/track1-triton/mhc_post_layer_mix/ascend
+holdout_campaigns:
+  - kernels/track1-triton/mm_encoder_attention/ascend
+  - kernels/track1-triton/sparse_pooler/ascend
+rules:
+  - holdout campaigns do not influence outcome mapping or publication defaults
+  - holdout campaigns are evaluated only after strict and historical lanes pass tests
+  - all historical campaigns remain noncanonical and Designer-only

@@ -1,0 +1,10 @@
+{
+  "bootstrap_modules": [],
+  "device": "s60",
+  "device_arch": "s60-arch",
+  "interpreter": "python3",
+  "runner_adapter": "python-command",
+  "synchronize_api": "s60-sync",
+  "target_id": "s60",
+  "toolchain": "s60-toolchain"
+}

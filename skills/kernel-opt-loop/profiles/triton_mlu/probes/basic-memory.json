@@ -1,0 +1,52 @@
+{
+  "capability_ids": [
+    "memory.load.contiguous",
+    "memory.store.contiguous",
+    "index.range.one-dimensional",
+    "parallel.program-id.axis0"
+  ],
+  "family": "core-primitives",
+  "implementation_profile_id": "triton_mlu",
+  "input_artifacts": [
+    {
+      "path": "probes/basic_memory.py",
+      "run_path": "basic_memory.py",
+      "sha256": "7d71d269ce23fb632119ebb7b5aac2ec8c0dee7ff9e2fbe760f9ca9056c3a57b"
+    }
+  ],
+  "probe_id": "triton-mlu-basic-memory-001",
+  "purpose": "fixture probe payload",
+  "required_runtime_fields": [
+    "interpreter",
+    "device",
+    "toolchain",
+    "device_arch",
+    "runner_adapter",
+    "bootstrap_modules",
+    "synchronize_api"
+  ],
+  "runner": {
+    "argv": [
+      "{interpreter}",
+      "{probe_inputs_root}/basic_memory.py",
+      "--result-json",
+      "{result_payload_path}",
+      "--target-id",
+      "{target_id}",
+      "--runtime-snapshot",
+      "{runtime_snapshot_path}"
+    ],
+    "cwd": "{probe_run_dir}",
+    "kind": "command",
+    "timeout_seconds": 120
+  },
+  "schema_version": 1,
+  "scope_kind": "device-family",
+  "scope_template": {
+    "dtype": "fp32",
+    "layout": "contiguous",
+    "shape": [
+      "N"
+    ]
+  }
+}

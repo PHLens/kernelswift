@@ -1,0 +1,54 @@
+{
+  "accepted_reference_file_sha256": "b8ec3458bf810e6f3e81f759a716810b2046e5b32e22fc1339ec526e319445d1",
+  "binding_sha256": "13374b818479e51215815acf06cf8d61c30100faf1c576ae615000f644171e09",
+  "candidate_sha256": "570bc2be2cb8e79a06ebb32e5e8bf4f79aa62a38d5382b9a1a5f12426f3512b1",
+  "classification": "none",
+  "confidence": "high",
+  "decision_file_sha256": "459e8d37219b5534103a82a7a342c61ef04e147158a6851d794b73e2a44f8730",
+  "decision_sha256": "1c6bf0e85d74395b10e2477549372240415f418406f9bb5249a3f1849c38ac3f",
+  "evidence": [
+    "authoritative pairs --warmup 50 --repeat 100 x3 (protocol v0=base.py, default stream): reference medians [0.200049, 0.147338, 0.143139] -> 0.147338 ms; candidate medians [0.238962, 0.236245, 0.234321] -> 0.236245 ms; unrounded paired improvement -60.3414% vs +5.0% bar (decisive regression, ~1.60x slower)",
+    "ABAB drift-separated supplement: identity-control deltas -0.265/-0.257 us (noise floor ~0) vs candidate deltas +92.400/+92.173 us \u2014 the regression is real, not session drift; pair-1 v0=0.200049 was a drift spike absorbed by same-invocation pairing",
+    "D1 launcher-overhead adjudication CONFIRMED with quantification: wall delta +88.9 us/call (ABAB +92.2/+92.4) minus device delta +2.9 us/call (T_triton 16.510 vs Ixmma 13.614) leaves ~+86-89 us/call of NET host regression in the Triton python launcher path, of which only 3.53 us is the cuLaunchKernel driver submission \u2014 pure python launcher overhead ~82-86 us/call exceeds the entire ~134 us/call base host path it replaced (~38 aten ops + sdpa C++ dispatch)",
+    "mechanism engagement measured: aten cpu_ops 38 -> 1.00/call (single aten::empty); 1.00 cuLaunchKernel/call; zero memcpys/graphs/model-syncs; stateless audit clean; r001's regression structure (5 submissions + per-call sync) structurally absent as designed",
+    "device two-sided observable landed in the GOOD band: T_triton 16.51 us <= ~40 us band; the decision's feared >=60 us device-regression branch did NOT materialize \u2014 wall failure is attributed to the host launcher, not device work (reading (c))",
+    "correctness all pass: seed42 max_abs 9.766e-04; fp16-extreme tie-free suite max_abs 7.8125e-03 (within 1e-2; corroborates coder's fp16-ULP quantization characterization); T=41 spot 9.766e-04; run_out poisoned x2 bitwise==forward with data_ptr preserved; repeat calls bitwise-stable",
+    "proven-envelope binding audit independently re-verified: 4 tl.dot sites all (32,32)@(32,32) fp32 widened operands, num_warps=1 single site, 14 DANGER tokens zero; LIVE binding sha256 331859628ad6e891a835be7fa71baa99b69999f744c947293d8463e8b02c3278 \u2014 coder ledger's ad4d4ba7\u2026 is p12_r002_sweep_result.json's hash (bookkeeping defect, content verified sound)",
+    "deviations: kernel-mode profiling remains structurally blocked (r001 D2 harness arity stands); adapter-as-v0 direct pair blocked by harness v0-contract format (v0 must define Model) \u2014 recorded with exit-1 evidence; canonical summarizer blocked on candidate scope by kineto gpu_user_annotation duplicate-span artifact \u2014 Verifier census scoped on the host user_annotation span with identical attribution rules"
+  ],
+  "explanation": "Verifier facts only: correctness pass everywhere; the H-002 dispatch-collapse mechanism ENGAGED and measured (38->1 ops/call, single driver launch, stateless) and the device kernel landed in the good band (16.51 us), but the primary wall criterion FAILED decisively (-60.3414% paired; ~1.60x slower) due to the unmodeled Triton python-launcher host overhead (~86-89 us/call net). Hypothesis verdict partially-confirmed (collapse + device-band edges confirmed; wall outcome falsified with census-grade root cause). Terminal_result no-improvement under verifier output authority; last_accepted pointer should remain baseline_adapter.py @b8ec3458... and the 2/3 no-improvement streak accounting belongs to Orchestrator.",
+  "failed_attempt_effect": "unchanged",
+  "hypothesis_verdict": "partially-confirmed",
+  "preconditions": [
+    {
+      "name": "correctness_pass",
+      "status": "pass"
+    },
+    {
+      "name": "binding_valid",
+      "status": "pass"
+    },
+    {
+      "name": "lowering_observed",
+      "status": "pass"
+    },
+    {
+      "name": "observable_observed",
+      "status": "pass"
+    },
+    {
+      "name": "wall_improvement_at_or_above_bar",
+      "status": "fail"
+    }
+  ],
+  "profile_sha256": "dc8fa4c0c73caecc78c6a886e5ffb18cb97371f3add7cb382dbe30887743b7ae",
+  "report_fact_pack_sha256": "1ca59fa75293930df86ece437c9cefc9fe31266b5f4cb436c1d0ab3c5e8d3aa7",
+  "report_file": "rounds/report_002.md",
+  "round": "002",
+  "route": null,
+  "rule_id": null,
+  "schema_version": 1,
+  "sketch_file_sha256": "fb5bec0b957a04ffa19d20edb2f0fdb92de156c0aea6429b1c796a86b89bd87c",
+  "sketch_sha256": "349f623054fcb6cb21b7ee36b8454da1a991f81afebebe87ab512d717dae0dd5",
+  "terminal_result": "no-improvement"
+}

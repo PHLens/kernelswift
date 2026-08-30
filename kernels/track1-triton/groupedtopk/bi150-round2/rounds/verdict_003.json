@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "round": "003",
+  "decision_sha256": "e214c29aa66d78654ffb65fba33b4870379bcf059902c8f7cc6409ebffc3a403",
+  "sketch_sha256": "4a909a11cbd8df0ad0385cf6379dc77eb189bffd60ec2ab1b341dbdaa127a782",
+  "binding_sha256": "b32eb677d43b7d2ad51cb4ec140aae4661495a1ce027098c2ff77301adafe1c7",
+  "profile_sha256": "dc8fa4c0c73caecc78c6a886e5ffb18cb97371f3add7cb382dbe30887743b7ae",
+  "report_fact_pack_sha256": "e12c939cd1c6fcfe9032011e918c969824dbc08b9ee1c20e3a128876f381be31",
+  "rule_id": null,
+  "classification": "none",
+  "terminal_result": "no-improvement",
+  "failed_attempt_effect": "unchanged",
+  "route": null,
+  "confidence": "high",
+  "preconditions": [
+    {"name": "correctness_pass", "status": "pass"},
+    {"name": "binding_valid", "status": "pass"},
+    {"name": "lowering_observed", "status": "pass"},
+    {"name": "observable_observed", "status": "pass"},
+    {"name": "wall_improvement_at_or_above_bar", "status": "fail"}
+  ],
+  "evidence": [
+    "DECISIVE same-session accepted-pair probe: r002 0.3451220691204071 ms -> r003 0.373033806681633 ms = -8.087497166542533% vs last_accepted (outputs bitwise-identical pre-timing); cross-anchor vs report_002 wall 0.338824 ms = +10.4740% slower",
+    "prescribed protocol pairs --warmup 50 --repeat 100 x3: reference median 0.478203 ms; candidate median 0.374314 ms (+21.7262% protocol basis belongs to the already-accepted round-001/002 stack and must not be credited to round 003)",
+    "Diagnostics mandated by bootstrap item 3: framework message 'skipping cudagraphs due to mutated inputs (2 instances)' in EVERY invocation incl. both profiling runs -> CUDA-graph replay NEVER fired under this CoreX build/harness pattern (buffer-carrying invocations are mutated-input graphs); mutation-skip demoted capture to default-equivalent compiled execution; nominal tier remained 'replayed' with no exception-path demotion of model tier flags",
+    "two-branch kernel-count semantics from decision_003 quoted for adjudication: '(branch A) attributed launches decrease below 6.90/call OR stay <=6.90; OR (branch B) intra-replay launches are explicitly unattributable ... failure requires attributed count EXCEEDING 6.90/call' — measured attributed count 6.94/call kernel-mode (7.00 forward) nominally exceeds 6.90; composition/name-set byte-identical to accepted r002 with zero new kernels; literal delta equals exactly 3 span-edge events across the 700-launch window; branch B moot because no replay occurred, hence no intra-replay unattributability existed",
+    "correctness guardrails all PASS: active-tier behavioral finding 'replayed' (tier-1 healthy on both instances); bitwise==r002 outputs on seed42 + warm new-input bytes + all four tie suites; T=41 selectivity with ZERO compiler artifacts then tier-1 recovery; run_out bitwise x2 poisoned with data_ptr preserved; cross-instance alternation correct",
+    "device_us_per_call flat: candidate 105.005458984375 kernel-mode / 105.25236328125 forward vs accepted-r002 basis 103.985 (+1.0%) while WALL regressed -8.09% vs accepted — confirms mechanism failure to engage rather than device-work change"
+  ],
+  "explanation": "Verifier facts only: correctness pass, all retention/selectivity guardrails observed passing, but H-003's primary wall criterion FAILED decisively (regression -8.0875% same-session against accepted r002; expected 15%). Root cause documented: this CoreX build skips cudagraph capture for mutated-input graphs, so the reduce-overhead escalation delivered wrapper overhead without any replay benefit on the harness pattern; traces attribute launches normally (branch-B unattributability moot), kernel-count nominally above ceiling but composition unchanged. Terminal_result no-improvement issued under verifier output authority; last_accepted pointer should remain r002 @ad703266… and valid-no-improvement-streak accounting belongs to Orchestrator."
+}

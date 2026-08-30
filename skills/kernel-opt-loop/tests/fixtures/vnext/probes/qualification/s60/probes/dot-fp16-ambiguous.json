@@ -1,0 +1,51 @@
+{
+  "capability_ids": [
+    "matrix.dot.fp16-fp16-fp32"
+  ],
+  "family": "core-primitives",
+  "implementation_profile_id": "s60_triton",
+  "input_artifacts": [
+    {
+      "path": "probes/fake-dot-success.py",
+      "run_path": "payload.py",
+      "sha256": "REPLACED"
+    }
+  ],
+  "probe_id": "s60-dot-fp16-ambiguous-001",
+  "purpose": "fixture probe payload",
+  "required_runtime_fields": [
+    "interpreter",
+    "device",
+    "toolchain",
+    "device_arch",
+    "runner_adapter",
+    "bootstrap_modules",
+    "synchronize_api"
+  ],
+  "runner": {
+    "argv": [
+      "{interpreter}",
+      "{probe_inputs_root}/payload.py",
+      "--result-json",
+      "{result_payload_path}",
+      "--target-id",
+      "{target_id}",
+      "--runtime-snapshot",
+      "{runtime_snapshot_path}"
+    ],
+    "cwd": "{probe_run_dir}",
+    "kind": "command",
+    "timeout_seconds": 30
+  },
+  "schema_version": 1,
+  "scope_kind": "device-family",
+  "scope_template": {
+    "accumulator_dtype": "fp32",
+    "k": 64,
+    "layout": "blocked",
+    "lhs_dtype": "fp16",
+    "m": 16,
+    "n": 128,
+    "rhs_dtype": "fp16"
+  }
+}

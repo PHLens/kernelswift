@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "round": "001",
+  "decision_sha256": "93783baafdc4c4c022773e30ca2d90f7bc94e954ae25cae057fe625b7c43532b",
+  "sketch_sha256": "637917e07b4461258ea714d42021e2e5537e21d19765b57bc9cc1552ef6f6985",
+  "binding_sha256": "5fbddd0d6f9f267783a4dc0e9b610082415d89bd64f9eb50b7bfad7d66d511d0",
+  "profile_sha256": "dc8fa4c0c73caecc78c6a886e5ffb18cb97371f3add7cb382dbe30887743b7ae",
+  "report_fact_pack_sha256": "c46c3349aec3eb3d8ed8ab18b1187b493e537b05ca85afbe0d29d62a43159c97",
+  "rule_id": null,
+  "classification": "none",
+  "terminal_result": "accepted",
+  "failed_attempt_effect": "unchanged",
+  "route": null,
+  "confidence": "high",
+  "preconditions": [
+    {"name": "correctness_pass", "status": "pass"},
+    {"name": "binding_valid", "status": "pass"},
+    {"name": "lowering_observed", "status": "pass"},
+    {"name": "observable_observed", "status": "pass"},
+    {"name": "wall_improvement_at_or_above_bar", "status": "pass"}
+  ],
+  "evidence": [
+    "rounds/report_000.md @320b8b03… (accepted-reference anchors: wall v1 median 0.481109 ms, 14.94 kernels/call, 178.84 us/call)",
+    "authoritative pairs --warmup 50 --repeat 100 x3: reference medians [0.472807, 0.470655, 0.467825] -> 0.470655 ms; candidate medians [0.418635, 0.415213, 0.416933] -> 0.416933 ms; unrounded paired improvement +11.4133% >= 5.0 adoption bar; H-001 expected 8.0 exceeded",
+    "log/probes/verifier_tie_runout_result_001.json: seed42-regime + all-equal/two-expert-tie-same-group/structured-group-tie-boundary/duplicate-max-pairs-cross-group ids exact; run_out==forward bitwise over poisoned buffers x2",
+    "log/summary_round001_candidate_kernelmode.json: candidate scope via ModelNew.run_out under canonical --profile-mode kernel; 6.97 kernels/call, 105.310 us/call device; _softmax_group_scores_kernel/_group_mask_kernel/_renorm_scale_narrow_kernel observed around retained gatherTopK 1.99/call + bitonicSortKVInPlace 1.99/call",
+    "log/summary_round001_reference_forward.json + log/summary_round001_candidate_forward.json: same-session dual-scope cross-check (14.93 -> 7.01 kernels/call; 180.448 -> 105.675 us/call), agrees with kernel-mode within 0.4%",
+    "deviation P1 recorded in rounds/report_001.md: summarize_trace strict-overlap rc=2 (user_annotation vs gpu_user_annotation double record) salvaged offline host-window-only; no GPU re-runs; no measurement impact"
+  ],
+  "explanation": "Verifier facts only: correctness pass, lowering observed, all four H-001 mechanism observables observed passing, authoritative paired wall improvement +11.41% clears the 5% bar. Attribution ownership and terminal routing (commit of accepted pointer/counters) belong to Orchestrator."
+}

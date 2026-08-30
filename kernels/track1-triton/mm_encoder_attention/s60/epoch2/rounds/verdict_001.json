@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "round": "001",
+  "decision_sha256": "4ae2b61392e9187a22f000a87282494eb72806927cd83cfec6c08de69a138771",
+  "sketch_sha256": "ef71920a8a856c633bf8ef5fcebe733bcda6f0fd026210691b1cc8e94aad8f70",
+  "binding_sha256": "f2f8b9b6c6f6a16cfbf162cf3f9b115461fc7a5716601eb8e3723961a8536ead",
+  "profile_sha256": "8dfabd0af59b8f6640b47179fee19bca2f5fe35b18535a3db24f60c842e42b70",
+  "report_fact_pack_sha256": "a175f2727b9198a92da978aca9e8f87834a74884372746699412931890d9748e",
+  "classification": "none",
+  "terminal_result": "no-improvement",
+  "failed_attempt_effect": "unchanged",
+  "route": null,
+  "confidence": "high",
+  "rule_id": null,
+  "preconditions": [
+    { "name": "correctness_pass", "status": "pass" },
+    { "name": "binding_valid", "status": "pass" },
+    { "name": "lowering_observed", "status": "pass" },
+    { "name": "observable_observed", "status": "pass" },
+    { "name": "wall_improvement_at_or_above_bar", "status": "fail" }
+  ],
+  "evidence": [
+    "authoritative pairs --warmup 50 --repeat 100 x3 (v0=base.py): reference medians [0.276584, 0.276234, 0.276579] -> 0.276584 ms; candidate medians [0.303552, 0.305640, 0.306290] -> 0.305640 ms; unrounded paired improvement -10.5% vs +5.0% bar (decisively negative)",
+    "correctness pass: seed42 allclose(atol=rtol=1e-2, equal_nan) vs base PASS in all 4 harness invocations (max_abs 9.77e-4 from capability preflight; harness comparator PASS printed every run)",
+    "dispatch collapse PARTIAL: aten cpu_ops 28 -> 2/call (one torch.empty + one Triton launch); but runtime_launch_count_per_call UNCHANGED at 1.0 per scope (base = 1 topsLaunchKernel SDPA kernel; candidate = 1 topsModuleLaunchKernel Triton kernel)",
+    "device-bound diagnosis confirmed: base wall 0.2766ms with SDPA device floor ~158us (host view/transpose chain only ~11us, launch ~10us); candidate device (tl.dot TP=128 padding 58% wasted) ~166us — the Triton kernel is SLOWER than the CNNL SDPA library kernel on device, the decisive factor",
+    "S60 launcher tax measured 17.4us/call (launch-only probe) — 5x smaller than BI150's 84.77us, so graph-replay composition (the BI150 win lever) has NO material prize on S60; host chain 11us + launcher 17us = 28us total compressible, <20% of wall and < the device deficit",
+    "num_warps sweep {1:167.9, 2:166.2, 4:193.2, 8:286.1} us — nw=2 optimal; split-Q variants 195-228us (worse, redundant K load); single-tile TP=128 nw=2 is the floor of the direct family",
+    "capability constraint correction (probe-backed): tl.dot AND tl.arange both require POWER-OF-2 (not mult-of-16 — 96=16x6 FAILS, only 16/32/64/128 pass); T=83 must pad to 128, 58% FLOP waste is structurally unavoidable"
+  ],
+  "explanation": "Verifier facts only: correctness passes on every mandated surface (seed42 comparator, fp16 output [2,83,512], stateless, envelope-legal source); the H-001 mechanism ENGAGED (aten 28 -> 2, single Triton launch) but the wall criterion FAILED decisively (-10.5% paired) because S60 is DEVICE-BOUND: the CNNL SDPA library kernel (~158us device floor) beats hand-written tl.dot (TP=128 padding forces 58% FLOP waste -> ~166us), and the compressible host+launcher total is only ~28us (< the device deficit). S60's 17.4us launcher tax (vs BI150's 84.77us) means the graph-replay win lever that flipped BI150 has no prize here. The round banks the campaign's PRIMARY contractual product per project.md DELIVERABLE RULE (correctness-PASS Triton deliverable with forward + 4-arg run_out at ~0.906x). Terminal_result no-improvement under verifier output authority; last_accepted stays baseline_adapter.py; performance_miss_streak accounting belongs to Orchestrator. The corrected power-of-2 constraint must be propagated back to the triton_gcu profile (it currently states mult-of-16, which is WRONG)."
+}

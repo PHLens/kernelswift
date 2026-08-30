@@ -1,0 +1,39 @@
+# Round Status 001
+
+- phase: `verification-complete`
+- result: `accepted` (verifier output authority; terminal transition/commit owned by Orchestrator)
+- measurement_exclusive: `true until Orchestrator records durable completion of round 001`
+- started_at_utc: `2026-08-27T13:20:00Z`
+- ended_at_utc: `2026-08-27T14:35:00Z`
+- completed_commands:
+  - input hash verification (file-byte sha256) against bootstrap/coder_result_001 declarations: PASS
+    - candidate `triton_grouped_topk_r2_001.py`: `4ae64cad913267f2198fec735e08f1b9490cafa1139d3a48ee11400aacb80de3` (11318 bytes; re-verified after all measurements)
+    - decision `rounds/decision_001.md`: `93783baafdc4c4c022773e30ca2d90f7bc94e954ae25cae057fe625b7c43532b`
+    - sketch `rounds/sketch_001.json`: `637917e07b4461258ea714d42021e2e5537e21d19765b57bc9cc1552ef6f6985`
+    - binding artifact `log/probes/binding_statement_report.json`: `5fbddd0d6f9f267783a4dc0e9b610082415d89bd64f9eb50b7bfad7d66d511d0`
+    - profile snapshot `profile_snapshot/triton_cuda.yaml`: `dc8fa4c0c73caecc78c6a886e5ffb18cb97371f3add7cb382dbe30887743b7ae`
+    - anchors unchanged: baseline_adapter.py `ecce4dac…`, report_000.md `320b8b03…`, auto_bench.py `71fb3ad0…`, ../base.py `12f33248…`
+  - correctness gate: PASS — probe exit 0 → `log/probes/verifier_tie_runout_result_001.json` (@`68892c9549f7724aeaa8cee7a4272fcc5c62f8da5ae9d5acec7f26ba55a7c0af`)
+    - seed42-regime-random ids exact (max_abs_w 5.96e-08); all-equal / two-expert-tie-same-group / structured-group-tie-boundary / duplicate-max-pairs-cross-group ids exact
+    - run_out vs forward bitwise-equal over poisoned buffers ×2
+  - screening pair S1 (`--warmup 10 --repeat 20`): correctness PASS; v0 `0.473409` ms, v1 `0.419502` ms (1.129x), exit 0
+  - screening pair S2: correctness PASS; v0 `0.480382` ms, v1 `0.428325` ms (1.122x), exit 0 → not screened-out
+  - authoritative pair A1 (`--warmup 50 --repeat 100`): correctness PASS; v0 `0.472807` ms, v1 `0.418635` ms (1.129x), exit 0
+  - authoritative pair A2: correctness PASS; v0 `0.470655` ms, v1 `0.415213` ms (1.134x), exit 0
+  - authoritative pair A3: correctness PASS; v0 `0.467825` ms, v1 `0.416933` ms (1.122x), exit 0
+  - canonical kernel-mode profile (--profile-mode kernel, profile_warmup 20 / iterations 100): candidate scope via ModelNew.run_out succeeded first attempt → `log/triton_grouped_topk_r2_001_kernel_100iter.pt.trace.json` @`6b105d0c8c6bd1476886e9956f366cdd8811dfe11eef3091c85dc5b3edb2902e`; harness PASS accuracy within run; exit 0
+  - forward dual-scope supplementary profile: → `log/groupedtopk_round001_forward_100iter.pt.trace.json` @`05d71f2a94d35f614067945f240b86d346b004e00e829c4fb6ce604b11b7faed`; PASS accuracy; exit 0
+  - summarize_trace.py reference scope (canonical): PASS → `log/summary_round001_reference_forward.json`
+  - named FAILED probe attempt P1 (counted per recovery authorization): `summarize_trace.py --scope candidate_triton_grouped_topk_r2_001` on both traces rc=2 "overlapping scope events" — root cause read-only diagnosis: this torch build double-records each record_function span as cat=user_annotation + cat=gpu_user_annotation; salvaged OFFLINE via host-window-only convention (`log/probes/verifier_scoped_resummarize_001.py`) with zero GPU re-runs:
+    - `log/summary_round001_candidate_kernelmode.json`: 6.97 kernels/call, 105.310478515625 us/call, ratio 0.252583696938417
+    - `log/summary_round001_candidate_forward.json`: 7.01 kernels/call, 105.675361328125 us/call (cross-check ±0.4%)
+- unrounded medians & adoption:
+  - reference `0.470655` ms; candidate `0.416933` ms; paired improvement `+11.4133%` ≥ 5.0 bar; H-001 expected 8.0 exceeded
+  - cross-anchors: vs report_000 adapter anchor 0.481109 → `+13.3378%`; vs manifest-of-record v0 anchor 0.483530 → `+13.7733%`
+- artifacts:
+  - `rounds/report_001.md` (Result: accepted; contains Evaluation Contract mirror H-001 verdict confirmed, profiler tables, deviations P1/D1, repro commands, vNext Fact Pack)
+  - `rounds/verdict_001.json` (rule-less accepted: classification none, terminal_result accepted, failed_attempt_effect unchanged; fact-pack pin `c46c3349aec3eb3d8ed8ab18b1187b493e537b05ca85afbe0d29d62a43159c97` == sha256(canonical json of report fence), re-extracted and re-hashed post-write CONFIRMED)
+  - `log/probes/verifier_tie_runout_check_r2_001.py`, `log/probes/verifier_scoped_resummarize_001.py` + result JSONs
+  - traces + 3 scope summaries under `log/`
+- measurement_fingerprint: `8deb1b012de31b18887562e736c7b9e120b9d9f9500230e237ee003c5fa5a431` (unchanged, regime flags byte-identical to round 000)
+- next_safe_action: `Orchestrator validates report_001.md + verdict_001.json, applies accepted transitions (last_accepted_kernel=triton_grouped_topk_r2_001.py @4ae64cad…, last_accepted_report=rounds/report_001.md), commits, then dispatches round 002 design`

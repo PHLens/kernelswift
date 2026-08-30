@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "round": "002",
+  "decision_sha256": "04f6dc0b6a92429ba7538d2dfa3d6c4e10471a05d80188a716d5770e2f031e2f",
+  "sketch_sha256": "c3c585d1f95337f25ac1c9ff5dc3c3591637b1e9a7c906174fb60d0da97695dd",
+  "binding_sha256": "7b411daf3903c88ebcaa9426a628f6fe76638fd7be635c0563ee4f63fc1be818",
+  "profile_sha256": "8dfabd0af59b8f6640b47179fee19bca2f5fe35b18535a3db24f60c842e42b70",
+  "report_fact_pack_sha256": "78ceeaa38407b5a01a40b8d661218b2cf31265a10ec3931b139853d55c50c25f",
+  "classification": "none",
+  "terminal_result": "no-improvement",
+  "failed_attempt_effect": "unchanged",
+  "route": null,
+  "confidence": "high",
+  "rule_id": null,
+  "preconditions": [
+    { "name": "correctness_pass", "status": "pass" },
+    { "name": "binding_valid", "status": "pass" },
+    { "name": "lowering_observed", "status": "pass" },
+    { "name": "observable_observed", "status": "pass" },
+    { "name": "wall_improvement_at_or_above_bar", "status": "fail" }
+  ],
+  "evidence": [
+    "authoritative pairs --warmup 50 --repeat 100 x3 (v0=base.py): reference medians [0.255767, 0.230800, 0.251601] -> 0.251601 ms; candidate medians [0.275038, 0.242818, 0.277810] -> 0.275038 ms; paired improvement -9.3151% vs +5.0% bar (no-improvement #2)",
+    "correctness 4/4 PASS (3 timing pairs + profile run, seed42 allclose atol=rtol=1e-2 equal_nan)",
+    "fp16 QK^T dot direction CONFIRMED real: r001 -10.5% -> r002 -9.3% (cross-session candidate wall ~30.6us lower); host path byte-identical to r001; the improvement is device-side from fp16 tensor-core QK^T",
+    "S60 remains DEVICE-BOUND: TP=128 power-of-2 padding forces 58% FLOP waste (83 -> 128), structurally unavoidable under the power-of-2 tl.dot/tl.arange constraint; D_cand still above the CNNL SDPA ~158us floor",
+    "launcher tax 17.4us + host chain 11us = 28us total compressible << device deficit; graph-replay has no prize (S60 launcher tax is 5x smaller than BI150's 84.77us)",
+    "profile census: runtime_launch_count 2.0 total (1 per scope); base topsLaunchKernel @11.41us/call, candidate topsModuleLaunchKernel @11.38us/call; device_time unavailable (GCU launch-only trace)"
+  ],
+  "explanation": "Verifier facts only: correctness passes on every mandated surface; the fp16-dot intervention ENGAGED (device-side improvement r001->r002, -10.5% -> -9.3%) but the wall criterion FAILED again (-9.3151% paired). The structural diagnosis is now conclusive: S60 is DEVICE-BOUND, and the power-of-2 tl.dot/tl.arange constraint forces TP=128 for S=83 (58% FLOP waste) — a structural ceiling no hand-written Triton kernel can cross while the CNNL SDPA library holds a ~158us device floor. Both device levers (fp32->fp16 dtype, num_warps 2->1) are now exhausted; grid-split was measured WORSE in r001 (195-228us); graph-replay has no prize (17.4us launcher tax). performance_miss_streak = 2 with no remaining unexplored device lever — the campaign has reached its terminal state. Deliverable banked: best correctness-PASS Triton submission is e2_002.py (fp16 QK^T + fp32 PV, ~0.915x). Orchestrator owns the terminal transition."
+}

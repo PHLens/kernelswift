@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "round": "001",
+  "decision_sha256": "6da2b5536dabef6d051af24446ae87d17274960325d99da480cc62d5dac56259",
+  "sketch_sha256": "0c9f745002349ca31a3fe32a585877413bc0c3ce9da8aef68350b0d37e52f613",
+  "binding_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "profile_sha256": "55bc084448707b2be28ecf5d4e17ce914ec19ea3dba18fcb42324527cdd3ddae",
+  "report_fact_pack_sha256": "6bf4d38582a53eb4daa31203a9d12f84783ee155ea5c5760cd798c4f2ec6d599",
+  "classification": "none",
+  "terminal_result": "accepted",
+  "failed_attempt_effect": "reset",
+  "route": null,
+  "confidence": "high",
+  "rule_id": null,
+  "preconditions": [
+    {"name": "sketch_valid", "status": "pass"},
+    {"name": "causal_graph_valid", "status": "pass"},
+    {"name": "binding_valid", "status": "missing"},
+    {"name": "correctness_pass", "status": "pass"},
+    {"name": "lowering_observed", "status": "pass"}
+  ],
+  "evidence": [
+    "rounds/report_001.md",
+    "log/round_001_wall_pairs.txt",
+    "log/round_001_correctness_suite.json",
+    "log/diagnostic_scope_census_001.json",
+    "log/round_001_forward_100iter.pt.trace.json"
+  ],
+  "explanation": "Round 001 is accepted at +93.248 percent (0.219792 ms vs the round-000 canon 3.255288 ms), clearing the 5 percent adoption gate on authoritative interleaved wall timing. Correctness passes on all 12 Verifier suites including fp16-extreme, five expert-activation variants, run_out poisoned x2, a non-target shape, and 20-call determinism. The host half of H-001 is confirmed beyond expectation: zero python Triton launcher executions per timed call, 2.0 submissions per call (1 cudaGraphLaunch + 1 copy-out memcpy) against 9.82 previously, and a 423 us replay-vs-eager wall delta against the modeled 170 us. The device half is falsified as measured (FR-2 fires at -49.162 us on the forced-eager control), but that falsification is attributable to the control methodology: disabling the tier guards also bypasses _alloc_workspace, so _pipeline re-allocates its sort buffers every call (5 torch.zeros per forward, aten::fill_ at 6.00/call and 23.797 us/call). The clean isolated comparison shows the restructure is device-neutral, 58.231 us/call (sort 28.038 + expert 30.192) against epoch-1's single kernel at 55.954 us/call, not the predicted 140.84 -> 64 us win. Hypothesis verdict is therefore partially-confirmed. FR-4 also fires as recorded: best_num_warps is 1, so the sibling nw2 prior does not transfer. Neither FR-2 nor FR-4 blocks adoption because decision-001 explicitly allows a partial device landing to be adopted on the host half, and FR-5 (the 5 percent wall gate) does not fire. BINDING PROVENANCE: rounds/binding_001.json does not exist in this campaign; the binding ledger is a Coder-owned artifact per prompts/coder.md:96. Verifier did not fabricate it, so binding_sha256 carries an all-zero placeholder and precondition binding_valid is recorded as missing rather than pass. Orchestrator must obtain or waive the binding ledger before relying on this verdict for finalization; it does not affect the round-001 terminal result, which rests on wall timing and correctness. Verdict rule_id is null with classification none, which is the valid rule-less form for a non-failure terminal result under validate_verdict._validate_campaign_verdict."
+}

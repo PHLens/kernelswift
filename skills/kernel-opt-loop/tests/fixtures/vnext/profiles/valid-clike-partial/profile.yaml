@@ -1,0 +1,105 @@
+{
+  "capability_matrix": [
+    {
+      "capability_kind": "primitive",
+      "contract_name": "memory.copy",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "memory",
+      "id": "memory.copy.fixture",
+      "implementation_symbol": "DataCopy",
+      "scope": {
+        "device_arch": "fixture-arch",
+        "runtime": "fixture-c-toolchain",
+        "shape_signature": "project-defined",
+        "target_id": "fixture-device"
+      },
+      "signature": {
+        "direction": "device-to-device",
+        "dtype": "fp32"
+      },
+      "status": "unknown"
+    },
+    {
+      "capability_kind": "primitive",
+      "constraints": [
+        "fixture launch ABI only"
+      ],
+      "contract_name": "launch.kernel",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "launch",
+      "id": "launch.kernel.fixture",
+      "implementation_symbol": "LaunchKernel",
+      "scope": {
+        "device_arch": "fixture-arch",
+        "runtime": "fixture-c-toolchain",
+        "shape_signature": "project-defined",
+        "target_id": "fixture-device"
+      },
+      "signature": {
+        "grid": 1
+      },
+      "status": "constrained"
+    }
+  ],
+  "fallback_and_unknown_policy": {
+    "probe_policies": [],
+    "waiver_requirements": []
+  },
+  "identity_match": {
+    "match_rules": [
+      "exact target and architecture match required"
+    ],
+    "permitted_device_architectures": [
+      "fixture-arch"
+    ],
+    "permitted_target_ids": [
+      "fixture-device"
+    ]
+  },
+  "implementation": {
+    "backend": "ascendc",
+    "language": "c",
+    "runner_adapter": "c-build-run",
+    "toolchain": "fixture-c-toolchain"
+  },
+  "implementation_profile_id": "fixture_clike",
+  "implementation_profile_version": 1,
+  "probe_catalog": [],
+  "profile_schema_ref": "schema/profile.schema.json",
+  "profile_schema_sha256": "4ce1a4f8fbc36428808012b5e0f54af2b71fb81a7a746eaa2ff334f89ed5b436",
+  "profile_status": "partial",
+  "profiler_evidence": {
+    "available_event_types": [],
+    "normalized_fields": [],
+    "scopes": [],
+    "unavailable_event_types": [
+      "profiler"
+    ]
+  },
+  "runtime_launcher": {
+    "harness_constraints": [
+      "no triton symbols"
+    ],
+    "imports": [
+      "fixture_build"
+    ],
+    "launch_abi": "DataCopy(dst, src, len)",
+    "stream_synchronization": "fixture-stream"
+  },
+  "schema_version": 1,
+  "shared_profile_schema_ref": "schema/shared-profile.schema.json",
+  "shared_profile_schema_sha256": "4ce1a4f8fbc36428808012b5e0f54af2b71fb81a7a746eaa2ff334f89ed5b436",
+  "shared_profile_schema_version": 1,
+  "source_conformance": {
+    "analyzer": "fixture-clike-symbols",
+    "binding_model": "symbol-and-call"
+  }
+}

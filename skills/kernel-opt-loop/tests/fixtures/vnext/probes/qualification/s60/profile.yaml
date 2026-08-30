@@ -1,0 +1,191 @@
+{
+  "capability_matrix": [
+    {
+      "capability_kind": "primitive",
+      "contract_name": "matrix.dot",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "matrix",
+      "id": "matrix.dot.fp16-fp16-fp32",
+      "implementation_symbol": "tl.dot",
+      "scope": {
+        "device_arch": "s60-arch",
+        "runtime": "s60-runtime",
+        "shape_signature": "attention-dot-scope",
+        "target_id": "s60"
+      },
+      "signature": {
+        "accumulator_dtype": "fp32",
+        "k": 64,
+        "layout": "blocked",
+        "lhs_dtype": "fp16",
+        "m": 16,
+        "n": 128,
+        "rhs_dtype": "fp16"
+      },
+      "status": "unknown"
+    },
+    {
+      "capability_kind": "primitive",
+      "contract_name": "reduction.sum",
+      "evidence": [
+        {
+          "archived_result_ref": "evidence/groupedtopk-result.json",
+          "archived_result_sha256": "6f44722006d751c6822bae1f8d4c522e8904846bd9999b20d2f855eefb95dfd2",
+          "device_arch": "s60-arch",
+          "evidence_id": "s60-groupedtopk-reduction-reviewed",
+          "kind": "observed",
+          "launcher_context": "direct-launch/current-stream",
+          "probe_definition_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "probe_id": "s60-groupedtopk-reduction-001",
+          "provenance": "observed",
+          "result_sha256": "6f44722006d751c6822bae1f8d4c522e8904846bd9999b20d2f855eefb95dfd2",
+          "review_status": "approved",
+          "runner_adapter": "python-command",
+          "target_id": "s60",
+          "toolchain_fingerprint": "s60-runtime"
+        }
+      ],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "reduction",
+      "id": "reduction.sum.fp32-k",
+      "implementation_symbol": "tl.sum",
+      "scope": {
+        "device_arch": "s60-arch",
+        "runtime": "s60-runtime",
+        "shape_signature": "attention-dot-scope",
+        "target_id": "s60"
+      },
+      "signature": {
+        "axis": "k",
+        "dtype": "fp32"
+      },
+      "status": "supported"
+    },
+    {
+      "capability_kind": "primitive",
+      "contract_name": "memory.copy",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "memory",
+      "id": "memory.copy.fp32",
+      "implementation_symbol": "tl.copy",
+      "scope": {
+        "device_arch": "s60-arch",
+        "runtime": "s60-runtime",
+        "shape_signature": "attention-dot-scope",
+        "target_id": "s60"
+      },
+      "signature": {
+        "dtype": "fp32"
+      },
+      "status": "unknown"
+    },
+    {
+      "capability_kind": "primitive",
+      "contract_name": "layout.reshape",
+      "evidence": [],
+      "failure_classification": {
+        "mismatch": "environment-blocked",
+        "unprovable_required_use": "capability-miss"
+      },
+      "family": "layout",
+      "id": "layout.reshape.logical",
+      "implementation_symbol": "tl.reshape",
+      "scope": {
+        "device_arch": "s60-arch",
+        "runtime": "s60-runtime",
+        "shape_signature": "attention-dot-scope",
+        "target_id": "s60"
+      },
+      "signature": {
+        "kind": "logical"
+      },
+      "status": "unknown"
+    }
+  ],
+  "fallback_and_unknown_policy": {
+    "probe_policies": [
+      {
+        "fallback_contract": "reduction.sum",
+        "fallback_kind": "algorithm-substitution",
+        "fallback_signature": {
+          "axis": "k",
+          "dtype": "fp32"
+        },
+        "primary_contract": "matrix.dot",
+        "primary_signature": {
+          "accumulator_dtype": "fp32",
+          "k": 64,
+          "layout": "blocked",
+          "lhs_dtype": "fp16",
+          "m": 16,
+          "n": 128,
+          "rhs_dtype": "fp16"
+        },
+        "probe_policy": "before-fallback"
+      }
+    ],
+    "waiver_requirements": [
+      "maintainer confirmation required"
+    ]
+  },
+  "identity_match": {
+    "match_rules": [
+      "s60 fixture identity"
+    ],
+    "permitted_device_architectures": [
+      "s60-arch"
+    ],
+    "permitted_target_ids": [
+      "s60"
+    ]
+  },
+  "implementation": {
+    "backend": "triton",
+    "language": "python",
+    "runner_adapter": "python-command",
+    "toolchain": "s60-toolchain"
+  },
+  "implementation_profile_id": "s60_triton",
+  "implementation_profile_version": 1,
+  "probe_catalog": [
+    {
+      "definition_path": "probes/dot-fp16.json",
+      "definition_sha256": "12ee4f6dda33a0b4ec6d83592c657a4d6788fd260fbda76893d496d6e9d7d942",
+      "probe_id": "s60-dot-fp16-001"
+    }
+  ],
+  "profile_schema_ref": "schema/profile.schema.json",
+  "profile_schema_sha256": "4ce1a4f8fbc36428808012b5e0f54af2b71fb81a7a746eaa2ff334f89ed5b436",
+  "profile_status": "partial",
+  "profiler_evidence": {
+    "available_event_types": [],
+    "normalized_fields": [],
+    "scopes": [],
+    "unavailable_event_types": []
+  },
+  "runtime_launcher": {
+    "harness_constraints": [],
+    "imports": [],
+    "launch_abi": "fixture",
+    "stream_synchronization": "s60-sync"
+  },
+  "schema_version": 1,
+  "shared_profile_schema_ref": "schema/shared-profile.schema.json",
+  "shared_profile_schema_sha256": "4ce1a4f8fbc36428808012b5e0f54af2b71fb81a7a746eaa2ff334f89ed5b436",
+  "shared_profile_schema_version": 1,
+  "source_conformance": {
+    "analyzer": "python-ast-triton",
+    "binding_model": "primitive-call"
+  }
+}

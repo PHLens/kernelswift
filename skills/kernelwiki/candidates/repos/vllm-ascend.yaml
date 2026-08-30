@@ -1,0 +1,23 @@
+schema_version: 1
+repository_id: vllm-ascend
+repo: vllm-project/vllm-ascend
+searched_at: "2026-08-21T00:00:00Z"
+keywords_used: [AscendC, kernel, performance, fused, topk, attention, reduction, tiling, double buffer]
+total_candidates: 1
+included: 0
+deferred: 1
+excluded: 0
+prs:
+  - number: 814
+    title: Custom AscendC Kernel of Multi-Step Prepare Input
+    date: null
+    url: https://github.com/vllm-project/vllm-ascend/pull/814
+    decision: defer
+    reason: capture validation must confirm changed-file accounting and license state
+    kernel_types: [data-preparation]
+    techniques: [kernel-fusion, launch-collapse]
+    languages: [ascendc]
+    changed_paths: []
+    files_reviewed_count: 0
+    target_evidence: []
+    discovery_state: reviewed

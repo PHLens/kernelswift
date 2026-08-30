@@ -1,0 +1,28 @@
+{
+  "argv": [
+    "python3",
+    "groupedtopk_probe.py"
+  ],
+  "definition_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "evidence": [],
+  "exit_code": 0,
+  "implementation_profile_id": "s60_triton",
+  "observations": [
+    {
+      "capability_id": "reduction.sum.fp32-k",
+      "detail": "groupedtopk-derived reduction evidence",
+      "level": "observed",
+      "numerically_checked": true
+    }
+  ],
+  "observed_scope": {
+    "axis": "k",
+    "dtype": "fp32"
+  },
+  "probe_id": "s60-groupedtopk-reduction-001",
+  "profile_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "runtime_fingerprint": "s60-runtime",
+  "schema_version": 1,
+  "target_id": "s60",
+  "timed_out": false
+}

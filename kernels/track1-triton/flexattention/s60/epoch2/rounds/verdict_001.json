@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "round": "001",
+  "decision_sha256": "8a2bb5a7a6bcd2ccb8ecb704c30c5edbb540fb5c52fc4cae34f2afeef57c5d86",
+  "sketch_sha256": "aad322a8b806d9f97bc9c5056c8ae1ea62c5bd8ecc8bb502fb6fc72399a61247",
+  "binding_sha256": "6a62042904bd774006154ba75d8bbcc8212449438d2cd8b4aaa02a5415eed0e9",
+  "profile_sha256": "8dfabd0af59b8f6640b47179fee19bca2f5fe35b18535a3db24f60c842e42b70",
+  "report_fact_pack_sha256": "7ec0189d0c98f61395e9949d9a039d340c9bbecec4dd0a9406a4dd1c4312a10f",
+  "classification": "none",
+  "terminal_result": "no-improvement",
+  "failed_attempt_effect": "unchanged",
+  "route": null,
+  "confidence": "high",
+  "rule_id": null,
+  "preconditions": [
+    { "name": "correctness_pass", "status": "pass" },
+    { "name": "binding_valid", "status": "pass" },
+    { "name": "lowering_observed", "status": "pass" },
+    { "name": "observable_observed", "status": "pass" },
+    { "name": "wall_improvement_at_or_above_bar", "status": "fail" }
+  ],
+  "evidence": [
+    "authoritative 5 pairs --warmup 50 --repeat 100 (v0=base.py): reference median 0.250796 ms; candidate median 0.266835 ms; paired improvement -6.3954% (all 5 pairs negative sign, below +5.0% bar)",
+    "correctness 6/6 PASS (5 timing pairs + profile run, seed42 allclose atol=rtol=1e-2 equal_nan); candidate hash constant end-to-end (6a620429...)",
+    "dispatch collapse: aten level confirmed (empty+launch+reshape vs full unsqueeze/transpose/SDPA chain); launch count unchanged at 1.0 per scope in forward-mode (base 1 topsLaunchKernel @13.31us, candidate 1 topsModuleLaunchKernel @13.35us)",
+    "S60 device-bound confirmed: causal fp16 tl.dot single kernel ~0.94x ceiling, vendor flash-attention library already optimized; TP=128 power-of-2 padding forces 58% FLOP waste (S=83)",
+    "2.2x over epoch-1 (0.42x -> 0.94x): the delivery standard (better than epoch-1) is met even though base is not beaten"
+  ],
+  "explanation": "Verifier facts only: correctness passes on every mandated surface (seed42 comparator, causal semantics, fp16 output [83,512], stateless, envelope-legal source — 2 tl.dot sites fp16-QK^T/fp32-PV at power-of-2 tiles, num_warps=1, no-keepdim softmax); the H-001 mechanism ENGAGED (single direct-launched causal-attention kernel replacing the vendor causal SDPA path) but the wall criterion FAILED (-6.4% paired) because S60 is device-bound and the vendor flash-attention library already holds a floor the hand-written kernel cannot cross under the power-of-2 padding constraint. The round banks the campaign's PRIMARY contractual product per the delivery standard: a correctness-PASS Triton deliverable at ~0.94x = 2.2x over epoch-1's 0.42x. Terminal_result no-improvement; last_accepted stays baseline_adapter.py; performance_miss_streak accounting belongs to Orchestrator."
+}

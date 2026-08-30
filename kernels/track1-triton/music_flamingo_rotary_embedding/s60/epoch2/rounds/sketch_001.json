@@ -1,0 +1,218 @@
+{
+  "schema_version": 1,
+  "sketch_id": "sketch-mfre-rotary-s60-partial-fusion-001",
+  "round": "001",
+  "scope": {
+    "kind": "changed-computation-boundary",
+    "entrypoints": [
+      "ModelNew.forward"
+    ],
+    "unchanged_boundary": [
+      "mathematical semantics: batch_freqs[b,d]=(b/max_seq_len)*inv_freq[d//2] then repeat_interleave(2) -> [4,64]; time_freqs[t,d]=position_angles[t,d] sliced [32,64] (position_angles already repeat_interleave(2) so adjacent columns duplicate); freqs=cat(batch_freqs[:,None,:] broadcast, time_freqs[None,:,:], dim=-1) -> [4,32,128]; angle=-timestamps*2*pi; theta=freqs*angle[...,None]; output (cos(theta), sin(theta)) exact-match (pure deterministic elementwise + trig)",
+      "output structure: tuple (cos, sin), each fp32 [4,32,128]",
+      "public ModelNew(dim=64, max_seq_len=256, base=10000.0) constructor and forward(timestamps, seq_len) signature returning a fresh tuple",
+      "register buffers inv_freq [32] and position_angles [256,64] computed host-side in __init__ and NOT fused into the kernel; state_dict keys {inv_freq, position_angles} unchanged",
+      "cos/sin computed by VENDOR torch.cos/torch.sin on the host side against the intermediate freqs buffer — the kernel MUST NOT use tl.cos/tl.sin (this is the epoch-1 -13% root cause: GCU math-dialect tl.cos/tl.sin is ~44% slower than the vendor trig library)",
+      "capability legality: tl.arange extent power-of-2 (HALF=32); num_warps=1; elementwise mul/div only inside the kernel (no tl.dot, no reduction, no algorithm substitution)"
+    ]
+  },
+  "declarations": [
+    {
+      "id": "timestamps",
+      "kind": "tensor",
+      "shape": ["4", "32"],
+      "dtype": "fp32",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "inv_freq",
+      "kind": "tensor",
+      "shape": ["32"],
+      "dtype": "fp32",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "position_angles",
+      "kind": "tensor",
+      "shape": ["256", "64"],
+      "dtype": "fp32",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "freqs",
+      "kind": "tensor",
+      "shape": ["4", "32", "128"],
+      "dtype": "fp32",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "cos",
+      "kind": "tensor",
+      "shape": ["4", "32", "128"],
+      "dtype": "fp32",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "sin",
+      "kind": "tensor",
+      "shape": ["4", "32", "128"],
+      "dtype": "fp32",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "ts",
+      "kind": "scalar",
+      "shape": ["1"],
+      "dtype": "fp32",
+      "layout": "scalar",
+      "memory": "register"
+    },
+    {
+      "id": "inv_tile",
+      "kind": "tile",
+      "shape": ["32"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "register"
+    },
+    {
+      "id": "pa_tile",
+      "kind": "tile",
+      "shape": ["32"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "register"
+    }
+  ],
+  "operations": [
+    {
+      "id": "op.load.ts",
+      "kind": "load",
+      "inputs": ["timestamps"],
+      "outputs": ["ts"],
+      "index_domain": "batch x time",
+      "mask": "b < B and t < T",
+      "effects": { "reads": ["timestamps"], "writes": [] }
+    },
+    {
+      "id": "op.load.inv",
+      "kind": "load",
+      "inputs": ["inv_freq"],
+      "outputs": ["inv_tile"],
+      "index_domain": "freq",
+      "mask": "i < HALF",
+      "effects": { "reads": ["inv_freq"], "writes": [] }
+    },
+    {
+      "id": "op.load.pa",
+      "kind": "load",
+      "inputs": ["position_angles"],
+      "outputs": ["pa_tile"],
+      "index_domain": "time x freq",
+      "mask": "i < HALF",
+      "effects": { "reads": ["position_angles"], "writes": [] }
+    },
+    {
+      "id": "op.compute.angle",
+      "kind": "compute",
+      "inputs": ["ts"],
+      "outputs": ["angle"],
+      "effects": { "reads": ["ts"], "writes": [] }
+    },
+    {
+      "id": "op.compute.batch_freq",
+      "kind": "compute",
+      "inputs": ["inv_tile"],
+      "outputs": ["batch_freq"],
+      "effects": { "reads": ["inv_tile"], "writes": [] }
+    },
+    {
+      "id": "op.compute.f_bf",
+      "kind": "compute",
+      "inputs": ["batch_freq", "angle"],
+      "outputs": ["f_bf"],
+      "causal_nodes": ["cn.device-time-delta"],
+      "effects": { "reads": ["batch_freq", "angle"], "writes": [] }
+    },
+    {
+      "id": "op.compute.f_tf",
+      "kind": "compute",
+      "inputs": ["pa_tile", "angle"],
+      "outputs": ["f_tf"],
+      "causal_nodes": ["cn.device-time-delta"],
+      "effects": { "reads": ["pa_tile", "angle"], "writes": [] }
+    },
+    {
+      "id": "op.store.freqs_bf",
+      "kind": "store",
+      "inputs": ["f_bf"],
+      "outputs": ["freqs"],
+      "index_domain": "batch x time x freq",
+      "mask": "i < HALF",
+      "causal_nodes": ["cn.dispatch-collapse", "cn.vendor-trig-retention"],
+      "effects": { "reads": ["f_bf"], "writes": ["freqs"] }
+    },
+    {
+      "id": "op.store.freqs_tf",
+      "kind": "store",
+      "inputs": ["f_tf"],
+      "outputs": ["freqs"],
+      "index_domain": "batch x time x freq",
+      "mask": "i < HALF",
+      "causal_nodes": ["cn.dispatch-collapse"],
+      "effects": { "reads": ["f_tf"], "writes": ["freqs"] }
+    }
+  ],
+  "control": [
+    {
+      "id": "ctrl.parallel.batch",
+      "kind": "parallel",
+      "variable": "b",
+      "domain": "0 <= b < B (B=4)"
+    },
+    {
+      "id": "ctrl.parallel.time",
+      "kind": "parallel",
+      "variable": "t",
+      "domain": "0 <= t < T (T=32)"
+    },
+    {
+      "id": "ctrl.guard.freq",
+      "kind": "guard",
+      "condition": "i < HALF"
+    }
+  ],
+  "effects": {
+    "outputs": ["freqs", "cos", "sin"],
+    "mutations": [],
+    "aliases": []
+  },
+  "hints": [
+    { "name": "num_warps_1", "modality": "required" },
+    { "name": "tl_arange_power_of_2_32", "modality": "required" },
+    { "name": "vendor_cos_sin_retention", "modality": "required" }
+  ],
+  "causal_nodes": [
+    {
+      "id": "cn.dispatch-collapse",
+      "kind": "mechanism",
+      "expected": "the base ~13 eager topsLaunchKernel launches (div/mul/repeat_interleave/broadcast/cat/mul-angle elementwise chain + vendor cos/sin) collapse to 3 submissions: ONE direct-launched Triton kernel (grid=(B,T)=(4,32)=128 programs, one per (b,t)) computing the freqs elementwise chain into a single intermediate [4,32,128] freqs buffer, plus 2 VENDOR host ops torch.cos/torch.sin on that buffer"
+    },
+    {
+      "id": "cn.vendor-trig-retention",
+      "kind": "mechanism",
+      "expected": "cos/sin stay VENDOR torch.cos/torch.sin (host side); the kernel boundary stops at the freqs buffer and deliberately avoids tl.cos/tl.sin, which the epoch-1 full-fusion round proved is ~44% slower than the vendor trig library on GCU math-dialect — this retention is the difference between epoch-1's -13% and the preflight 1.49x"
+    },
+    {
+      "id": "cn.device-time-delta",
+      "kind": "mechanism",
+      "expected": "the single elementwise kernel's device time replaces the base elementwise-chain device floor; kernel does only fp32 mul/div/load/store (no trig) so its device cost is a small multiple of the base's pure-elementwise slice, while the vendor cos/sin device time is unchanged — net wall 367us -> 246us (1.49x preflight), exact-match correctness (diff=0.0)"
+    }
+  ]
+}

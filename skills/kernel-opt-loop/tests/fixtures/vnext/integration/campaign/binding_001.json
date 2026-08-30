@@ -1,0 +1,63 @@
+{
+  "binding_model": "primitive-call",
+  "bindings": [
+    {
+      "contract_name": "memory.load",
+      "evidence": [
+        "candidate-ast-parse",
+        "profile-capability-check"
+      ],
+      "implementation_symbol": "tl.load",
+      "notes": "masked contiguous load",
+      "relation": "implemented-by",
+      "source_spans": [
+        {
+          "end": [
+            12,
+            43
+          ],
+          "path": "candidate.py",
+          "start": [
+            12,
+            11
+          ]
+        }
+      ],
+      "statement_id": "op.load.row",
+      "status": "implemented"
+    },
+    {
+      "contract_name": "memory.store",
+      "evidence": [
+        "candidate-ast-parse"
+      ],
+      "implementation_symbol": "tl.store",
+      "notes": "masked contiguous store",
+      "reason": "vectorized store expansion over the masked range",
+      "relation": "expanded-into",
+      "source_spans": [
+        {
+          "end": [
+            13,
+            43
+          ],
+          "path": "candidate.py",
+          "start": [
+            13,
+            5
+          ]
+        }
+      ],
+      "statement_id": "op.store.output",
+      "status": "implemented"
+    }
+  ],
+  "candidate_path": "candidate.py",
+  "candidate_sha256": "__CANDIDATE_SHA256__",
+  "decision_sha256": "__DECISION_SHA256__",
+  "required_hint_bindings": [],
+  "round": "001",
+  "schema_version": 1,
+  "sketch_sha256": "__SKETCH_SHA256__",
+  "source_analyzer": "python-ast-triton"
+}

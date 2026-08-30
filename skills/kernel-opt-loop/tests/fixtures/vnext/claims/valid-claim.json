@@ -1,0 +1,16 @@
+{
+  "implementation_profile_id": "triton_mlu",
+  "implementation_profile_sha256": "97d75747e6925b937fd002b3c488b0b03fac22234b62ed7de7111b846ceaa936",
+  "implementation_profile_version": 1,
+  "primary_contract": "matrix.dot",
+  "primary_signature": {
+    "accumulator_dtype": "fp32",
+    "layout": "blocked",
+    "lhs_dtype": "fp16",
+    "rhs_dtype": "fp16"
+  },
+  "qualification_dispositions": [],
+  "runtime_fingerprint": "triton 3.6.0 / CoreX 4.4.0",
+  "schema_version": 1,
+  "target_id": "mlu590"
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "round": "002",
+  "decision_sha256": "34ae15121297881d64eadb4900ef87cf2d9cb8f29da09e90d9b8901b7ff4724f",
+  "sketch_sha256": "780716027a8a02f3045833f56351ca13c20f5be73f6f34d3f91517418046b2c2",
+  "binding_sha256": "86c9ce54e9f210c08fb46d41d03cc29979e47131cc0dac11a17d75c55b61ba8b",
+  "profile_sha256": "55bc084448707b2be28ecf5d4e17ce914ec19ea3dba18fcb42324527cdd3ddae",
+  "report_fact_pack_sha256": "4aa405942f91a7e73dcaf1267c76743ad3b8436bb8e7197c226a3652627aeca3",
+  "classification": "none",
+  "terminal_result": "no-improvement",
+  "failed_attempt_effect": "reset",
+  "route": null,
+  "confidence": "high",
+  "rule_id": null,
+  "preconditions": [
+    {"name": "sketch_valid", "status": "pass"},
+    {"name": "causal_graph_valid", "status": "pass"},
+    {"name": "binding_valid", "status": "pass"},
+    {"name": "correctness_pass", "status": "pass"},
+    {"name": "lowering_observed", "status": "pass"}
+  ],
+  "evidence": [
+    "rounds/report_002.md",
+    "log/round_002_wall_pairs.txt",
+    "log/round_002_paired_ab.json",
+    "log/round_002_retention.json",
+    "log/round_002_correctness_suite.json",
+    "log/diagnostic_scope_census_002.json"
+  ],
+  "explanation": "Round 002 is classified no-improvement, NOT regression. Authoritative interleaved wall timing (warmup 50 / repeat 100) gives v0 median 3.217895 ms and v1 median 0.220177 ms: +93.157732 percent against the paired v0 median and +93.236328 percent against the round-000 canon 3.255288 ms, but -0.175166 percent against the round-001 canon 0.219792 ms, i.e. +0.385 us/call against a 10.990 us/call adoption gate. FR-5 fires. To distinguish a regression from noise the harness cannot compare two candidates (v0 must define Model; both candidates define ModelNew), so a matched paired A/B replicating auto_bench.time_forward exactly was run: 6 replicates, alternating order, r001 0.209003 ms vs r002 0.209106 ms, paired delta median +0.093 us and mean +0.126 us with MIXED SIGNS across replicates (3 negative, 3 positive) and bitwise-equal outputs. There is no systematic difference to detect, so the candidate is cost-neutral and the correct class is no-improvement. The round is correctness-hardening by design: the G1 premise was falsified before shipping and the candidate exists to make the retention guarantee explicit and tested. FR-1 also fires honestly: aten::empty_like and aten::empty_strided remain at 1.00/call each, so torch.empty_like was RE-TARGETED from out_ws to out_dest, not removed, because forward() must still return a fresh non-aliased tensor. Alloc CPU time nonetheless improves 18.45 to 14.49 us/call (about -4 us, independently corroborating the Orchestrator's 4.13 us re-measurement of empty_like), which is real but off the critical path and invisible at the wall. FR-2 PASSES and is the rule that would have made the change unsafe rather than merely unrewarding: the retained output is byte-identical after 50, 150 (harness parity) and 300 further forwards driven by genuinely changing data, with zero drift; out_dest has a single distinct data_ptr across 60 calls, is still all-zero (never written on the served path, confirming C3's literal claim), is never returned, and zero returned tensors alias out_dest or out_ws. A negative control proves the test non-vacuous: a deliberately broken rotating-pool model is detected corrupting the retained tensor at exactly call 8, the pool size. FR-3 passes at 2.0 submissions per call; note the profiler records the single copy-out twice (as host API cudaMemcpyAsync and as device activity Memcpy DtoD), so summing raw memcpy names yields a spurious 3.00 that would falsely fire the rule, and the true count is 1 cudaGraphLaunch plus 1 copy-out, corroborated by aten::copy_ at exactly 1.00/call. FR-4 passes at +0.837 us (r001 252.716 vs r002 253.554 us/call) within the +/-15 us threshold, with both eager controls PRE-BOUND and the pre-bind asserted before the tier guards were disabled, and with the two @triton.jit bodies byte-identical between rounds (digest 61d16bde3d12fb12, 2 kernels, non-vacuous). All 13 correctness suites pass and every one is bitwise-equal to the round-001 accepted source. failed_attempt_effect is reset because the candidate is valid and correct; performance_miss_streak increments to 1 of 3. Round 001 remains canonical at triton_fused_moe_e2_001.py (da623fa9...) with wall 0.219792 ms. Documentation correction with no verdict impact: the activation ladder is 8/7/2/2/2, not 8/7/2/2/1, because torch.topk with k=2 always returns two distinct indices, making a single active expert structurally unreachable; coder_result_002.md records 1 active for the all-rows-to-expert-0 variant where the true count is 2. The superseded two-hop variant ffd4dac3 was not measured, per Orchestrator instruction. Verdict rule_id is null with classification none, which is the valid rule-less form for a non-failure terminal result under validate_verdict._validate_campaign_verdict."
+}

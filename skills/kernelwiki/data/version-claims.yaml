@@ -1,0 +1,10 @@
+schema_version: 1
+claims:
+  - id: version-triton-ascend-readme-865691e2
+    card_ids: [language-triton-ascend-backend]
+    subject: triton-ascend-backend-runtime
+    status: current
+    supported_versions: ['CANN Community Edition 9.0.0', 'Triton-Ascend 3.2.1']
+    last_verified_at: '2026-08-21'
+    source_ids: [source-triton-ascend-readme-865691e2]
+    replacement_claim_id: null

@@ -1,0 +1,256 @@
+{
+  "schema_version": 1,
+  "sketch_id": "sketch-mmenc-attn-dispatch-collapse-001",
+  "round": "001",
+  "scope": {
+    "kind": "changed-computation-boundary",
+    "entrypoints": [
+      "ModelNew.forward",
+      "ModelNew.run_out"
+    ],
+    "unchanged_boundary": [
+      "mathematical semantics: BIDIRECTIONAL (non-causal) full MHA with scale=0.125 exact power-of-two, per-(batch,head) softmax(QK^T*scale)*V over ALL S=83 keys (no causal skip, no attention mask; only tile-padding keys beyond S are masked and contribute exactly zero), num_kv_heads == num_heads == 8",
+      "output structure: single fp16 tensor [B, S, H*D] = [2, 83, 512]",
+      "public ModelNew(num_heads, head_size, num_kv_heads=8) constructor and forward(query, key, value) signature; run_out(query,key,value,out) 4-arg preallocated-output surface per project.md public_contract",
+      "capability legality: tl.dot used ONLY at the proven envelope (32,32)@(32,32) with fp32/fp32 operands and fp32 accumulator (fp16 inputs widened by cast BEFORE dot); num_warps=1; num_stages unset; NO algorithm substitution (primary matrix.dot consumed at its proven signature, not replaced), reduction.sum fallback stays BLOCKED (waiver NOT granted)",
+      "stateless module contract: zero cross-call state, zero caches, zero workspace; caller device and current stream preserved; no torch.compile anywhere"
+    ]
+  },
+  "declarations": [
+    {
+      "id": "query",
+      "kind": "tensor",
+      "shape": ["B", "S", "H", "D"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "key",
+      "kind": "tensor",
+      "shape": ["B", "S", "H", "D"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "value",
+      "kind": "tensor",
+      "shape": ["B", "S", "H", "D"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "out_flat",
+      "kind": "tensor",
+      "shape": ["B", "S", "HD"],
+      "dtype": "fp16",
+      "layout": "row_major",
+      "memory": "global"
+    },
+    {
+      "id": "q_lo",
+      "kind": "tile",
+      "shape": ["BM", "BD"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "register"
+    },
+    {
+      "id": "q_hi",
+      "kind": "tile",
+      "shape": ["BM", "BD"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "register"
+    },
+    {
+      "id": "k_lo",
+      "kind": "tile",
+      "shape": ["BN", "BD"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "register"
+    },
+    {
+      "id": "k_hi",
+      "kind": "tile",
+      "shape": ["BN", "BD"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "register"
+    },
+    {
+      "id": "v_lo",
+      "kind": "tile",
+      "shape": ["BN", "BD"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "register"
+    },
+    {
+      "id": "v_hi",
+      "kind": "tile",
+      "shape": ["BN", "BD"],
+      "dtype": "fp32",
+      "layout": "contiguous",
+      "memory": "register"
+    }
+  ],
+  "operations": [
+    {
+      "id": "op.load.q_lo",
+      "kind": "load",
+      "inputs": ["query"],
+      "outputs": ["q_lo"],
+      "index_domain": "batch x head x mtile x token x bd",
+      "mask": "token < S",
+      "effects": { "reads": ["query"], "writes": [] }
+    },
+    {
+      "id": "op.load.q_hi",
+      "kind": "load",
+      "inputs": ["query"],
+      "outputs": ["q_hi"],
+      "index_domain": "batch x head x mtile x token x bd",
+      "mask": "token < S",
+      "effects": { "reads": ["query"], "writes": [] }
+    },
+    {
+      "id": "op.load.k_lo",
+      "kind": "load",
+      "inputs": ["key"],
+      "outputs": ["k_lo"],
+      "index_domain": "batch x head x ntile x token x bd",
+      "mask": "token < S",
+      "effects": { "reads": ["key"], "writes": [] }
+    },
+    {
+      "id": "op.load.k_hi",
+      "kind": "load",
+      "inputs": ["key"],
+      "outputs": ["k_hi"],
+      "index_domain": "batch x head x ntile x token x bd",
+      "mask": "token < S",
+      "effects": { "reads": ["key"], "writes": [] }
+    },
+    {
+      "id": "op.load.v_lo",
+      "kind": "load",
+      "inputs": ["value"],
+      "outputs": ["v_lo"],
+      "index_domain": "batch x head x ntile x token x bd",
+      "mask": "token < S",
+      "effects": { "reads": ["value"], "writes": [] }
+    },
+    {
+      "id": "op.load.v_hi",
+      "kind": "load",
+      "inputs": ["value"],
+      "outputs": ["v_hi"],
+      "index_domain": "batch x head x ntile x token x bd",
+      "mask": "token < S",
+      "effects": { "reads": ["value"], "writes": [] }
+    },
+    {
+      "id": "op.compute.qk_score",
+      "kind": "compute",
+      "inputs": ["q_lo", "k_lo", "q_hi", "k_hi"],
+      "outputs": ["s_raw"],
+      "causal_nodes": ["cn.dispatch-collapse"],
+      "effects": { "reads": ["q_lo", "k_lo", "q_hi", "k_hi"], "writes": [] }
+    },
+    {
+      "id": "op.compute.boundary_mask",
+      "kind": "compute",
+      "inputs": ["s_raw"],
+      "outputs": ["s_masked"],
+      "effects": { "reads": ["s_raw"], "writes": [] }
+    },
+    {
+      "id": "op.compute.init_state",
+      "kind": "compute",
+      "inputs": ["q_lo"],
+      "outputs": ["m_prev", "l_prev", "acc_prev_lo", "acc_prev_hi"],
+      "effects": { "reads": ["q_lo"], "writes": [] }
+    },
+    {
+      "id": "op.compute.online_update",
+      "kind": "compute",
+      "inputs": ["s_masked", "v_lo", "v_hi", "m_prev", "l_prev", "acc_prev_lo", "acc_prev_hi"],
+      "outputs": ["m_next", "l_next", "acc_next_lo", "acc_next_hi", "p_tilde"],
+      "causal_nodes": ["cn.dispatch-collapse", "cn.device-time-delta"],
+      "effects": { "reads": ["s_masked", "v_lo", "v_hi", "m_prev", "l_prev", "acc_prev_lo", "acc_prev_hi"], "writes": [] }
+    },
+    {
+      "id": "op.compute.normalize",
+      "kind": "compute",
+      "inputs": ["acc_next_lo", "acc_next_hi", "l_next"],
+      "outputs": ["out_lo_vals", "out_hi_vals"],
+      "effects": { "reads": ["acc_next_lo", "acc_next_hi", "l_next"], "writes": [] }
+    },
+    {
+      "id": "op.store.out_flat",
+      "kind": "store",
+      "inputs": ["out_lo_vals", "out_hi_vals"],
+      "outputs": ["out_flat"],
+      "index_domain": "batch x head x mtile x token x hd",
+      "mask": "token < S",
+      "causal_nodes": ["cn.dispatch-collapse", "cn.device-time-delta"],
+      "effects": { "reads": ["out_lo_vals", "out_hi_vals"], "writes": ["out_flat"] }
+    }
+  ],
+  "control": [
+    {
+      "id": "ctrl.parallel.batch",
+      "kind": "parallel",
+      "variable": "batch",
+      "domain": "0 <= batch < B (B=2)"
+    },
+    {
+      "id": "ctrl.parallel.head",
+      "kind": "parallel",
+      "variable": "head",
+      "domain": "0 <= head < H (H=8)"
+    },
+    {
+      "id": "ctrl.parallel.mtile",
+      "kind": "parallel",
+      "variable": "mtile",
+      "domain": "0 <= mtile < 3 (ceil(S=83/BM=32))"
+    },
+    {
+      "id": "ctrl.for.ntile",
+      "kind": "for",
+      "variable": "ntile",
+      "domain": "0 <= ntile < 3 (ceil(S=83/BN=32), SEQUENTIAL — online softmax running-state dependency)"
+    },
+    {
+      "id": "ctrl.guard.token",
+      "kind": "guard",
+      "condition": "token < S"
+    }
+  ],
+  "effects": {
+    "outputs": ["out_flat"],
+    "mutations": [],
+    "aliases": []
+  },
+  "hints": [
+    { "name": "num_warps_1", "modality": "required" },
+    { "name": "proven_dot_envelope_32_fp32", "modality": "required" }
+  ],
+  "causal_nodes": [
+    {
+      "id": "cn.dispatch-collapse",
+      "kind": "mechanism",
+      "expected": "one direct-launched Triton kernel (grid = B*H x ceil(S/BM) = 16x3 = 48 programs, num_warps=1) replaces the entire base path — SDPA dispatch stack, 33 aten cpu_ops (21 view-metadata + 9 allocation + 3 sdpa-chain per report_000), 1 vendor kernel — with TWO python ops (one torch.empty + one kernel launch) writing results directly into the final [2,83,512] fp16 layout with ZERO .contiguous()/view/copy host ops (direct strided addressing of the [B,S,H*D] inputs); tl.dot stays strictly inside the proven (32,32)@(32,32) fp32 envelope via fp16->fp32 widening casts; bidirectional: all 3 key-tiles visited per q-tile, no causal skip"
+    },
+    {
+      "id": "cn.device-time-delta",
+      "kind": "mechanism",
+      "expected": "the proven-envelope Triton kernel's device time D_cand replaces the 16.537 us/call vendor Ixmma floor (report_000 reference scope) at ~4x sibling-kernel work (16 full-attention pairs vs 8 causal pairs); expected band 20-66 us; measured directly in the candidate scope as the round's device observable and recorded as the F2 composition gate input"
+    }
+  ]
+}

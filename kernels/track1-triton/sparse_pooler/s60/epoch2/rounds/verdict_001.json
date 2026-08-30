@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "round": "001",
+  "decision_sha256": "264c7be47436c5a8e9a9c2d324aae52632ec0e0201f3725a77bea0a163d2a4ab",
+  "sketch_sha256": "a92ec7842e345d0112a12c19efb2cccd6b5f7017e43765935461b9ebd989a295",
+  "binding_sha256": "f99538b13f7768297d7aa95a25e4c33231eb12321575bdb80ede401b226d81fa",
+  "profile_sha256": "7cd0cdf4b01b064b91f2b8f199cff6d12b175903a2c8d24ba7153f4d6a6aa6a0",
+  "report_fact_pack_sha256": "2b7db3cf114aea5304e658bf2852e27ca4ae7ba76187e07d4cfbbba8c4f88b7b",
+  "classification": "none",
+  "terminal_result": "no-improvement",
+  "failed_attempt_effect": "unchanged",
+  "route": null,
+  "confidence": "high",
+  "rule_id": null,
+  "preconditions": [
+    { "name": "correctness_pass", "status": "pass" },
+    { "name": "binding_valid", "status": "pass" },
+    { "name": "lowering_observed", "status": "pass" },
+    { "name": "observable_observed", "status": "pass" },
+    { "name": "wall_improvement_at_or_above_bar", "status": "fail" }
+  ],
+  "evidence": [
+    "authoritative 3 pairs --warmup 50 --repeat 100: reference median 0.857295 ms; candidate median 3.447952 ms; paired improvement -302.19% (candidate ~0.249x, ~4x slower)",
+    "correctness 4/4 PASS (3 timing pairs + profile run, allclose fp32)",
+    "dispatch collapse ENGAGED: launch 11 -> 8/call (7 topsLaunchKernel + 1 topsModuleLaunchKernel); aten cpu_ops 83 -> 59/call; D2H sync eliminated (tolist count = 0, device-side cumsum/sub offsets)",
+    "GEMM (481us, 61%) vendor-bound and structurally untouchable (768/30522 not power-of-2, tl.dot capability-blocked)",
+    "hand-written segment-reduction device penalty ~2.59ms (~3x the entire reference wall), far exceeding the preflight ~150us estimate — confirms measurement-bound",
+    "candidate is correctness-PASS Triton deliverable (0 tl.dot, stateless, envelope-legal), the first Triton delivery for sparse_pooler"
+  ],
+  "explanation": "Verifier facts only: correctness passes on every mandated surface (list-of-4 [30522] fp32, allclose, stateless, envelope-legal source). The H-001 post-decoder tail-fusion mechanism ENGAGED (dispatch collapse 11->8, D2H sync eliminated via device-side offsets) but the wall criterion FAILED decisively (-302%) because the hand-written segment-max reduction is ~4x slower than base's PyTorch log1p(relu)+chunk.max tail on GCU, confirming the preflight finding that sparse_pooler is measurement-bound (GEMM 61% vendor-bound + segment reduction hand-write-slow). The round banks the DELIVERABLE RULE product (correctness-PASS Triton candidate) but does NOT beat base or epoch-1 (0.79x). Terminal_result no-improvement; canonical stays baseline_adapter.py; last_accepted unchanged."
+}

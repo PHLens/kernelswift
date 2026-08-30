@@ -1,0 +1,76 @@
+positive:
+  id: example-grouped-topk-fusion
+  role: positive
+  subtype: performance
+  source_id: source-local-ascend-groupedtopk-round-001
+  locator: rounds/report_001.md#kernelwiki-fact-pack
+  evidence_level: local-verifier
+  reproduction: benchmarked
+  target_id: ascend910b
+  implementation_profile_id: triton_ascend
+  profile_authority: historical-noncanonical
+  runtime_fingerprint: cann-8.0-ascend910b
+  operator_family: grouped-topk
+  shape: {experts: 256, tokens: 1024, topk: 8}
+  dtype: fp16
+  terminal_classification: accepted
+  comparability: historical-local
+  measurement_fingerprint: measurement-groupedtopk-round-001
+  baseline_id: baseline_adapter.py
+  candidate_id: candidate_001.py
+  observed:
+    - {metric: kernel_count_per_call, value: 1, statistic: exact, unit: count}
+    - {metric: wall_improvement_pct, value: 54.88, statistic: median, unit: percent}
+  transfer_boundary: Same target/profile/runtime and grouped-routing shape regime only.
+  reconsider_when: [runtime fingerprint changes, shape regime changes]
+counterexample:
+  id: example-flexattention-device-wall-loss
+  role: counterexample
+  subtype: device-wall-mismatch
+  source_id: source-local-ascend-flexattention-round-003
+  locator: rounds/report_003.md#kernelwiki-fact-pack
+  evidence_level: local-verifier
+  reproduction: benchmarked
+  target_id: ascend910b
+  implementation_profile_id: triton_ascend
+  profile_authority: historical-noncanonical
+  runtime_fingerprint: cann-8.0-ascend910b
+  operator_family: attention
+  shape: {batch: 1, heads: 32, sequence: 4096}
+  dtype: fp16
+  terminal_classification: no-improvement
+  comparability: historical-local
+  measurement_fingerprint: measurement-flexattention-round-003
+  baseline_id: baseline_adapter.py
+  candidate_id: candidate_003.py
+  observed:
+    - {metric: device_improvement_pct, value: 8.0, statistic: median, unit: percent}
+    - {metric: wall_improvement_pct, value: -3.0, statistic: median, unit: percent}
+  transfer_boundary: Device-time movement is not wall-time authority outside this exact measurement contract.
+  reconsider_when: [host overhead is removed, measurement policy changes]
+capability_gap:
+  id: example-ascendc-profile-missing
+  role: capability-gap
+  subtype: profile
+  source_id: source-ascendc-programming-model-cann-900beta1
+  locator: What is Ascend C
+  evidence_level: source-reported
+  reproduction: concept
+  target_id: ascend910b
+  implementation_profile_id: ascendc
+  profile_authority: source-only
+  runtime_fingerprint: null
+  operator_family: normalization
+  shape: {columns: 4, repeat: 10, rows: 4}
+  dtype: fp32
+  terminal_classification: not-applicable
+  comparability: not-comparable
+  measurement_fingerprint: null
+  baseline_id: null
+  candidate_id: null
+  observed: []
+  transfer_boundary: Documentation does not prove the missing local build/runner/profile capability.
+  reconsider_when: [a reviewed canonical AscendC profile and qualification probes exist]
+  capability_id: ascendc.local-runner
+  capability_status: unknown
+  required_probe_or_authority: Reviewed canonical AscendC profile plus local qualification evidence.

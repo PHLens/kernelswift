@@ -1,0 +1,28 @@
+{
+  "fallback_contract": "reduction.sum",
+  "fallback_kind": "algorithm-substitution",
+  "fallback_signature": {
+    "axis": "k",
+    "dtype": "fp16"
+  },
+  "implementation_profile_id": "triton_cuda",
+  "implementation_profile_sha256": "dc8fa4c0c73caecc78c6a886e5ffb18cb97371f3add7cb382dbe30887743b7ae",
+  "implementation_profile_version": 1,
+  "primary_contract": "matrix.dot",
+  "primary_signature": {
+    "accumulator_dtype": "fp32",
+    "attention_kind": "full-mha-bidirectional",
+    "batch": 2,
+    "head_dim": 64,
+    "layout": "blocked",
+    "lhs_dtype": "fp16",
+    "num_heads": 8,
+    "rhs_dtype": "fp16",
+    "seq_len": 83
+  },
+  "probe_policy": "before-fallback",
+  "qualification_dispositions": [],
+  "runtime_fingerprint": "triton 3.1.0 (/usr/local/corex-4.4.0/lib64/python3/dist-packages/triton) / torch 2.7.1 / CoreX 4.4.0 nvcc V10.2.89 / Iluvatar BI-V150 capability major=7 minor=1 multi_processor_count=16 total_memory=17179869184",
+  "schema_version": 1,
+  "target_id": "bi150"
+}
