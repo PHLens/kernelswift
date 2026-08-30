@@ -1,0 +1,8 @@
+{
+  "primary_contract": "resource.num-stages",
+  "primary_signature": {
+    "name": "num_stages"
+  },
+  "probe_policy": "must-resolve",
+  "requirement_id": "ascend-num-stages-must-resolve"
+}

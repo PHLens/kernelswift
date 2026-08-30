@@ -1,0 +1,8 @@
+{
+  "primary_contract": "resource.num-warps",
+  "primary_signature": {
+    "name": "num_warps"
+  },
+  "probe_policy": "must-resolve",
+  "requirement_id": "ascend-num-warps-must-resolve"
+}
