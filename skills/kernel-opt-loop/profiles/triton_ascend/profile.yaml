@@ -334,8 +334,31 @@
     },
     {
       "capability_kind": "primitive",
+      "constraints": [
+        "fp16 lhs/rhs with fp32 accumulation compiled and was numerically correct on all 11 probed tiles: power-of-two (16,16,16)/(32,32,32)/(64,64,64)/(128,128,64), multiple-of-16 (48,48,16)/(80,80,32)/(96,96,64)/(112,64,32), and non-multiple-of-16 (83,64,64)/(64,83,64)/(64,64,83)",
+        "unlike S60 there is no power-of-two constraint, so seq_len 83 needs no padding to 128; max observed absolute error stayed below 6e-06",
+        "fp32 and bf16 inputs were additionally checked on power-of-two tiles only and are advisory; they do not qualify a separate capability",
+        "tiles larger than 128, non-contiguous or mixed-precision inputs, and any performance or occupancy guarantee remain Unknown"
+      ],
       "contract_name": "matrix.dot",
-      "evidence": [],
+      "evidence": [
+        {
+          "archived_result_ref": "evidence/triton-ascend-dot-tiles-001.result.json",
+          "archived_result_sha256": "c0670e9be7ec0641fef877f7ee627faeade0ce14aae6c922d82a2a097858f114",
+          "device_arch": "ascend-910b4",
+          "evidence_id": "ascend-dot-tiles-001",
+          "kind": "probe-result",
+          "launcher_context": "direct launch kernel[(grid,)](...) with device=npu and torch.npu.synchronize()",
+          "probe_definition_sha256": "9efc2c86c27a87714eb7529a267f3c1f01b644a2000139db1ef969022f0eca34",
+          "probe_id": "triton-ascend-dot-tiles-001",
+          "provenance": "observed",
+          "result_sha256": "c0670e9be7ec0641fef877f7ee627faeade0ce14aae6c922d82a2a097858f114",
+          "review_status": "approved",
+          "runner_adapter": "python-command",
+          "target_id": "ascend910b",
+          "toolchain_fingerprint": "6856c616ddb16544c3e913136c514742d94ab44f5e9072484bae73d680f08a6b"
+        }
+      ],
       "failure_classification": {
         "mismatch": "environment-blocked",
         "unprovable_required_use": "capability-miss"
@@ -343,7 +366,7 @@
       "family": "matrix",
       "id": "matrix.dot.fp16-fp16-fp32.tile-coverage",
       "implementation_symbol": "tl.dot",
-      "notes": "only (16,16)@(16,16) float32 dot is recorded; fp16 tile and dtype coverage at the attention and MoE GEMM shapes is unproven and is the primary epoch-2 qualification",
+      "notes": "Ascend epoch-2 probe: fp16 tl.dot compiled and passed numeric checks on every probed tile, including non-multiple-of-16 shapes. This is the demand-scoped qualification that lets the mm_encoder_attention, flexattention, and fused_moe campaigns treat dot as a primary path instead of falling back to reduction.sum.",
       "scope": {
         "device_arch": "ascend-910b4",
         "runtime": "torch 2.7.1+cpu / torch_npu 2.7.1.post4 / triton 3.2.0 / CANN 9.0.0 (recorded setup)",
@@ -355,12 +378,33 @@
         "lhs_dtype": "fp16",
         "rhs_dtype": "fp16"
       },
-      "status": "unknown"
+      "status": "constrained"
     },
     {
       "capability_kind": "resource",
+      "constraints": [
+        "num_warps 1, 2, 4, and 8 all compiled and were numerically correct on a BLOCK=128 fp32 elementwise kernel",
+        "values beyond 8 and any performance, occupancy, or register-pressure guarantee remain Unknown and must be measured per candidate"
+      ],
       "contract_name": "resource.num-warps",
-      "evidence": [],
+      "evidence": [
+        {
+          "archived_result_ref": "evidence/triton-ascend-num-warps-001.result.json",
+          "archived_result_sha256": "15ef0afe58f991e5fe9a57bff79cc2cedcb69737fe1769fb80a5765194e28834",
+          "device_arch": "ascend-910b4",
+          "evidence_id": "ascend-num-warps-001",
+          "kind": "probe-result",
+          "launcher_context": "direct launch kernel[(grid,)](...) with device=npu and torch.npu.synchronize()",
+          "probe_definition_sha256": "870f9cbec0d8d1e47152a8ec217f4370bbfa1e00f3b96b598a3251b198d04a13",
+          "probe_id": "triton-ascend-num-warps-001",
+          "provenance": "observed",
+          "result_sha256": "15ef0afe58f991e5fe9a57bff79cc2cedcb69737fe1769fb80a5765194e28834",
+          "review_status": "approved",
+          "runner_adapter": "python-command",
+          "target_id": "ascend910b",
+          "toolchain_fingerprint": "6856c616ddb16544c3e913136c514742d94ab44f5e9072484bae73d680f08a6b"
+        }
+      ],
       "failure_classification": {
         "mismatch": "environment-blocked",
         "unprovable_required_use": "capability-miss"
@@ -368,7 +412,7 @@
       "family": "resource",
       "id": "resource.num-warps",
       "implementation_symbol": "num_warps",
-      "notes": "the recorded Markdown context mentions 1/2/4 compiling, but no machine-readable approved probe evidence exists for this canonical profile",
+      "notes": "Ascend epoch-2 probe: the legal num_warps set is at least 1/2/4/8 on Ascend910B4, so occupancy tuning within that set is profile-legal.",
       "scope": {
         "device_arch": "ascend-910b4",
         "runtime": "torch 2.7.1+cpu / torch_npu 2.7.1.post4 / triton 3.2.0 / CANN 9.0.0 (recorded setup)",
@@ -378,12 +422,33 @@
       "signature": {
         "name": "num_warps"
       },
-      "status": "unknown"
+      "status": "constrained"
     },
     {
       "capability_kind": "resource",
+      "constraints": [
+        "num_stages 1, 2, 3, and 4 all compiled and were numerically correct on a BLOCK=64 static-range accumulation kernel",
+        "any performance benefit, and any interaction with dot or block-pointer kernels, remains Unknown"
+      ],
       "contract_name": "resource.num-stages",
-      "evidence": [],
+      "evidence": [
+        {
+          "archived_result_ref": "evidence/triton-ascend-num-stages-001.result.json",
+          "archived_result_sha256": "3c4b32f7cbeb86007057765c23d228841156b5a33eb65ae3d19b23a6b863591b",
+          "device_arch": "ascend-910b4",
+          "evidence_id": "ascend-num-stages-001",
+          "kind": "probe-result",
+          "launcher_context": "direct launch kernel[(grid,)](...) with device=npu and torch.npu.synchronize()",
+          "probe_definition_sha256": "fc4baa5a8109d89c39e33192aa7e04ffb2cacb1737b461ef5b49c15b3b20684d",
+          "probe_id": "triton-ascend-num-stages-001",
+          "provenance": "observed",
+          "result_sha256": "3c4b32f7cbeb86007057765c23d228841156b5a33eb65ae3d19b23a6b863591b",
+          "review_status": "approved",
+          "runner_adapter": "python-command",
+          "target_id": "ascend910b",
+          "toolchain_fingerprint": "6856c616ddb16544c3e913136c514742d94ab44f5e9072484bae73d680f08a6b"
+        }
+      ],
       "failure_classification": {
         "mismatch": "environment-blocked",
         "unprovable_required_use": "capability-miss"
@@ -391,7 +456,7 @@
       "family": "resource",
       "id": "resource.num-stages",
       "implementation_symbol": "num_stages",
-      "notes": "no Ascend architecture-specific legality or performance probe is recorded",
+      "notes": "Ascend epoch-2 probe: num_stages legality is established for 1/2/3/4, so software pipelining may be declared as a profile-legal configuration field.",
       "scope": {
         "device_arch": "ascend-910b4",
         "runtime": "torch 2.7.1+cpu / torch_npu 2.7.1.post4 / triton 3.2.0 / CANN 9.0.0 (recorded setup)",
@@ -401,7 +466,7 @@
       "signature": {
         "name": "num_stages"
       },
-      "status": "unknown"
+      "status": "constrained"
     },
     {
       "capability_kind": "primitive",
