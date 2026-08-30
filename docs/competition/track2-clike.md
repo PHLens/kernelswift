@@ -4,10 +4,7 @@
 
 ## 赛题
 
-C-like 算子优化，首个实现后端确定为 Ascend，使用 Ascend C。首个
-implementation profile id 为 `ascendc`，其中 `language=ascendc`、
-`backend=ascend`；具体 CANN、SoC 和工具链身份在目标环境 Phase 0 中发现。
-已收到 3 个任务的 PyTorch 参考实现，base 已落盘
+C-like（如 BANG C）算子优化。已收到 3 个任务的 PyTorch 参考实现，base 已落盘
 （`kernels/track2-clike/<算子>/base.py`，设备无关共享参考）。
 
 | task | 算子目录 | 语义 |

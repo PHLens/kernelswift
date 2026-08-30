@@ -24,7 +24,7 @@ skills/kernel-opt-loop/   # 优化循环技能（Designer/Coder/Verifier 契约 
 | 赛道 | 内容 | 状态 | 文档 |
 |---|---|---|---|
 | 赛道一 | Triton 算子优化：10 算子 × 多国产芯片 | 进行中 | [track1-triton](docs/competition/track1-triton.md) |
-| 赛道二 | Clike 算子优化：首个后端 Ascend，使用 Ascend C，3 个算子 | 进行中 | [track2-clike](docs/competition/track2-clike.md) |
+| 赛道二 | Clike（C-like，如 BANG C）算子优化：3 个算子 | 进行中 | [track2-clike](docs/competition/track2-clike.md) |
 | 赛道三 | AI4S / 新型模型架构（太初 TECOO） | 未开始 | — |
 
 官方飞书文档（需登录）：[赛道一](https://aicarrier.feishu.cn/wiki/YS3OwsOEGiKz2jkaMh9cyGVvngb) ·

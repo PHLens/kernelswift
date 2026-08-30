@@ -68,6 +68,7 @@ epoch-1 误判「`tl.dot` Unknown」导致手写 SDPA 用 `tl.sum(a*b)` 标量 F
 
 ---
 
+
 ## 三、C500（沐曦 MACA）
 
 5/10 算子 correctness PASS（`flexattention`、`fused_moe`、`sparse_pooler`、`centre_random_augmentation`、`mhc_head_compute_mix_backward` 暂无 maca 提交物）。
