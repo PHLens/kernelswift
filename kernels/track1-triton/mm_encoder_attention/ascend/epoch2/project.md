@@ -122,6 +122,32 @@ evidence normalized per forward call.
 | 000 | Phase 0 | `baseline_adapter.py` | baseline | `base.py` | 0.347800 | 104.1264 | - | not-applicable | `baseline_adapter.py` |
 | 001 | `rounds/decision_001.md` | `triton_mm_encoder_attention_e2_001.py` | accepted | `baseline_adapter.py` | 0.327770 | 13.4064 | +10.30% | confirmed on device and launch, partially-confirmed on host | `triton_mm_encoder_attention_e2_001.py` |
 | 002 | `rounds/decision_002.md` | - | aborted | `triton_mm_encoder_attention_e2_001.py` | - | - | - | not-applicable: device-only ceiling is 4.09%, below the 5% threshold | `triton_mm_encoder_attention_e2_001.py` |
+| 003 | `rounds/decision_003.md` | `triton_mm_encoder_attention_e2_003.py` | accepted | `triton_mm_encoder_attention_e2_001.py` | 0.298240 | 13.4224 | +17.40% | confirmed: device held at +0.095%, allocation 1 -> 0 | `triton_mm_encoder_attention_e2_003.py` |
+
+Cumulative against the epoch-2 starting point (`baseline_adapter.py` at
+`0.347800 ms`), the accepted candidate is `0.298240 ms`, a **14.25%** gain.
+
+### Host-side decomposition (Verifier Level 2, round 003)
+
+These are the numbers that bound the rest of the epoch. Measured in one process
+and one regime against a wall median of `297.410 us`:
+
+| Quantity | e2_001 | e2_003 |
+|---|---:|---:|
+| forward alone, no sync | 233.645 | 206.375 |
+| forward + synchronize | 288.290 | 258.190 |
+| harness-fixed (harness wall minus forward) | 93.890 | **91.035** |
+
+- This round's lever: `27.270 us/call`.
+- **Harness-fixed ceiling: `91.035 us/call` = 30.61% of wall.** No host round can touch it.
+- Residual Python wrapper still in `forward`: `22.635 us/call` = 7.61% of wall.
+- **The Triton launch path itself costs `183.740 us/call` = 61.78% of wall**, measured as a bare `kernel[grid](...)` with a preallocated output and no Python wrapper. It also issues exactly one `aten.empty.memory_format` per launch on its own. This is the concrete `launch-path-reduction` target and it is about seven times larger than everything left in `ModelNew.forward`.
+
+Two harness facts that shape any future round: `set_seed` is untimed but its
+device work is drained by the timed `sync_devices()`, so the seed op is billed
+inside the timed region (`39.220 us`); and `sync_devices()` costs `11.96 us/call`
+more than a bare synchronize because `_iter_accelerators()` calls
+`torch.npu.is_available()` every time.
 
 Round 002 abort rationale: the complete device budget (`13.4064 us/call`) is smaller
 than the 5% adoption budget (`16.3885 us/call` of the `327.770 us` wall median), so

@@ -5,26 +5,26 @@ contract_version: 3
 semantic_contract: typed-sketch-v1
 attribution_contract: verdict-v1
 runtime: ascend910b4
-phase: verifying
+phase: ready
 workflow_status: running
 run_epoch: 2
 project_started_at: 2026-08-30T05:10:30Z
 current_round: "003"
-last_completed_round: "002"
-last_accepted_round: "001"
-last_accepted_kernel: triton_mm_encoder_attention_e2_001.py
-last_accepted_report: rounds/report_001.md
-last_completed_decision: rounds/decision_002.md
-last_completed_sketch: null
+last_completed_round: "003"
+last_accepted_round: "003"
+last_accepted_kernel: triton_mm_encoder_attention_e2_003.py
+last_accepted_report: rounds/report_003.md
+last_completed_decision: rounds/decision_003.md
+last_completed_sketch: rounds/sketch_003.json
 last_completed_binding: null
 last_completed_verdict: null
 last_attribution: null
-last_completed_coder_result: null
-last_completed_report: null
-last_result: aborted
+last_completed_coder_result: rounds/coder_result_003.md
+last_completed_report: rounds/report_003.md
+last_result: accepted
 performance_miss_streak: 0
-failed_attempt_streak: 1
-total_rounds: 2
+failed_attempt_streak: 0
+total_rounds: 3
 max_rounds: 20
 valid_no_improvement_limit: 3
 adoption_threshold_pct: 5
@@ -37,7 +37,7 @@ last_checkpoint_round: null
 base_branch: trunk
 base_commit: db09613
 run_branch: kernel-opt/mmenc-attn-e2-ascend-20260830
-measurement_exclusive: true
+measurement_exclusive: false
 implementation_language: triton
 implementation_backend: ascend
 target_profile: triton_ascend
@@ -85,6 +85,7 @@ change, incident, or commit yet.
 | 2026-08-30T05:10:30Z | initializing -> ready | 000 | baseline | `baseline_adapter.py` | - | `230a378` |
 | 2026-08-30T05:38:00Z | ready -> designing -> coding -> verifying -> ready | 001 | accepted | `triton_mm_encoder_attention_e2_001.py` | - | `cd44339` |
 | 2026-08-30T06:05:00Z | ready -> designing -> ready | 002 | aborted | unchanged (`triton_mm_encoder_attention_e2_001.py`) | - | `46d1135` |
+| 2026-08-30T06:30:00Z | coding -> verifying -> ready | 003 | accepted | `triton_mm_encoder_attention_e2_003.py` | - | `pending` |
 
 ## Policy Revisions
 
