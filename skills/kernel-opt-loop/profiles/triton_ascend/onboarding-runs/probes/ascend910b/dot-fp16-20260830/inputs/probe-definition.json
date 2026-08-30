@@ -1,0 +1,47 @@
+{
+  "capability_ids": [
+    "matrix.dot.fp16-fp16-fp32.tile-coverage"
+  ],
+  "family": "matrix-dot",
+  "implementation_profile_id": "triton_ascend",
+  "input_artifacts": [
+    {
+      "path": "probes/dot_tiles.py",
+      "run_path": "dot_tiles.py",
+      "sha256": "fa10adc5d33e9c3509865bec0f93dbc155a8d5ea559c8db942bbf0234b4bf34b"
+    }
+  ],
+  "probe_id": "triton-ascend-dot-tiles-001",
+  "purpose": "establish fp16 tl.dot tile coverage on Ascend 910B before any attention or MoE GEMM design may treat dot as its primary path",
+  "required_runtime_fields": [
+    "interpreter",
+    "device",
+    "toolchain",
+    "device_arch",
+    "runner_adapter",
+    "bootstrap_modules",
+    "synchronize_api"
+  ],
+  "runner": {
+    "argv": [
+      "{interpreter}",
+      "{probe_inputs_root}/dot_tiles.py",
+      "--result-json",
+      "{result_payload_path}",
+      "--target-id",
+      "{target_id}",
+      "--runtime-snapshot",
+      "{runtime_snapshot_path}"
+    ],
+    "cwd": "{probe_run_dir}",
+    "kind": "command",
+    "timeout_seconds": 1800
+  },
+  "schema_version": 1,
+  "scope_kind": "device-family",
+  "scope_template": {
+    "accumulator_dtype": "fp32",
+    "lhs_dtype": "fp16",
+    "rhs_dtype": "fp16"
+  }
+}

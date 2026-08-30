@@ -1,0 +1,17 @@
+{
+  "interpreter": "/usr/local/python3.11.15/bin/python3",
+  "device": "npu",
+  "toolchain": "triton 3.2.0 / torch_npu 2.7.1.post4",
+  "device_arch": "ascend-910b4",
+  "runner_adapter": "python-command",
+  "bootstrap_modules": "torch_npu",
+  "synchronize_api": "torch.npu.synchronize()",
+  "target_id": "ascend910b",
+  "implementation_profile_id": "triton_ascend",
+  "torch_version": "2.7.1+cpu",
+  "torch_npu_version": "2.7.1.post4",
+  "triton_version": "3.2.0",
+  "device_name": "Ascend910B4",
+  "cube_core_num": 20,
+  "vector_core_num": 40
+}
