@@ -1,0 +1,18 @@
+triton_version 3.1.0
+triton_root /usr/local/corex-4.4.0/lib64/python3/dist-packages/triton
+libproton_exists False
+FILE profiler/__init__.py 184
+FILE profiler/__pycache__/__init__.cpython-310.pyc 363
+FILE profiler/__pycache__/flags.cpython-310.pyc 822
+FILE profiler/__pycache__/hook.cpython-310.pyc 1743
+FILE profiler/__pycache__/profile.cpython-310.pyc 5699
+FILE profiler/__pycache__/proton.cpython-310.pyc 2611
+FILE profiler/__pycache__/scope.cpython-310.pyc 3175
+FILE profiler/__pycache__/viewer.cpython-310.pyc 6757
+FILE profiler/flags.py 604
+FILE profiler/hook.py 1100
+FILE profiler/profile.py 5832
+FILE profiler/proton.py 2624
+FILE profiler/scope.py 3125
+FILE profiler/viewer.py 9635
+profiler_import failed ModuleNotFoundError No module named 'triton._C.libproton'

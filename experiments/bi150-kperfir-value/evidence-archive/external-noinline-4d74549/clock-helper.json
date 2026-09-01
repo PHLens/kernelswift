@@ -1,0 +1,58 @@
+{
+  "bitcode_absolute_path": "/tmp/kernelswift-route-c-4d74549e6747e289ee80989bcdd7fe45770ef07c/experiments/bi150-kperfir-value/artifacts/external-clock/helper/corex-clock.bc",
+  "bitcode_path": "corex-clock.bc",
+  "bitcode_sha256": "ad9a2d5e781c76f3abf97b79b745bca7abc7e16536cf77c24631f540d3f6dd56",
+  "commands": {
+    "bitcode": [
+      "/usr/local/corex-4.4.0/bin/clang++",
+      "-x",
+      "ivcore",
+      "--cuda-path=/usr/local/corex-4.4.0",
+      "--cuda-gpu-arch=ivcore11",
+      "--cuda-device-only",
+      "-I/usr/local/corex-4.4.0/include",
+      "-Wno-unused-command-line-argument",
+      "-emit-llvm",
+      "-c",
+      "/tmp/kernelswift-route-c-4d74549e6747e289ee80989bcdd7fe45770ef07c/experiments/bi150-kperfir-value/device/corex_clock.cu",
+      "-o",
+      "/tmp/kernelswift-route-c-4d74549e6747e289ee80989bcdd7fe45770ef07c/experiments/bi150-kperfir-value/artifacts/external-clock/.corex-clock-build-7mi8bep6/corex-clock.bc"
+    ],
+    "text_ir": [
+      "/usr/local/corex-4.4.0/bin/clang++",
+      "-x",
+      "ivcore",
+      "--cuda-path=/usr/local/corex-4.4.0",
+      "--cuda-gpu-arch=ivcore11",
+      "--cuda-device-only",
+      "-I/usr/local/corex-4.4.0/include",
+      "-Wno-unused-command-line-argument",
+      "-S",
+      "-emit-llvm",
+      "/tmp/kernelswift-route-c-4d74549e6747e289ee80989bcdd7fe45770ef07c/experiments/bi150-kperfir-value/device/corex_clock.cu",
+      "-o",
+      "/tmp/kernelswift-route-c-4d74549e6747e289ee80989bcdd7fe45770ef07c/experiments/bi150-kperfir-value/artifacts/external-clock/.corex-clock-build-7mi8bep6/corex-clock.ll"
+    ]
+  },
+  "compiler": {
+    "path": "/usr/local/corex-4.4.0/bin/clang++",
+    "version": "clang version 18.1.8 (4.4.0 862f87fe94c5eaa2928bda965ed6abb85a25eb7c)\nTarget: x86_64-unknown-linux-gnu\nThread model: posix\nInstalledDir: /usr/local/corex-4.4.0/bin"
+  },
+  "corex_root": "/usr/local/corex-4.4.0",
+  "document_type": "corex-clock-helper",
+  "ir_checks": {
+    "dependent_end_symbol": true,
+    "end_clock64_intrinsic": true,
+    "end_noinline": true,
+    "end_token_return_dependency": true,
+    "start_clock64_intrinsic": true,
+    "start_noinline": true,
+    "start_symbol": true,
+    "target_triple": true
+  },
+  "ir_path": "corex-clock.ll",
+  "source_sha256": "f9ae9aee4066c00e93d97da2286a744079b83e82a85541ad7ad9f3ebb390fc11",
+  "status": "valid",
+  "target": "ivcore11",
+  "target_triple": "bi-iluvatar-ilurt"
+}

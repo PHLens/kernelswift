@@ -1,0 +1,101 @@
+{
+  "accepted_sources": {
+    "auto_bench.py": "71fb3ad0c3ad23c5c156c898f85abcee3d42a15800f75ff97769cfca9152fe29",
+    "kernels/track1-triton/mm_encoder_attention/base.py": "86ac570376eda42cea73e0e7683454deeff43c11e5e85f16e1b3eb63395d6ed2",
+    "kernels/track1-triton/mm_encoder_attention/bi150/epoch2/triton_mm_encoder_attention_e2_001.py": "4171de8dcb1df6478942b0861756d660ef7955c5741e60072f03476a5fab2fc2",
+    "kernels/track1-triton/mm_encoder_attention/bi150/epoch2/triton_mm_encoder_attention_e2_002.py": "cc98318bbfed0d9cdbf7a99769c4a44077dc15590496a4e8410ba9eda99f3078",
+    "kernels/track1-triton/mm_encoder_attention/bi150/epoch2/triton_mm_encoder_attention_e2_003.py": "d503e845d1d95ad033e616730d78d67d0775df3a473b17a3c37843d463654d81"
+  },
+  "artifacts": {
+    "cubin": {
+      "byte_count": 4616,
+      "relative_path": "compiler/stock-vector-add.cubin",
+      "sha256": "c61125dcf08869cf52d49591b97df1bc95a025ec10a220916da4c6252be1082e",
+      "status": "observed"
+    },
+    "llir": {
+      "byte_count": 9474,
+      "relative_path": "compiler/stock-vector-add.llir",
+      "sha256": "6399e545a0eb9f36b928aa2af8869d3d2c4fb97e9d0a82300855a617a16fe05d",
+      "status": "observed"
+    },
+    "ttgir": {
+      "byte_count": 4664,
+      "relative_path": "compiler/stock-vector-add.ttgir",
+      "sha256": "2756fd28b821bfb69a784018ab9a7c4c246b1560901fe46db358f65badbcdc6c",
+      "status": "observed"
+    }
+  },
+  "causes": [
+    "final-isa-unavailable"
+  ],
+  "correctness": {
+    "bitwise_equal": true,
+    "status": "pass"
+  },
+  "cuda_event_timing": {
+    "coefficient_of_variation": 0.0384750656210208,
+    "median_us": 5.613461369648576,
+    "p10_us": 5.525000020861626,
+    "p90_us": 5.831538466736674,
+    "sample_count": 50
+  },
+  "disassembly_attempts": [
+    {
+      "command": [
+        "/usr/local/corex-4.4.0/bin/llvm-objdump",
+        "-d",
+        "experiments/bi150-kperfir-value/artifacts/preflight/compiler/stock-vector-add.cubin"
+      ],
+      "function_body_present": false,
+      "returncode": 1,
+      "stderr_tail": "/usr/local/corex-4.4.0/bin/llvm-objdump: error: 'experiments/bi150-kperfir-value/artifacts/preflight/compiler/stock-vector-add.cubin': no disassembler for target bi--mesa3d\n",
+      "stdout_byte_count": 113,
+      "valid": false
+    },
+    {
+      "command": [
+        "/usr/local/corex-4.4.0/bin/ixobjdump",
+        "--sass",
+        "experiments/bi150-kperfir-value/artifacts/preflight/compiler/stock-vector-add.cubin"
+      ],
+      "function_body_present": false,
+      "returncode": 255,
+      "stderr_tail": "",
+      "stdout_byte_count": 66,
+      "valid": false
+    }
+  ],
+  "document_type": "preflight-result",
+  "environment": {
+    "corex": "4.4.0",
+    "device": "Iluvatar BI-V150",
+    "route_c_commit": "c3d006b779c9c0f915a53bad0290dd6c4b70f1c5",
+    "target": "GPUTarget(backend='cuda', arch=71, warp_size=64)",
+    "torch": "2.7.1",
+    "triton": "3.1.0",
+    "warp_size": 64
+  },
+  "status": "inconclusive",
+  "stock_kernel": {
+    "asm_keys": [
+      "asm",
+      "cubin",
+      "llir",
+      "ttgir",
+      "ttir"
+    ],
+    "block_size": 256,
+    "compiled_hash": "1cf5027fcba22036fdef373086683a04f46f18017c84a0fe151ac79d852d4cdb",
+    "launch_threads": 64,
+    "n_elements": 4096,
+    "name": "stock_vector_add",
+    "num_warps": 1,
+    "resources": {
+      "n_regs": 13,
+      "n_spills": 0,
+      "n_threads_attribute": 4096,
+      "shared_bytes": 0
+    }
+  }
+}

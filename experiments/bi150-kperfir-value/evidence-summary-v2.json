@@ -1,0 +1,143 @@
+{
+  "accepted_source_hashes": {
+    "auto_bench.py": "71fb3ad0c3ad23c5c156c898f85abcee3d42a15800f75ff97769cfca9152fe29",
+    "kernels/track1-triton/mm_encoder_attention/base.py": "86ac570376eda42cea73e0e7683454deeff43c11e5e85f16e1b3eb63395d6ed2",
+    "kernels/track1-triton/mm_encoder_attention/bi150/epoch2/triton_mm_encoder_attention_e2_001.py": "4171de8dcb1df6478942b0861756d660ef7955c5741e60072f03476a5fab2fc2",
+    "kernels/track1-triton/mm_encoder_attention/bi150/epoch2/triton_mm_encoder_attention_e2_002.py": "cc98318bbfed0d9cdbf7a99769c4a44077dc15590496a4e8410ba9eda99f3078",
+    "kernels/track1-triton/mm_encoder_attention/bi150/epoch2/triton_mm_encoder_attention_e2_003.py": "d503e845d1d95ad033e616730d78d67d0775df3a473b17a3c37843d463654d81"
+  },
+  "attention": {
+    "cycle_record_count": 0,
+    "reason": "stage-a-end-dependency-optimized-away",
+    "status": "not-run"
+  },
+  "authority_boundary": "Diagnostic-only evidence; accepted kernels, official timings, and campaign authority are unchanged.",
+  "causes": [
+    "end-dependency-optimized-away"
+  ],
+  "document_type": "bi150-route-c-evidence-summary-v2",
+  "environment": {
+    "corex": "4.4.0",
+    "route_c_commit": "8e4d99b89407ecb3d35bac1c276d3cc73de27699",
+    "target": "GPUTarget(backend='cuda', arch=71, warp_size=64)",
+    "torch": "2.7.1",
+    "triton": "3.1.0"
+  },
+  "evidence_commit": "8e4d99b89407ecb3d35bac1c276d3cc73de27699",
+  "external_clock_capability": {
+    "bitcode_sha256": "3855554cfcf6e42a3239448f23ca96af8c783b48b66bcc587fea72b8595030ae",
+    "clock_source": "CoreX CUDA C clock64 via external LLVM bitcode",
+    "helper_runtime_calls": 0,
+    "helper_status": "valid",
+    "linkage": "proven",
+    "linked_clock_intrinsic_calls": 2,
+    "target": "ivcore11",
+    "target_triple": "bi-iluvatar-ilurt"
+  },
+  "incremental_value": {
+    "new_kernel_fact": "none: no attention cycle records were obtained",
+    "new_measurement_capability": "partial: CoreX external bitcode linkage and clock intrinsic materialization were proven",
+    "new_optimization_decision": "none"
+  },
+  "overall_classification": "inconclusive",
+  "raw_evidence": {
+    "attention": {
+      "reason": "synthetic-qualification-inconclusive",
+      "relative_path": "experiments/bi150-kperfir-value/artifacts/external-clock/attention/result.json",
+      "sha256": null,
+      "status": "not-run"
+    },
+    "helper_bitcode": {
+      "relative_path": "experiments/bi150-kperfir-value/artifacts/external-clock/helper/corex-clock.bc",
+      "sha256": "3855554cfcf6e42a3239448f23ca96af8c783b48b66bcc587fea72b8595030ae"
+    },
+    "helper_metadata": {
+      "relative_path": "experiments/bi150-kperfir-value/artifacts/external-clock/helper/clock-helper.json",
+      "sha256": "83bcf97370791b65b7b2a0cd9608d4c681f83c3eb3c5ca50ad6973de89b9f648"
+    },
+    "linked_llir": {
+      "byte_count": 8873,
+      "relative_path": "artifacts/external-clock/synthetic/linked-llir/clock64-static-dependency-audit.ll",
+      "sha256": "ae558835d4611a89f5c3536262ec73e7c7ff9081fd5f2be50c0efd293ff6d542"
+    },
+    "synthetic": {
+      "relative_path": "experiments/bi150-kperfir-value/artifacts/external-clock/synthetic/result.json",
+      "sha256": "c621cee0704b95fe2c0426d115d2b9506290443d5c22fe7a8f7a42255a749723"
+    }
+  },
+  "runtime_history": {
+    "later_smoke_attribution": "unavailable: the post-hang GPU context was already unusable, so the later stall is not attributed to inline assembly",
+    "noinline_helper": {
+      "host_wait": "torch.cuda.synchronize",
+      "result": "first-kernel-execution-hung",
+      "termination": "process-terminated-after-approximately-seven-minutes"
+    },
+    "post_hang_gpu_context": {
+      "evidence": "minimal CUDA allocation stalled",
+      "reset": "container reset unavailable because owning host PIDs were outside its PID namespace",
+      "result": "container-visible-context-unusable"
+    }
+  },
+  "stop_statement": "Tasks 3 and 4 were not run because Stage A could not preserve an honest completion-dependent end marker.",
+  "synthetic_qualification": {
+    "chain_iters": [
+      0,
+      16,
+      256
+    ],
+    "error": "compile-only linked LLIR did not preserve a chain-derived completion dependency before the end clock",
+    "instrumentation": {
+      "clock_symbols": [
+        "corex_clock64_start",
+        "corex_clock64_after_u64"
+      ],
+      "completion_dependency": "token-dependent-control-dependency",
+      "measurement_semantics": "issue-window",
+      "mode": "corex-external-bitcode-inline-control",
+      "profile_words": 3,
+      "region_id": "dependency-chain",
+      "selected_pids": [
+        0
+      ],
+      "storage": "one-program-generation-start-end",
+      "time_unit": "raw-cycle"
+    },
+    "limitations": [
+      "program-level-only",
+      "issue-window-not-execution-duration",
+      "final-isa-unavailable",
+      "noinline-helper-runtime-hang-observed",
+      "post-noinline-gpu-context-unavailable"
+    ],
+    "static_dependency_audit": {
+      "chain_iters": 16,
+      "compiled_hash": "524c866b98c64e7ce625408f90a281fd6f50bfae92f2a0371536265ba1d09cfc",
+      "dependency_verified": false,
+      "linked_llir_checks": {
+        "chain_dependency_verified": false,
+        "chain_operation_count": 0,
+        "clock_intrinsic_calls": 2,
+        "conditional_branch_count": 1,
+        "dependent_end_branch": true,
+        "end_clock_calls": 0,
+        "helper_definitions_retained": true,
+        "helper_runtime_calls": 0,
+        "inline_asm_calls": 0,
+        "intrinsic_count_ok": true,
+        "linked": false,
+        "no_helper_runtime_calls": true,
+        "no_inline_asm": true,
+        "required_chain_operations": 4,
+        "runtime_seed_dependency": false,
+        "start_before_end": false,
+        "token_branch_after_start": false
+      },
+      "mode": "compile-only-prelaunch",
+      "status": "optimized-away"
+    },
+    "status": "inconclusive",
+    "status_causes": [
+      "end-dependency-optimized-away"
+    ]
+  }
+}

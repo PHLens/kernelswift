@@ -1,0 +1,10 @@
+distribution_name triton
+distribution_version 3.1.0+corex.4.4.0
+license None
+home_page 'https://github.com/triton-lang/triton/'
+author 'Philippe Tillet'
+author_email 'phil@openai.com'
+classifiers
+License :: OSI Approved :: MIT License
+distribution_root /usr/local/corex-4.4.0/lib64/python3/dist-packages
+triton_file /usr/local/corex-4.4.0/lib64/python3/dist-packages/triton/__init__.py

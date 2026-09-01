@@ -1,0 +1,185 @@
+; ModuleID = 'LLVMDialectModule'
+source_filename = "LLVMDialectModule"
+target triple = "bi-iluvatar-ilurt"
+
+@gPrintBuf = weak dso_local addrspace(1) externally_initialized global ptr null, align 8
+@gAssertReason = weak dso_local addrspace(1) externally_initialized global ptr null, align 8
+@gMallocHeapBase = weak addrspace(1) externally_initialized global ptr null, align 8
+@gMallocHeapSize = weak addrspace(1) externally_initialized global i32 0, align 4
+@llvm.compiler.used = appending global [4 x ptr] [ptr addrspacecast (ptr addrspace(1) @gAssertReason to ptr), ptr addrspacecast (ptr addrspace(1) @gMallocHeapBase to ptr), ptr addrspacecast (ptr addrspace(1) @gMallocHeapSize to ptr), ptr addrspacecast (ptr addrspace(1) @gPrintBuf to ptr)], section "llvm.metadata"
+
+; Function Attrs: nounwind memory(write, argmem: readwrite, inaccessiblemem: none)
+define iluvatar_kernel void @stock_vector_add(ptr addrspace(1) nocapture readonly %0, ptr addrspace(1) nocapture readonly %1, ptr addrspace(1) %2) local_unnamed_addr #0 !dbg !6 {
+  %4 = tail call i32 @llvm.nvvm.read.ptx.sreg.ctaid.x(), !dbg !9
+  %5 = shl i32 %4, 8, !dbg !10
+  %6 = tail call i32 @llvm.nvvm.read.ptx.sreg.tid.x(), !dbg !11
+  %7 = and i32 %6, 63, !dbg !11
+  %8 = or disjoint i32 %5, %7, !dbg !12
+  %9 = or disjoint i32 %8, 64, !dbg !12
+  %10 = or disjoint i32 %8, 128, !dbg !12
+  %11 = or disjoint i32 %8, 192, !dbg !12
+  %12 = icmp slt i32 %8, 4096, !dbg !13
+  %13 = icmp slt i32 %9, 4096, !dbg !13
+  %14 = icmp slt i32 %10, 4096, !dbg !13
+  %15 = icmp slt i32 %11, 4096, !dbg !13
+  %16 = sext i32 %9 to i64, !dbg !14
+  %17 = getelementptr float, ptr addrspace(1) %0, i64 %16, !dbg !14
+  %18 = sext i32 %10 to i64, !dbg !14
+  %19 = getelementptr float, ptr addrspace(1) %0, i64 %18, !dbg !14
+  %20 = sext i32 %11 to i64, !dbg !14
+  %21 = getelementptr float, ptr addrspace(1) %0, i64 %20, !dbg !14
+  br i1 %12, label %22, label %27, !dbg !15
+
+22:                                               ; preds = %3
+  %23 = sext i32 %8 to i64, !dbg !14
+  %24 = getelementptr float, ptr addrspace(1) %0, i64 %23, !dbg !14
+  %25 = addrspacecast ptr addrspace(1) %24 to ptr, !dbg !15
+  %26 = load <1 x float>, ptr %25, align 4, !dbg !15
+  br label %27, !dbg !15
+
+27:                                               ; preds = %22, %3
+  %28 = phi <1 x float> [ %26, %22 ], [ zeroinitializer, %3 ]
+  br i1 %13, label %29, label %32, !dbg !15
+
+29:                                               ; preds = %27
+  %30 = addrspacecast ptr addrspace(1) %17 to ptr, !dbg !15
+  %31 = load <1 x float>, ptr %30, align 4, !dbg !15
+  br label %32, !dbg !15
+
+32:                                               ; preds = %29, %27
+  %33 = phi <1 x float> [ %31, %29 ], [ zeroinitializer, %27 ]
+  br i1 %14, label %34, label %37, !dbg !15
+
+34:                                               ; preds = %32
+  %35 = addrspacecast ptr addrspace(1) %19 to ptr, !dbg !15
+  %36 = load <1 x float>, ptr %35, align 4, !dbg !15
+  br label %37, !dbg !15
+
+37:                                               ; preds = %34, %32
+  %38 = phi <1 x float> [ %36, %34 ], [ zeroinitializer, %32 ]
+  br i1 %15, label %39, label %42, !dbg !15
+
+39:                                               ; preds = %37
+  %40 = addrspacecast ptr addrspace(1) %21 to ptr, !dbg !15
+  %41 = load <1 x float>, ptr %40, align 4, !dbg !15
+  br label %42, !dbg !15
+
+42:                                               ; preds = %39, %37
+  %43 = phi <1 x float> [ %41, %39 ], [ zeroinitializer, %37 ]
+  %44 = getelementptr float, ptr addrspace(1) %1, i64 %16, !dbg !16
+  %45 = getelementptr float, ptr addrspace(1) %1, i64 %18, !dbg !16
+  %46 = getelementptr float, ptr addrspace(1) %1, i64 %20, !dbg !16
+  br i1 %12, label %47, label %52, !dbg !17
+
+47:                                               ; preds = %42
+  %48 = sext i32 %8 to i64, !dbg !16
+  %49 = getelementptr float, ptr addrspace(1) %1, i64 %48, !dbg !16
+  %50 = addrspacecast ptr addrspace(1) %49 to ptr, !dbg !17
+  %51 = load <1 x float>, ptr %50, align 4, !dbg !17
+  br label %52, !dbg !17
+
+52:                                               ; preds = %47, %42
+  %53 = phi <1 x float> [ %51, %47 ], [ zeroinitializer, %42 ]
+  br i1 %13, label %54, label %57, !dbg !17
+
+54:                                               ; preds = %52
+  %55 = addrspacecast ptr addrspace(1) %44 to ptr, !dbg !17
+  %56 = load <1 x float>, ptr %55, align 4, !dbg !17
+  br label %57, !dbg !17
+
+57:                                               ; preds = %54, %52
+  %58 = phi <1 x float> [ %56, %54 ], [ zeroinitializer, %52 ]
+  br i1 %14, label %59, label %62, !dbg !17
+
+59:                                               ; preds = %57
+  %60 = addrspacecast ptr addrspace(1) %45 to ptr, !dbg !17
+  %61 = load <1 x float>, ptr %60, align 4, !dbg !17
+  br label %62, !dbg !17
+
+62:                                               ; preds = %59, %57
+  %63 = phi <1 x float> [ %61, %59 ], [ zeroinitializer, %57 ]
+  br i1 %15, label %64, label %67, !dbg !17
+
+64:                                               ; preds = %62
+  %65 = addrspacecast ptr addrspace(1) %46 to ptr, !dbg !17
+  %66 = load <1 x float>, ptr %65, align 4, !dbg !17
+  br label %67, !dbg !17
+
+67:                                               ; preds = %64, %62
+  %68 = phi <1 x float> [ %66, %64 ], [ zeroinitializer, %62 ]
+  %69 = sext i32 %8 to i64, !dbg !18
+  %70 = getelementptr float, ptr addrspace(1) %2, i64 %69, !dbg !18
+  %71 = fadd <1 x float> %28, %53, !dbg !19
+  %72 = fadd <1 x float> %33, %58, !dbg !19
+  %73 = fadd <1 x float> %38, %63, !dbg !19
+  %74 = fadd <1 x float> %43, %68, !dbg !19
+  %75 = ptrtoint ptr addrspace(1) %70 to i64, !dbg !20
+  %76 = tail call i64 @llvm.bi.readlane.i64(i64 %75, i32 0), !dbg !20
+  %77 = inttoptr i64 %76 to ptr addrspace(1), !dbg !20
+  %bc = bitcast <1 x float> %71 to <1 x i32>, !dbg !20
+  %78 = extractelement <1 x i32> %bc, i64 0, !dbg !20
+  %79 = tail call i32 @llvm.bi.lane.id(), !dbg !20
+  %80 = lshr i32 %79, 6, !dbg !20
+  %81 = shl i32 %79, 2, !dbg !20
+  %82 = and i32 %81, 252, !dbg !20
+  %83 = add nuw nsw i32 %82, %80, !dbg !20
+  tail call void @llvm.bi.stp.vs.pred.i32(i32 %78, ptr addrspace(1) %77, i32 %83, i32 0, i32 0, i1 %12), !dbg !20
+  %bc1 = bitcast <1 x float> %72 to <1 x i32>, !dbg !20
+  %84 = extractelement <1 x i32> %bc1, i64 0, !dbg !20
+  tail call void @llvm.bi.stp.vs.pred.i32(i32 %84, ptr addrspace(1) %77, i32 %83, i32 256, i32 0, i1 %13), !dbg !20
+  %bc2 = bitcast <1 x float> %73 to <1 x i32>, !dbg !20
+  %85 = extractelement <1 x i32> %bc2, i64 0, !dbg !20
+  tail call void @llvm.bi.stp.vs.pred.i32(i32 %85, ptr addrspace(1) %77, i32 %83, i32 512, i32 0, i1 %14), !dbg !20
+  %bc3 = bitcast <1 x float> %74 to <1 x i32>, !dbg !20
+  %86 = extractelement <1 x i32> %bc3, i64 0, !dbg !20
+  tail call void @llvm.bi.stp.vs.pred.i32(i32 %86, ptr addrspace(1) %77, i32 %83, i32 768, i32 0, i1 %15), !dbg !20
+  ret void, !dbg !21
+}
+
+; Function Attrs: mustprogress nocallback nofree nosync nounwind speculatable willreturn memory(none)
+declare noundef i32 @llvm.nvvm.read.ptx.sreg.ctaid.x() #1
+
+; Function Attrs: mustprogress nocallback nofree nosync nounwind speculatable willreturn memory(none)
+declare noundef i32 @llvm.nvvm.read.ptx.sreg.tid.x() #1
+
+; Function Attrs: convergent nofree nounwind memory(none)
+declare i64 @llvm.bi.readlane.i64(i64, i32) #2
+
+; Function Attrs: nofree nosync nounwind speculatable memory(none)
+declare i32 @llvm.bi.lane.id() #3
+
+; Function Attrs: nounwind memory(argmem: write)
+declare void @llvm.bi.stp.vs.pred.i32(i32, ptr addrspace(1) writeonly, i32, i32, i32 immarg, i1) #4
+
+attributes #0 = { nounwind memory(write, argmem: readwrite, inaccessiblemem: none) }
+attributes #1 = { mustprogress nocallback nofree nosync nounwind speculatable willreturn memory(none) }
+attributes #2 = { convergent nofree nounwind memory(none) }
+attributes #3 = { nofree nosync nounwind speculatable memory(none) }
+attributes #4 = { nounwind memory(argmem: write) }
+
+!llvm.module.flags = !{!0, !1}
+!llvm.dbg.cu = !{!2}
+!nvvm.annotations = !{!4, !5}
+
+!0 = !{i32 2, !"Debug Info Version", i32 3}
+!1 = !{i32 4, !"nvvm-reflect-ftz", i32 0}
+!2 = distinct !DICompileUnit(language: DW_LANG_C, file: !3, producer: "triton", isOptimized: true, runtimeVersion: 0, emissionKind: LineTablesOnly)
+!3 = !DIFile(filename: "preflight_corex.py", directory: "/tmp/kernelswift-route-c-c3d006b779c9c0f915a53bad0290dd6c4b70f1c5/experiments/bi150-kperfir-value/scripts")
+!4 = !{ptr @stock_vector_add, !"kernel", i32 1}
+!5 = !{ptr @stock_vector_add, !"maxntidx", i32 32}
+!6 = distinct !DISubprogram(name: "stock_vector_add", linkageName: "stock_vector_add", scope: !3, file: !3, line: 201, type: !7, scopeLine: 201, spFlags: DISPFlagDefinition | DISPFlagOptimized, unit: !2)
+!7 = !DISubroutineType(cc: DW_CC_normal, types: !8)
+!8 = !{}
+!9 = !DILocation(line: 202, column: 28, scope: !6)
+!10 = !DILocation(line: 202, column: 33, scope: !6)
+!11 = !DILocation(line: 202, column: 54, scope: !6)
+!12 = !DILocation(line: 202, column: 41, scope: !6)
+!13 = !DILocation(line: 203, column: 21, scope: !6)
+!14 = !DILocation(line: 204, column: 24, scope: !6)
+!15 = !DILocation(line: 204, column: 16, scope: !6)
+!16 = !DILocation(line: 205, column: 24, scope: !6)
+!17 = !DILocation(line: 205, column: 16, scope: !6)
+!18 = !DILocation(line: 206, column: 23, scope: !6)
+!19 = !DILocation(line: 206, column: 36, scope: !6)
+!20 = !DILocation(line: 206, column: 32, scope: !6)
+!21 = !DILocation(line: 206, column: 4, scope: !6)

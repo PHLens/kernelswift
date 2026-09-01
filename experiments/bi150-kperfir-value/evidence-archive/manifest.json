@@ -1,0 +1,308 @@
+{
+  "archive_root": "experiments/bi150-kperfir-value/evidence-archive",
+  "authority_boundary": "Diagnostic archive only; accepted sources and official campaign authority are unchanged.",
+  "document_type": "bi150-route-c-evidence-archive-manifest",
+  "file_count": 28,
+  "files": [
+    {
+      "byte_count": 8188,
+      "path": "README.md",
+      "role": "archive-documentation",
+      "sha256": "9455a1b7bd63c6e0646a140d8d1cfa52a47c99a855914315113410c91b1ec310",
+      "source_commit": "archive-curation",
+      "source_path": "README.md",
+      "source_root": "experiments/bi150-kperfir-value/evidence-archive",
+      "status": "curated-authority-index"
+    },
+    {
+      "byte_count": 807,
+      "path": "THIRD_PARTY_NOTICE.md",
+      "role": "third-party-evidence-notice",
+      "sha256": "1e668e667ac587a9a487553a77c9e4bc83da362e49de28e829c029676caf8ad4",
+      "source_commit": "archive-curation",
+      "source_path": "THIRD_PARTY_NOTICE.md",
+      "source_root": "experiments/bi150-kperfir-value/evidence-archive",
+      "status": "curated-provenance-notice"
+    },
+    {
+      "byte_count": 2934,
+      "path": "external-history-edb3a57/initial-compile-result.json",
+      "role": "initial-external-compile-result",
+      "sha256": "80213b30b6c882cd492546e67c217067a57a04ff5ab749c99559776a0ff69352",
+      "source_commit": "edb3a571784f0f8e30a1f7ab3cac4b289709fcd5",
+      "source_path": "result.json",
+      "source_root": "/tmp/kernelswift-route-c-edb3a571784f0f8e30a1f7ab3cac4b289709fcd5/experiments/bi150-kperfir-value/artifacts/external-clock/synthetic",
+      "status": "diagnostic-history-inconclusive"
+    },
+    {
+      "byte_count": 3019,
+      "path": "external-history-edb3a57/scalar-mask-diagnostic-result.json",
+      "role": "scalar-mask-diagnostic-result",
+      "sha256": "9d36c47d54e75b6883c104c3dc1bd2f660a4c3947ce3fec2a6b5da857f4c2c3a",
+      "source_commit": "edb3a571784f0f8e30a1f7ab3cac4b289709fcd5",
+      "source_path": "result.json",
+      "source_root": "/tmp/kernelswift-route-c-dispatch-fix-edb3a571784f0f8e30a1f7ab3cac4b289709fcd5/experiments/bi150-kperfir-value/artifacts/external-clock/synthetic",
+      "status": "diagnostic-history-inconclusive"
+    },
+    {
+      "byte_count": 2406,
+      "path": "external-noinline-4d74549/clock-helper.json",
+      "role": "noinline-helper-metadata",
+      "sha256": "3090a9607028ba4de7a4e348398f0bd31cf4c8ecc2f35bb3992780051763d43a",
+      "source_commit": "4d74549e6747e289ee80989bcdd7fe45770ef07c",
+      "source_path": "clock-helper.json",
+      "source_root": "/tmp/kernelswift-route-c-4d74549e6747e289ee80989bcdd7fe45770ef07c/experiments/bi150-kperfir-value/artifacts/external-clock/helper",
+      "status": "diagnostic-history-valid-build"
+    },
+    {
+      "byte_count": 3256,
+      "path": "external-noinline-4d74549/corex-clock.bc",
+      "role": "noinline-helper-artifact",
+      "sha256": "ad9a2d5e781c76f3abf97b79b745bca7abc7e16536cf77c24631f540d3f6dd56",
+      "source_commit": "4d74549e6747e289ee80989bcdd7fe45770ef07c",
+      "source_path": "corex-clock.bc",
+      "source_root": "/tmp/kernelswift-route-c-4d74549e6747e289ee80989bcdd7fe45770ef07c/experiments/bi150-kperfir-value/artifacts/external-clock/helper",
+      "status": "diagnostic-history-valid-build"
+    },
+    {
+      "byte_count": 2978,
+      "path": "external-noinline-4d74549/corex-clock.ll",
+      "role": "noinline-helper-artifact",
+      "sha256": "84abf63461cca9ff86deec9c8f8d1adc6132f82a554544cdd4bd7116455d75dc",
+      "source_commit": "4d74549e6747e289ee80989bcdd7fe45770ef07c",
+      "source_path": "corex-clock.ll",
+      "source_root": "/tmp/kernelswift-route-c-4d74549e6747e289ee80989bcdd7fe45770ef07c/experiments/bi150-kperfir-value/artifacts/external-clock/helper",
+      "status": "diagnostic-history-valid-build"
+    },
+    {
+      "byte_count": 2553,
+      "path": "final-8e4d99b/helper/clock-helper.json",
+      "role": "final-helper-metadata",
+      "sha256": "83bcf97370791b65b7b2a0cd9608d4c681f83c3eb3c5ca50ad6973de89b9f648",
+      "source_commit": "8e4d99b89407ecb3d35bac1c276d3cc73de27699",
+      "source_path": "helper/clock-helper.json",
+      "source_root": "/tmp/kernelswift-route-c-8e4d99b89407ecb3d35bac1c276d3cc73de27699/experiments/bi150-kperfir-value/artifacts/external-clock",
+      "status": "final-evidence-valid"
+    },
+    {
+      "byte_count": 3256,
+      "path": "final-8e4d99b/helper/corex-clock.bc",
+      "role": "final-helper-artifact",
+      "sha256": "3855554cfcf6e42a3239448f23ca96af8c783b48b66bcc587fea72b8595030ae",
+      "source_commit": "8e4d99b89407ecb3d35bac1c276d3cc73de27699",
+      "source_path": "helper/corex-clock.bc",
+      "source_root": "/tmp/kernelswift-route-c-8e4d99b89407ecb3d35bac1c276d3cc73de27699/experiments/bi150-kperfir-value/artifacts/external-clock",
+      "status": "final-evidence-valid"
+    },
+    {
+      "byte_count": 3504,
+      "path": "final-8e4d99b/helper/corex-clock.ll",
+      "role": "final-helper-artifact",
+      "sha256": "42ab5fb7f574621db3187933b9c9e04c67a8eac1ec3722590404eb4b981a5f70",
+      "source_commit": "8e4d99b89407ecb3d35bac1c276d3cc73de27699",
+      "source_path": "helper/corex-clock.ll",
+      "source_root": "/tmp/kernelswift-route-c-8e4d99b89407ecb3d35bac1c276d3cc73de27699/experiments/bi150-kperfir-value/artifacts/external-clock",
+      "status": "final-evidence-valid"
+    },
+    {
+      "byte_count": 8873,
+      "path": "final-8e4d99b/synthetic/linked-llir/clock64-static-dependency-audit.ll",
+      "role": "terminal-linked-llir",
+      "sha256": "ae558835d4611a89f5c3536262ec73e7c7ff9081fd5f2be50c0efd293ff6d542",
+      "source_commit": "8e4d99b89407ecb3d35bac1c276d3cc73de27699",
+      "source_path": "synthetic/linked-llir/clock64-static-dependency-audit.ll",
+      "source_root": "/tmp/kernelswift-route-c-8e4d99b89407ecb3d35bac1c276d3cc73de27699/experiments/bi150-kperfir-value/artifacts/external-clock",
+      "status": "final-evidence-observed"
+    },
+    {
+      "byte_count": 4357,
+      "path": "final-8e4d99b/synthetic/result.json",
+      "role": "terminal-synthetic-result",
+      "sha256": "c621cee0704b95fe2c0426d115d2b9506290443d5c22fe7a8f7a42255a749723",
+      "source_commit": "8e4d99b89407ecb3d35bac1c276d3cc73de27699",
+      "source_path": "synthetic/result.json",
+      "source_root": "/tmp/kernelswift-route-c-8e4d99b89407ecb3d35bac1c276d3cc73de27699/experiments/bi150-kperfir-value/artifacts/external-clock",
+      "status": "final-evidence-inconclusive"
+    },
+    {
+      "byte_count": 4616,
+      "path": "stage0-c3d006b/compiler/stock-vector-add.cubin",
+      "role": "stage0-compiler-artifact",
+      "sha256": "c61125dcf08869cf52d49591b97df1bc95a025ec10a220916da4c6252be1082e",
+      "source_commit": "c3d006b779c9c0f915a53bad0290dd6c4b70f1c5",
+      "source_path": "compiler/stock-vector-add.cubin",
+      "source_root": "/tmp/kernelswift-route-c-c3d006b779c9c0f915a53bad0290dd6c4b70f1c5/experiments/bi150-kperfir-value/artifacts/preflight",
+      "status": "observed"
+    },
+    {
+      "byte_count": 9474,
+      "path": "stage0-c3d006b/compiler/stock-vector-add.llir",
+      "role": "stage0-compiler-artifact",
+      "sha256": "6399e545a0eb9f36b928aa2af8869d3d2c4fb97e9d0a82300855a617a16fe05d",
+      "source_commit": "c3d006b779c9c0f915a53bad0290dd6c4b70f1c5",
+      "source_path": "compiler/stock-vector-add.llir",
+      "source_root": "/tmp/kernelswift-route-c-c3d006b779c9c0f915a53bad0290dd6c4b70f1c5/experiments/bi150-kperfir-value/artifacts/preflight",
+      "status": "observed"
+    },
+    {
+      "byte_count": 4664,
+      "path": "stage0-c3d006b/compiler/stock-vector-add.ttgir",
+      "role": "stage0-compiler-artifact",
+      "sha256": "2756fd28b821bfb69a784018ab9a7c4c246b1560901fe46db358f65badbcdc6c",
+      "source_commit": "c3d006b779c9c0f915a53bad0290dd6c4b70f1c5",
+      "source_path": "compiler/stock-vector-add.ttgir",
+      "source_root": "/tmp/kernelswift-route-c-c3d006b779c9c0f915a53bad0290dd6c4b70f1c5/experiments/bi150-kperfir-value/artifacts/preflight",
+      "status": "observed"
+    },
+    {
+      "byte_count": 3438,
+      "path": "stage0-c3d006b/stage0-result.json",
+      "role": "stage0-result",
+      "sha256": "fe7ecbace65b48b8bfac3af5718af08c012566d385e6a3ccae53b7293b206af1",
+      "source_commit": "c3d006b779c9c0f915a53bad0290dd6c4b70f1c5",
+      "source_path": "stage0-result.json",
+      "source_root": "/tmp/kernelswift-route-c-c3d006b779c9c0f915a53bad0290dd6c4b70f1c5/experiments/bi150-kperfir-value/artifacts/preflight",
+      "status": "final-diagnostic-inconclusive"
+    },
+    {
+      "byte_count": 184,
+      "path": "triton-profiler-package/__init__.py",
+      "role": "installed-triton-profiler-source",
+      "sha256": "f0c30658c36c1f1be016f6bc97aa3d97351c01d1a3a71890a2eb93c09e2a91d4",
+      "source_commit": "installed-corex-4.4.0-triton-3.1.0",
+      "source_path": "__init__.py",
+      "source_root": "/usr/local/corex-4.4.0/lib64/python3/dist-packages/triton/profiler",
+      "status": "installed-source-snapshot"
+    },
+    {
+      "byte_count": 386,
+      "path": "triton-profiler-package/distribution-license-info.txt",
+      "role": "profiler-distribution-license-metadata",
+      "sha256": "d14da0daed843143cc56634fac4cbab6b8df54d7947ef6cee13c7ca2cda9f99b",
+      "source_commit": "installed-corex-4.4.0-triton-3.1.0",
+      "source_path": "distribution-license-info.txt",
+      "source_root": "/tmp/bi150-route-c-remote-snapshots/triton-profiler-package",
+      "status": "installed-distribution-evidence"
+    },
+    {
+      "byte_count": 604,
+      "path": "triton-profiler-package/flags.py",
+      "role": "installed-triton-profiler-source",
+      "sha256": "04504a427a3344df49a75f3f4b932e21ebb9089316eff237f29339e6a3a0da84",
+      "source_commit": "installed-corex-4.4.0-triton-3.1.0",
+      "source_path": "flags.py",
+      "source_root": "/usr/local/corex-4.4.0/lib64/python3/dist-packages/triton/profiler",
+      "status": "installed-source-snapshot"
+    },
+    {
+      "byte_count": 1100,
+      "path": "triton-profiler-package/hook.py",
+      "role": "installed-triton-profiler-source",
+      "sha256": "d45ab0006add9a6cd6232cb7aaa3c7dfedce1ed42d74deb8151c049e2cd70b1f",
+      "source_commit": "installed-corex-4.4.0-triton-3.1.0",
+      "source_path": "hook.py",
+      "source_root": "/usr/local/corex-4.4.0/lib64/python3/dist-packages/triton/profiler",
+      "status": "installed-source-snapshot"
+    },
+    {
+      "byte_count": 223,
+      "path": "triton-profiler-package/native-extension-info.txt",
+      "role": "profiler-native-probe",
+      "sha256": "3bd61d1a74bd51834e4265b6026db6a24f26f359eecee2a07d91bd986a9a0da4",
+      "source_commit": "installed-corex-4.4.0-triton-3.1.0",
+      "source_path": "native-extension-info.txt",
+      "source_root": "/tmp/bi150-route-c-remote-snapshots/triton-profiler-package",
+      "status": "observed-no-libproton-extension"
+    },
+    {
+      "byte_count": 770,
+      "path": "triton-profiler-package/package-info.txt",
+      "role": "profiler-package-probe",
+      "sha256": "100aedd72b6c1e1eb00ca6df7e620208df283b3be10d4f1fdd71633d69295fd4",
+      "source_commit": "installed-corex-4.4.0-triton-3.1.0",
+      "source_path": "package-info.txt",
+      "source_root": "/tmp/bi150-route-c-remote-snapshots/triton-profiler-package",
+      "status": "observed-missing-libproton"
+    },
+    {
+      "byte_count": 5832,
+      "path": "triton-profiler-package/profile.py",
+      "role": "installed-triton-profiler-source",
+      "sha256": "457cfa6de8faf99df78b508b1fd6864a07a041bd4b30a5b06e7c1d2322d296de",
+      "source_commit": "installed-corex-4.4.0-triton-3.1.0",
+      "source_path": "profile.py",
+      "source_root": "/usr/local/corex-4.4.0/lib64/python3/dist-packages/triton/profiler",
+      "status": "installed-source-snapshot"
+    },
+    {
+      "byte_count": 600,
+      "path": "triton-profiler-package/proton-cli-probe.txt",
+      "role": "profiler-cli-probe",
+      "sha256": "d95e53d5b9fc7b4dbd68b5819da5a01de537fb337eb931f4afa8fc43f85566eb",
+      "source_commit": "installed-corex-4.4.0-triton-3.1.0",
+      "source_path": "proton-cli-probe.txt",
+      "source_root": "/tmp/bi150-route-c-remote-snapshots/triton-profiler-package",
+      "status": "diagnostic-failure-missing-libproton"
+    },
+    {
+      "byte_count": 2624,
+      "path": "triton-profiler-package/proton.py",
+      "role": "installed-triton-profiler-source",
+      "sha256": "7f57289028b6c18cc23a797cced3dbfbfc5cfae29204c5b7877b896a3bd8b97f",
+      "source_commit": "installed-corex-4.4.0-triton-3.1.0",
+      "source_path": "proton.py",
+      "source_root": "/usr/local/corex-4.4.0/lib64/python3/dist-packages/triton/profiler",
+      "status": "installed-source-snapshot"
+    },
+    {
+      "byte_count": 3125,
+      "path": "triton-profiler-package/scope.py",
+      "role": "installed-triton-profiler-source",
+      "sha256": "830b238b0ad71f5ebf48c1c4a2818cdca2cb7bb5c8a308c5bddfff2f9b785928",
+      "source_commit": "installed-corex-4.4.0-triton-3.1.0",
+      "source_path": "scope.py",
+      "source_root": "/usr/local/corex-4.4.0/lib64/python3/dist-packages/triton/profiler",
+      "status": "installed-source-snapshot"
+    },
+    {
+      "byte_count": 9635,
+      "path": "triton-profiler-package/viewer.py",
+      "role": "installed-triton-profiler-source",
+      "sha256": "d1c1e183a80e7b6b78fc903d197a7cc01b6117248ee87c3c9185b63d6c23c0c3",
+      "source_commit": "installed-corex-4.4.0-triton-3.1.0",
+      "source_path": "viewer.py",
+      "source_root": "/usr/local/corex-4.4.0/lib64/python3/dist-packages/triton/profiler",
+      "status": "installed-source-snapshot"
+    },
+    {
+      "byte_count": 1978,
+      "path": "v1-e614436/clock64-result.json",
+      "role": "v1-clock-result",
+      "sha256": "6699c0535ee78b36141aa8d86c64c635261e92db1a5fc859faefe3b2342fba7b",
+      "source_commit": "e61443606746959ea537a20190308d20af93234c",
+      "source_path": "result.json",
+      "source_root": "/tmp/kernelswift-route-c-e61443606746959ea537a20190308d20af93234c/experiments/bi150-kperfir-value/artifacts/evidence/clock64",
+      "status": "frozen-diagnostic-inconclusive"
+    }
+  ],
+  "manifest_excludes": [
+    "manifest.json"
+  ],
+  "omissions": [
+    {
+      "path": "external-clock/synthetic-smoke/result.json",
+      "reason": "non-informative missing-bitcode smoke result after helper build failure",
+      "source_commit": "d58301241f3081039559c1f954762015ec9cea3e",
+      "source_root": "/tmp/kernelswift-route-c-d58301241f3081039559c1f954762015ec9cea3e/experiments/bi150-kperfir-value/artifacts"
+    },
+    {
+      "path": "__pycache__/*.pyc",
+      "reason": "generated Python bytecode excluded; source snapshots are archived",
+      "source_commit": "installed-corex-4.4.0-triton-3.1.0",
+      "source_root": "/usr/local/corex-4.4.0/lib64/python3/dist-packages/triton/profiler"
+    }
+  ],
+  "schema_version": 1,
+  "source_commit_semantics": "Repository-derived files use the full Git SHA of their source tree; curated or installed-distribution files use a stable origin/version label.",
+  "source_staging_root": "/tmp/bi150-route-c-remote-snapshots"
+}
