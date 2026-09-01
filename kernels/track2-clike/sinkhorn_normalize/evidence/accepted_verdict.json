@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "round": "001",
+  "decision_sha256": "64902ecc3ce87d8751578c2d033d57d872f0f7eabe4e364ca72081d12d09d184",
+  "sketch_sha256": "8325f8cb80b82cafd4291772748d3e372de2bf729e0a989084fad6e2a6b13b0a",
+  "binding_sha256": "f1c1246859d504d56ddbe30333b4f453d331f8af5e684cdfe70cd5324803f44b",
+  "profile_sha256": "4889e5c58279d37052dbcf148e1353581d353f852103f8921e4154fee2deea05",
+  "report_fact_pack_sha256": "21f0b4191c858e4cb146be12d032cd9436f34e1478f466b3d33efa9a3387db3d",
+  "classification": "none",
+  "terminal_result": "accepted",
+  "failed_attempt_effect": "reset",
+  "route": null,
+  "confidence": "high",
+  "rule_id": null,
+  "preconditions": [
+    {"name": "binding_valid", "status": "pass"},
+    {"name": "correctness_pass", "status": "pass"},
+    {"name": "lowering_observed", "status": "pass"},
+    {"name": "observable_observed", "status": "pass"}
+  ],
+  "evidence": [
+    "rounds/report_001.md#correctness-and-guardrails",
+    "rounds/report_001.md#interleaved-wall-timing",
+    "rounds/report_001.md#evaluation-contract-mirror",
+    "rounds/report_001.md#profiler-evidence",
+    "rounds/report_001.md#vnext-fact-pack"
+  ],
+  "explanation": "All correctness and semantic gates pass; expected single-kernel lowering and every Decision observable are observed; authoritative median wall improvement is 68.25734026854723%, exceeding the 5% adoption threshold. No design, code, lowering, or evidence-gap attribution applies."
+}

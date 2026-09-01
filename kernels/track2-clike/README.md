@@ -1,18 +1,19 @@
-# 赛道二：Clike（C-like）算子优化
+# 赛道二：C-like 算子优化
 
-结构同赛道一（算子优先）：`kernels/track2-clike/<算子>/base.py`（设备无关共享参考）。
+本目录保留赛道二三个算子的参考实现、当前 canonical 源码、完整结果总结与最小原始证据包。性能数据均来自已验证归档中的 `auto_bench.py` 完整算子 wall-time 记录；只有同时满足正确性、语义 guardrail 与性能采纳条件的实现才会成为 canonical。
 
-## 题目清单（task 编号 ↔ 算子）
+## 结果总览
 
-| task | 算子目录 | 语义 |
-|---|---|---|
-| 1 | `sparse_attn` | DeepSeek-V4-Pro sparse attention：top-k 稀疏 KV 注意力 + attention sink（仅入分母） |
-| 2 | `index_topk` | MQA index 模块：学习式评分选择 top-k 压缩 KV 位置（压缩 + RoPE + einsum 评分） |
-| 3 | `sinkhorn_normalize` | Sinkhorn 迭代归一化（doubly stochastic：softmax + 行列归一化 ×repeat） |
+| task | 算子 | 当前 canonical | 记录结果 | 关键证据 |
+|---|---|---|---:|---|
+| 1 | `sparse_attn` | [`baseline_adapter.py`](sparse_attn/ascendc/baseline_adapter.py)（baseline） | base `12.773625 ms`；adapter `12.772110 ms` | [baseline report](sparse_attn/evidence/baseline_report.md) · [最终失败报告](sparse_attn/evidence/candidate_failure.md) · [verdict](sparse_attn/evidence/candidate_failure_verdict.json) |
+| 2 | `index_topk` | [`candidate_007.py`](index_topk/ascendc/candidate_007.py)（eager canonical） | `8.784070 → 8.298150 ms`，`1.059x` | [详细结果与采纳依据](index_topk/evidence.md) |
+| 3 | `sinkhorn_normalize` | [`candidate_001.py`](sinkhorn_normalize/ascendc/candidate_001.py) + [`sinkhorn_normalize.cpp`](sinkhorn_normalize/ascendc/sinkhorn_normalize.cpp)（原生 Ascend C） | `1.524825 → 0.484020 ms`，`3.150345x` | [accepted report](sinkhorn_normalize/evidence/accepted_report.md) · [verdict](sinkhorn_normalize/evidence/accepted_verdict.json) |
 
-- base.py 均为纯 torch + `device="cuda"` 字符串，harness 自动搬运/重写设备。
-- task2 模板的模块级 `args = ModelArgs(...)` 会被 harness AST 过滤器剥离，
-  已移入 `get_inputs` / `get_init_inputs` 内部；`.cuda()` 统一改为 `device="cuda"`。
-- 三个 `base.py` 已就绪；首个实现后端为 Ascend，implementation profile id 为 `ascendc`。
-- C-like 正式优化还需要原生构建、runner、ABI 和 profiler adapter。Skill 扩展方案见
-  [`../../skills/track2-clike-roadmap.md`](../../skills/track2-clike-roadmap.md)。
+参考实现：
+
+- [`sparse_attn/base.py`](sparse_attn/base.py)
+- [`index_topk/base.py`](index_topk/base.py)
+- [`sinkhorn_normalize/base.py`](sinkhorn_normalize/base.py)
+
+完整的测量口径、实现机制、采纳边界、跨算子经验、归档溯源与未声明结论见 [`summary.md`](summary.md)。
