@@ -1,0 +1,6 @@
+C_EXTENSION_FILES
+libtriton.so 444483968
+COMMANDS
+proton /usr/local/corex-4.4.0/lib64/python3/dist-packages/bin/proton
+proton-viewer /usr/local/corex-4.4.0/lib64/python3/dist-packages/bin/proton-viewer
+triton-profiler None

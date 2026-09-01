@@ -1,0 +1,99 @@
+{
+  "accepted_source_hashes": {
+    "auto_bench.py": "71fb3ad0c3ad23c5c156c898f85abcee3d42a15800f75ff97769cfca9152fe29",
+    "kernels/track1-triton/mm_encoder_attention/base.py": "86ac570376eda42cea73e0e7683454deeff43c11e5e85f16e1b3eb63395d6ed2",
+    "kernels/track1-triton/mm_encoder_attention/bi150/epoch2/triton_mm_encoder_attention_e2_001.py": "4171de8dcb1df6478942b0861756d660ef7955c5741e60072f03476a5fab2fc2",
+    "kernels/track1-triton/mm_encoder_attention/bi150/epoch2/triton_mm_encoder_attention_e2_002.py": "cc98318bbfed0d9cdbf7a99769c4a44077dc15590496a4e8410ba9eda99f3078",
+    "kernels/track1-triton/mm_encoder_attention/bi150/epoch2/triton_mm_encoder_attention_e2_003.py": "d503e845d1d95ad033e616730d78d67d0775df3a473b17a3c37843d463654d81"
+  },
+  "causes": [
+    "final-isa-unavailable",
+    "clock64-inline-asm-syntax-rejected"
+  ],
+  "clock64": {
+    "attempted_clock_syntaxes": [
+      "mov.u64 $0, %clock64;"
+    ],
+    "chain_iters": [
+      16,
+      256
+    ],
+    "error": "clock64 worker terminated during compilation or runtime: error: <inline asm>:1:18: unknown token in expression\n        mov.u64 v[0:1], %clock64;\n                        ^\n\n",
+    "measurement_semantics": "issue-window",
+    "status": "inconclusive",
+    "status_causes": [
+      "clock64-inline-asm-syntax-rejected"
+    ],
+    "worker_returncode": 1
+  },
+  "document_type": "bi150-route-c-evidence-summary",
+  "environment": {
+    "corex": "4.4.0",
+    "device": "Iluvatar BI-V150",
+    "target": "GPUTarget(backend='cuda', arch=71, warp_size=64)",
+    "torch": "2.7.1",
+    "triton": "3.1.0",
+    "warp_size": 64
+  },
+  "evidence_commit": "e61443606746959ea537a20190308d20af93234c",
+  "not_run": {
+    "graph_replay_probe": {
+      "ran": false,
+      "reason": "no-interpretable-clock-path"
+    },
+    "real_attention_probe": {
+      "ran": false,
+      "reason": "no-interpretable-clock-path"
+    }
+  },
+  "overall_classification": "inconclusive",
+  "preflight": {
+    "correctness": {
+      "bitwise_equal": true,
+      "status": "pass"
+    },
+    "cuda_event_timing": {
+      "coefficient_of_variation": 1.1762770886914802,
+      "median_us": 5.634615197777748,
+      "p10_us": 5.530384415760636,
+      "p90_us": 5.809615273028612,
+      "sample_count": 50
+    },
+    "disassembly_outcomes": [
+      {
+        "error": "/usr/local/corex-4.4.0/bin/llvm-objdump: error: 'experiments/bi150-kperfir-value/artifacts/evidence/preflight/compiler/stock-vector-add.cubin': no disassembler for target bi--mesa3d",
+        "function_body_present": false,
+        "returncode": 1,
+        "stdout_byte_count": 122,
+        "tool": "llvm-objdump",
+        "valid": false
+      },
+      {
+        "error": null,
+        "function_body_present": false,
+        "returncode": 255,
+        "stdout_byte_count": 66,
+        "tool": "ixobjdump",
+        "valid": false
+      }
+    ],
+    "resources": {
+      "n_regs": 13,
+      "n_spills": 0,
+      "n_threads_attribute": 4096,
+      "shared_bytes": 0
+    },
+    "status": "inconclusive"
+  },
+  "raw_evidence": {
+    "clock64": {
+      "relative_path": "experiments/bi150-kperfir-value/artifacts/evidence/clock64/result.json",
+      "sha256": "6699c0535ee78b36141aa8d86c64c635261e92db1a5fc859faefe3b2342fba7b"
+    },
+    "preflight": {
+      "relative_path": "experiments/bi150-kperfir-value/artifacts/evidence/preflight/stage0-result.json",
+      "sha256": "41897cc64ac739128c6d04aa4aa390bc01367c7ad23df8a3f6f9aee53bd18f4b"
+    }
+  },
+  "stop_statement": "Real attention and graph probes were not run because no interpretable clock path existed."
+}

@@ -1,0 +1,72 @@
+{
+  "chain_iters": [
+    0,
+    16,
+    256
+  ],
+  "document_type": "experiment-result",
+  "environment": {
+    "corex": "4.4.0",
+    "device": "Iluvatar BI-V150",
+    "route_c_commit": "edb3a571784f0f8e30a1f7ab3cac4b289709fcd5",
+    "target": "GPUTarget(backend='cuda', arch=71, warp_size=64)",
+    "torch": "2.7.1",
+    "triton": "3.1.0",
+    "warp_size": 64
+  },
+  "error": "CompilationError: at 21:4: writer = offsets == 0 acc = tl.load(seed_ptr).to(tl.uint64) start_clock = read_clock_start() for _ in tl.static_range(0, chain_iters): acc = acc ^ (acc << 13) acc = acc + 0x5DEECE66D acc = acc ^ (acc >> 7) token = acc end_clock = read_clock_after(token) tl.store(output_ptr, acc, mask=writer) ^ <- caused by: ValueError: Mask argument cannot be block type if pointer argument is not a block",
+  "experiment_id": "bi150-external-clock-qualification",
+  "experiment_status": "inconclusive",
+  "instrumentation": {
+    "clock_symbols": [
+      "corex_clock64_start",
+      "corex_clock64_after_u64"
+    ],
+    "measurement_semantics": "issue-window",
+    "mode": "corex-external-bitcode",
+    "profile_words": 3,
+    "region_id": "dependency-chain",
+    "selected_pids": [
+      0
+    ],
+    "storage": "one-program-generation-start-end",
+    "time_unit": "raw-cycle"
+  },
+  "limitations": [
+    "program-level-only",
+    "issue-window-not-execution-duration",
+    "final-isa-unavailable"
+  ],
+  "qualification_status": "inconclusive",
+  "regions": [],
+  "source": {
+    "accepted_source_hashes": {
+      "auto_bench.py": "71fb3ad0c3ad23c5c156c898f85abcee3d42a15800f75ff97769cfca9152fe29",
+      "kernels/track1-triton/mm_encoder_attention/base.py": "86ac570376eda42cea73e0e7683454deeff43c11e5e85f16e1b3eb63395d6ed2",
+      "kernels/track1-triton/mm_encoder_attention/bi150/epoch2/triton_mm_encoder_attention_e2_001.py": "4171de8dcb1df6478942b0861756d660ef7955c5741e60072f03476a5fab2fc2",
+      "kernels/track1-triton/mm_encoder_attention/bi150/epoch2/triton_mm_encoder_attention_e2_002.py": "cc98318bbfed0d9cdbf7a99769c4a44077dc15590496a4e8410ba9eda99f3078",
+      "kernels/track1-triton/mm_encoder_attention/bi150/epoch2/triton_mm_encoder_attention_e2_003.py": "d503e845d1d95ad033e616730d78d67d0775df3a473b17a3c37843d463654d81"
+    },
+    "clock_helper": {
+      "bitcode_sha256": "b7292da7ecfb6e0c2b7574808d2183fcf14339f3ab9947b18a7ad146fa79d51d",
+      "metadata_sha256": "bda7eb081bb648945d48e1a236a2e72d744f48c4c11e4feeae411d72aad378d4",
+      "source_sha256": "f9ae9aee4066c00e93d97da2286a744079b83e82a85541ad7ad9f3ebb390fc11",
+      "symbols": [
+        "corex_clock64_start",
+        "corex_clock64_after_u64"
+      ],
+      "target": "ivcore11",
+      "target_triple": "bi-iluvatar-ilurt"
+    },
+    "diagnostic_sha256": "5368e5bc1a2535e0aabe6fc89d59a8ce601e38851b203f7d73db4b5021ba78ee"
+  },
+  "status_causes": [
+    "external-clock-probe-failed"
+  ],
+  "variant": {
+    "execution_mode": "eager",
+    "kernel_variant": "synthetic-external-clock-one-program",
+    "num_warps": 1
+  },
+  "warmup_runs": 20
+}

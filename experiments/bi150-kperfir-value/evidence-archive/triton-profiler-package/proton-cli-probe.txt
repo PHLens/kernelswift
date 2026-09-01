@@ -1,0 +1,11 @@
+returncode 1
+stdout_bytes 0
+stderr_bytes 555
+Traceback (most recent call last):
+  File "/usr/local/corex-4.4.0/lib64/python3/dist-packages/bin/proton", line 3, in <module>
+    from triton.profiler.proton import main
+  File "/usr/local/corex-4.4.0/lib64/python3/dist-packages/triton/profiler/__init__.py", line 2, in <module>
+    from .scope import scope, enter_scope, exit_scope
+  File "/usr/local/corex-4.4.0/lib64/python3/dist-packages/triton/profiler/scope.py", line 6, in <module>
+    from triton._C.libproton import proton as libproton
+ModuleNotFoundError: No module named 'triton._C.libproton'

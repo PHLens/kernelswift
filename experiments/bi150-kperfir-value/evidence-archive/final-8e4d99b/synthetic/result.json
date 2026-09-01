@@ -1,0 +1,115 @@
+{
+  "chain_iters": [
+    0,
+    16,
+    256
+  ],
+  "document_type": "experiment-result",
+  "environment": {
+    "corex": "4.4.0",
+    "route_c_commit": "8e4d99b89407ecb3d35bac1c276d3cc73de27699",
+    "target": "GPUTarget(backend='cuda', arch=71, warp_size=64)",
+    "torch": "2.7.1",
+    "triton": "3.1.0"
+  },
+  "error": "compile-only linked LLIR did not preserve a chain-derived completion dependency before the end clock",
+  "experiment_id": "bi150-external-clock-qualification",
+  "experiment_status": "inconclusive",
+  "instrumentation": {
+    "clock_symbols": [
+      "corex_clock64_start",
+      "corex_clock64_after_u64"
+    ],
+    "completion_dependency": "token-dependent-control-dependency",
+    "measurement_semantics": "issue-window",
+    "mode": "corex-external-bitcode-inline-control",
+    "profile_words": 3,
+    "region_id": "dependency-chain",
+    "selected_pids": [
+      0
+    ],
+    "storage": "one-program-generation-start-end",
+    "time_unit": "raw-cycle"
+  },
+  "limitations": [
+    "program-level-only",
+    "issue-window-not-execution-duration",
+    "final-isa-unavailable",
+    "noinline-helper-runtime-hang-observed",
+    "post-noinline-gpu-context-unavailable"
+  ],
+  "qualification_status": "inconclusive",
+  "regions": [],
+  "source": {
+    "accepted_source_hashes": {
+      "auto_bench.py": "71fb3ad0c3ad23c5c156c898f85abcee3d42a15800f75ff97769cfca9152fe29",
+      "kernels/track1-triton/mm_encoder_attention/base.py": "86ac570376eda42cea73e0e7683454deeff43c11e5e85f16e1b3eb63395d6ed2",
+      "kernels/track1-triton/mm_encoder_attention/bi150/epoch2/triton_mm_encoder_attention_e2_001.py": "4171de8dcb1df6478942b0861756d660ef7955c5741e60072f03476a5fab2fc2",
+      "kernels/track1-triton/mm_encoder_attention/bi150/epoch2/triton_mm_encoder_attention_e2_002.py": "cc98318bbfed0d9cdbf7a99769c4a44077dc15590496a4e8410ba9eda99f3078",
+      "kernels/track1-triton/mm_encoder_attention/bi150/epoch2/triton_mm_encoder_attention_e2_003.py": "d503e845d1d95ad033e616730d78d67d0775df3a473b17a3c37843d463654d81"
+    },
+    "clock_helper": {
+      "bitcode_sha256": "3855554cfcf6e42a3239448f23ca96af8c783b48b66bcc587fea72b8595030ae",
+      "metadata_sha256": "83bcf97370791b65b7b2a0cd9608d4c681f83c3eb3c5ca50ad6973de89b9f648",
+      "source_sha256": "86c64cd2236618969a1bd1591584624bea4edf7501c3c9f5c155355298eaaae5",
+      "symbols": [
+        "corex_clock64_start",
+        "corex_clock64_after_u64"
+      ],
+      "target": "ivcore11",
+      "target_triple": "bi-iluvatar-ilurt"
+    },
+    "diagnostic_sha256": "671a91e738517c1737854363807a55051fa461dfa788ea1fcd5b49ec6cee242b"
+  },
+  "static_dependency_audit": {
+    "artifact": {
+      "byte_count": 8873,
+      "path": "artifacts/external-clock/synthetic/linked-llir/clock64-static-dependency-audit.ll",
+      "sha256": "ae558835d4611a89f5c3536262ec73e7c7ff9081fd5f2be50c0efd293ff6d542",
+      "status": "observed"
+    },
+    "chain_iters": 16,
+    "compiled_hash": "524c866b98c64e7ce625408f90a281fd6f50bfae92f2a0371536265ba1d09cfc",
+    "dependency_verified": false,
+    "extern_libs": {
+      "corex_clock": "/tmp/kernelswift-route-c-8e4d99b89407ecb3d35bac1c276d3cc73de27699/experiments/bi150-kperfir-value/artifacts/external-clock/helper/corex-clock.bc"
+    },
+    "linked_llir_checks": {
+      "chain_dependency_verified": false,
+      "chain_operation_count": 0,
+      "clock_intrinsic_calls": 2,
+      "conditional_branch_count": 1,
+      "dependent_end_branch": true,
+      "end_clock_calls": 0,
+      "helper_definitions_retained": true,
+      "helper_runtime_calls": 0,
+      "inline_asm_calls": 0,
+      "intrinsic_count_ok": true,
+      "linked": false,
+      "no_helper_runtime_calls": true,
+      "no_inline_asm": true,
+      "required_chain_operations": 4,
+      "runtime_seed_dependency": false,
+      "start_before_end": false,
+      "token_branch_after_start": false
+    },
+    "mode": "compile-only-prelaunch",
+    "signature": {
+      "generation": "i32",
+      "output_ptr": "*i64",
+      "profile_ptr": "*i64",
+      "seed_ptr": "*i64"
+    },
+    "status": "optimized-away",
+    "target": "GPUTarget(backend='cuda', arch=71, warp_size=64)"
+  },
+  "status_causes": [
+    "end-dependency-optimized-away"
+  ],
+  "variant": {
+    "execution_mode": "eager",
+    "kernel_variant": "synthetic-external-clock-one-program",
+    "num_warps": 1
+  },
+  "warmup_runs": 20
+}
