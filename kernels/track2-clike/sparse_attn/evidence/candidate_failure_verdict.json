@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "round": "006",
+  "decision_sha256": "8b1c18e3834f3b826afeab13c5b5d21cf0d0c618e95d0f8bbb25d485caca9652",
+  "sketch_sha256": "92e03761e68a37448c8742a86086d3597018014b451e58b44366d15dd93917f1",
+  "binding_sha256": "84de60d166e0984e3ff6e54880e5f375bca4c697a92cf0bb0b58dd5125bb630b",
+  "profile_sha256": "3c19d8c612e83563fcd4526a99f0a8b0576ef29e5e02f73e15736738e1d7ad17",
+  "report_fact_pack_sha256": "7ff927001608a0661c6cd35105c24a05603dd36de26c062c7962da7998b3e6cc",
+  "classification": "code-error",
+  "terminal_result": "candidate-failed",
+  "failed_attempt_effect": "increment",
+  "route": null,
+  "confidence": "high",
+  "rule_id": "CODE.CORRECTNESS.FAIL",
+  "repair_exhausted": false,
+  "preconditions": [
+    {
+      "name": "correctness_pass",
+      "status": "fail"
+    }
+  ],
+  "evidence": [
+    "rounds/report_006.md#fail-fast-correctness-sequence",
+    "rounds/report_006.md#vnext-fact-pack",
+    "log/round_006_load_export_smoke.txt",
+    "log/round_006_minimal_correctness.txt",
+    "log/round_006_nominal_correctness.txt"
+  ],
+  "explanation": "The frozen candidate passed exact load/export smoke and cheapest all-invalid correctness, then failed the first official nominal correctness run with max absolute difference 3.165039 and mean absolute difference 0.1596805 at official 1e-2/1e-2 tolerance. CODE.CORRECTNESS.FAIL resolves terminally to code-error/candidate-failed with failed-attempt increment. Remaining semantic guardrails, screening, timing, and profiling were not run."
+}
